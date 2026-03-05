@@ -1,0 +1,11 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  cmd = "go build -o ./tmp/janymda ./cmd/api"
+  bin = "tmp/janymda"
+  include_ext = ["go", "tpl", "tmpl", "html"]
+  exclude_dir = ["frontend", "tmp", "static", ".git", ".idea"]
+
+[log]
+  time = true
