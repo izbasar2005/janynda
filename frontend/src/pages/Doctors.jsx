@@ -65,20 +65,11 @@ export default function Doctors() {
     }, [q, list]);
 
     return (
-        <>
-            <div
-                style={{
-                    marginTop: 24,
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "end",
-                    gap: 12,
-                    flexWrap: "wrap",
-                }}
-            >
+        <div className="page">
+            <div className="page-header">
                 <div>
-                    <h2 style={{ margin: 0 }}>Дәрігерлер тізімі</h2>
-                    <p className="muted" style={{ margin: "8px 0 0" }}>
+                    <h2 className="page-header__title">Дәрігерлер тізімі</h2>
+                    <p className="muted page-header__subtitle">
                         Барлығы: <b>{list.length}</b>
                     </p>
                 </div>
@@ -97,8 +88,9 @@ export default function Doctors() {
             </div>
 
             {msg && (
-                <div className="card" style={{ marginTop: 12 }}>
-                    <p className="muted" style={{ margin: 0 }}>{msg}</p>
+                <div className="empty-state">
+                    <h4 className="empty-state__title">Пока дәрігерлер жоқ</h4>
+                    <p className="empty-state__text">{msg}</p>
                 </div>
             )}
 
@@ -121,7 +113,7 @@ export default function Doctors() {
           100% { transform: translateX(30%); }
         }
       `}</style>
-        </>
+        </div>
     );
 }
 

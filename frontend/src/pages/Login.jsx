@@ -25,9 +25,6 @@ export default function Login() {
 
   return (
       <div className="login-page">
-
-
-        {/* Center card */}
         <div className="login-center">
           <div className="login-card">
             <div className="login-card__brandrow">
@@ -37,28 +34,35 @@ export default function Login() {
 
             <h2 className="login-title">Войти</h2>
 
-            <form onSubmit={onSubmit} className="login-form">
-              <input
-                  className="login-input"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="LOGIN"
-              />
+            <form onSubmit={onSubmit} className="login-form form">
+              <div className="form-field">
+                <label className="form-label">Телефон или логин</label>
+                <input
+                    className="login-input"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+7 700 000 00 00"
+                />
+              </div>
 
-              <input
-                  className="login-input"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="PASSWORD"
-              />
+              <div className="form-field">
+                <label className="form-label">Пароль</label>
+                <input
+                    className="login-input"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Введите пароль"
+                />
+                <p className="form-hint">Не передавайте пароль третьим лицам.</p>
+              </div>
+
+              {msg && <div className="form-error login-error">{msg}</div>}
 
               <button className="login-btn" type="submit">
                 Войти
               </button>
             </form>
-
-            {msg && <div className="login-error">{msg}</div>}
 
             <div className="login-links">
               <button className="login-link" type="button">

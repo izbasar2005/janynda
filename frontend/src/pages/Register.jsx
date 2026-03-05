@@ -65,29 +65,68 @@ export default function Register() {
             <Link className="reg-mini" to="/login">Уже есть аккаунт</Link>
           </div>
 
-          <form className="reg-form" onSubmit={onSubmit}>
-            <input className="reg-input" placeholder="LOGIN" value={login} onChange={(e)=>setLogin(e.target.value)} />
-            <input className="reg-input" type="password" placeholder="PASSWORD" value={password} onChange={(e)=>setPassword(e.target.value)} />
-            <input className="reg-input" type="password" placeholder="ПОВТОРНЫЙ ПАРОЛЬ" value={password2} onChange={(e)=>setPassword2(e.target.value)} />
+          <form className="reg-form form" onSubmit={onSubmit}>
+            <div className="form-field">
+              <label className="form-label">Логин</label>
+              <input className="reg-input" placeholder="LOGIN" value={login} onChange={(e)=>setLogin(e.target.value)} />
+            </div>
 
-            <input className="reg-input" placeholder="ИИН" value={iin} onChange={(e)=>setIin(e.target.value)} />
-            <input className="reg-input" placeholder="ИМЯ" value={firstName} onChange={(e)=>setFirstName(e.target.value)} />
-            <input className="reg-input" placeholder="ФАМИЛИЯ" value={lastName} onChange={(e)=>setLastName(e.target.value)} />
-            <input className="reg-input" placeholder="ОТЧЕСТВО" value={patronymic} onChange={(e)=>setPatronymic(e.target.value)} />
-            <select
-                className="reg-input"
-                value={gender}
-                onChange={(e) => setGender(e.target.value)}
-                required
-            >
-              <option value="" disabled>ПОЛ</option>
-              <option value="male">Мужчина</option>
-              <option value="female">Женщина</option>
-            </select>
-            <input className="reg-input" placeholder="ТЕЛЕФОН" value={phone} onChange={(e)=>setPhone(e.target.value)} />
+            <div className="form-row">
+              <div className="form-field">
+                <label className="form-label">Пароль</label>
+                <input className="reg-input" type="password" placeholder="PASSWORD" value={password} onChange={(e)=>setPassword(e.target.value)} />
+              </div>
+              <div className="form-field">
+                <label className="form-label">Подтверждение пароля</label>
+                <input className="reg-input" type="password" placeholder="ПОВТОРНЫЙ ПАРОЛЬ" value={password2} onChange={(e)=>setPassword2(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-field">
+                <label className="form-label">ИИН</label>
+                <input className="reg-input" placeholder="ИИН" value={iin} onChange={(e)=>setIin(e.target.value)} />
+              </div>
+              <div className="form-field">
+                <label className="form-label">Телефон</label>
+                <input className="reg-input" placeholder="ТЕЛЕФОН" value={phone} onChange={(e)=>setPhone(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-field">
+                <label className="form-label">Имя</label>
+                <input className="reg-input" placeholder="ИМЯ" value={firstName} onChange={(e)=>setFirstName(e.target.value)} />
+              </div>
+              <div className="form-field">
+                <label className="form-label">Фамилия</label>
+                <input className="reg-input" placeholder="ФАМИЛИЯ" value={lastName} onChange={(e)=>setLastName(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-field">
+                <label className="form-label">Отчество</label>
+                <input className="reg-input" placeholder="ОТЧЕСТВО" value={patronymic} onChange={(e)=>setPatronymic(e.target.value)} />
+              </div>
+              <div className="form-field">
+                <label className="form-label">Пол</label>
+                <select
+                    className="reg-input"
+                    value={gender}
+                    onChange={(e) => setGender(e.target.value)}
+                    required
+                >
+                  <option value="" disabled>ПОЛ</option>
+                  <option value="male">Мужчина</option>
+                  <option value="female">Женщина</option>
+                </select>
+              </div>
+            </div>
+
+            {msg && <div className="reg-msg form-error">{msg}</div>}
 
             <button className="reg-btn" type="submit">Зарегистрироваться</button>
-            {msg && <div className="reg-msg">{msg}</div>}
           </form>
         </div>
       </div>

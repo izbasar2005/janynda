@@ -70,8 +70,15 @@ export default function AdminUsers() {
     }
 
     return (
-        <div style={{ marginTop: 24 }}>
-            <h2>Admin — Users (Role басқару)</h2>
+        <div className="page">
+            <div className="page-header">
+                <div>
+                    <h2 className="page-header__title">Admin — Users (Role басқару)</h2>
+                    <p className="muted page-header__subtitle">
+                        Пайдаланушылардың рөлдерін (patient / doctor / admin) қауіпсіз түрде өзгертіңіз.
+                    </p>
+                </div>
+            </div>
 
             <div className="card">
                 <p className="muted" style={{ margin: 0 }}>
@@ -83,7 +90,7 @@ export default function AdminUsers() {
             {msg && <p style={{ marginTop: 12, color: msg.includes("Қате") ? "#ef4444" : "#94a3b8" }}>{msg}</p>}
             {loading && <p className="muted">Жүктелуде...</p>}
 
-            <div style={{ overflow: "auto" }}>
+            <div className="table-wrap">
                 <table className="table" style={{ minWidth: 980 }}>
                     <thead>
                     <tr>

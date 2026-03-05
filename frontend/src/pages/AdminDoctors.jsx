@@ -171,8 +171,15 @@ export default function AdminDoctors() {
     }
 
     return (
-        <div style={{ marginTop: 24 }}>
-            <h2>Admin — Doctor профилі (мамандық / стаж / прайс / фото / білім / тіл)</h2>
+        <div className="page">
+            <div className="page-header">
+                <div>
+                    <h2 className="page-header__title">Admin — Doctor профилі</h2>
+                    <p className="muted page-header__subtitle">
+                        Мамандық, тәжірибе, баға, фото және басқа да дәрігердің профиль өрістерін толтырыңыз.
+                    </p>
+                </div>
+            </div>
 
             <div className="card">
                 <p className="muted" style={{ margin: 0 }}>
@@ -191,7 +198,7 @@ export default function AdminDoctors() {
             )}
             {loading && <p className="muted">Жүктелуде...</p>}
 
-            <div style={{ overflow: "auto" }}>
+            <div className="table-wrap">
                 <table className="table" style={{ minWidth: 1750 }}>
                     <thead>
                     <tr>
@@ -255,14 +262,11 @@ export default function AdminDoctors() {
                                     />
                                 </td>
 
-                                {/* Фото: тек upload + preview */}
-                                {/* Фото: upload + preview (URL input жоқ) */}
                                 <td style={{ minWidth: 320, position: "relative" }}>
                                     {(() => {
                                         const inputId = `doctor-photo-${uid}`;
                                         return (
                                             <>
-                                                {/* File input (display:none ЕМЕС!) */}
                                                 <input
                                                     id={inputId}
                                                     ref={(el) => {
@@ -272,7 +276,7 @@ export default function AdminDoctors() {
                                                     accept="image/*"
                                                     style={{
                                                         position: "absolute",
-                                                        left: "-9999px",   // экраннан тыс (secure way)
+                                                        left: "-9999px",
                                                         width: 1,
                                                         height: 1,
                                                     }}
@@ -284,7 +288,6 @@ export default function AdminDoctors() {
                                                 />
 
                                                 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                                                    {/* Label кнопка сияқты жұмыс істейді */}
                                                     <label
                                                         htmlFor={inputId}
                                                         className="btn ghost"

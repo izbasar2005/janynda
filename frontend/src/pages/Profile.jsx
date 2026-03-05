@@ -51,10 +51,17 @@ export default function Profile() {
     const isAdmin = me?.role === "admin";
 
     return (
-        <div style={{ marginTop: 24 }}>
-            <h2>Профиль</h2>
+        <div className="page">
+            <div className="page-header">
+                <div>
+                    <h2 className="page-header__title">Профиль</h2>
+                    <p className="muted page-header__subtitle">
+                        Жеке деректеріңіз бен жазылуларыңыздың қысқаша көрінісі.
+                    </p>
+                </div>
+            </div>
 
-            {msg && <p style={{ color: "#ef4444" }}>{msg}</p>}
+            {msg && <p className="form-error">{msg}</p>}
 
             <div className="card" style={{ maxWidth: 900 }}>
                 {me ? (
@@ -73,20 +80,26 @@ export default function Profile() {
                 <h3 style={{ marginTop: 18 }}>Менің жазылуларым</h3>
 
                 {isAdmin ? (
-                    <p className="muted">Admin аккаунтта жазылулар көрсетілмейді.</p>
+                    <div className="empty-state">
+                        <h4 className="empty-state__title">Admin аккаунт</h4>
+                        <p className="empty-state__text">Admin аккаунтта пациент жазылулары көрсетілмейді.</p>
+                    </div>
                 ) : apps.length === 0 ? (
-                    <p className="muted">Әзірге жазылу жоқ.</p>
+                    <div className="empty-state">
+                        <h4 className="empty-state__title">Әзірге жазылу жоқ</h4>
+                        <p className="empty-state__text">
+                            Дәрігерге жазылу үшін дәрігерлер тізімінен маманды таңдап, ыңғайлы уақытты белгілеңіз.
+                        </p>
+                    </div>
                 ) : (
                     <ul>
                         {apps.map((a) => {
                             const startAt = a.start_at ?? a.startAt ?? a.StartAt;
                             const status = a.status ?? a.Status ?? "—";
 
-                            // patient/doctor аты (backend қайтаруына қарай)
                             const doctorName = a.doctor?.full_name || a.doctor?.FullName;
                             const patientName = a.patient?.full_name || a.patient?.FullName;
 
-                            // doctor кірсе -> пациент көрсетеміз, patient кірсе -> дәрігер көрсетеміз
                             const who =
                                 me?.role === "doctor"
                                     ? `Пациент: ${patientName ?? "—"}`

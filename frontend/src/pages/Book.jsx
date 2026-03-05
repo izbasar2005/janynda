@@ -50,8 +50,15 @@ export default function Book() {
     }
 
     return (
-        <div style={{ marginTop: 24 }}>
-            <h2>Дәрігерге жазылу</h2>
+        <div className="page">
+            <div className="page-header">
+                <div>
+                    <h2 className="page-header__title">Дәрігерге жазылу</h2>
+                    <p className="muted page-header__subtitle">
+                        Күн мен уақытты таңдаңыз, біз сізге жазылуды растаймыз.
+                    </p>
+                </div>
+            </div>
 
             <div className="card" style={{ maxWidth: 900 }}>
                 {doc && (
@@ -60,21 +67,21 @@ export default function Book() {
                     </p>
                 )}
 
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "end" }}>
-                    <div style={{ flex: 1, minWidth: 220 }}>
-                        <label className="muted">Күні</label>
+                <div className="form-row" style={{ marginTop: 12, alignItems: "flex-end" }}>
+                    <div className="form-field">
+                        <label className="form-label">Күні</label>
                         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
                     </div>
 
-                    <div style={{ flex: 1, minWidth: 220 }}>
-                        <label className="muted">Уақыты</label>
+                    <div className="form-field">
+                        <label className="form-label">Уақыты</label>
                         <input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
                     </div>
 
                     <button className="btn" onClick={submit}>Жазылу</button>
                 </div>
 
-                {msg && <p style={{ color: "#ef4444" }}>{msg}</p>}
+                {msg && <p className="form-error" style={{ marginTop: 10 }}>{msg}</p>}
             </div>
         </div>
     );
