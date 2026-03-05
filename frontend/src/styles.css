@@ -611,10 +611,25 @@ hr{
 .app-footer__inner{
     max-width:1200px;
     margin:0 auto;
-    padding:20px 18px;
+    padding:28px 18px 20px;
     display:grid;
-    grid-template-columns: 1.2fr 1fr 1fr 1.2fr;
-    gap:22px;
+    grid-template-columns: 1.3fr 1fr 1fr 1fr 1fr 1.2fr;
+    gap:24px;
+}
+.app-footer__bottom{
+    max-width:1200px;
+    margin:0 auto;
+    padding:16px 18px 24px;
+    border-top:1px solid rgba(255,255,255,.12);
+}
+.app-footer__copy{
+    margin:0;
+    font-size:12px;
+    color:rgba(255,255,255,.7);
+    text-align:center;
+}
+.app-footcol--news{
+    grid-column:span 1;
 }
 .app-footcol__brand{
     color:#fff;
@@ -938,4 +953,390 @@ h3{
     .hero{
         grid-template-columns:1fr;
     }
+}
+
+/* =========================
+   LANDING PAGE
+========================= */
+
+.landing-page{
+    margin-top:0;
+}
+
+.landing-section{
+    margin-top:48px;
+    padding-top:32px;
+}
+.landing-section__title{
+    font-size:26px;
+    font-weight:800;
+    color:#0f172a;
+    margin:0 0 8px;
+}
+.landing-section__subtitle{
+    margin:0 0 24px;
+    font-size:15px;
+}
+.landing-section__cta{
+    margin-top:24px;
+    text-align:center;
+}
+
+/* Hero */
+.landing-hero{
+    display:grid;
+    grid-template-columns:1fr 400px;
+    gap:40px;
+    align-items:center;
+    padding:32px 0 40px;
+    margin-top:0;
+}
+.landing-hero__title{
+    font-size:clamp(28px, 4vw, 38px);
+    font-weight:800;
+    color:#0f172a;
+    margin:0 0 16px;
+    line-height:1.2;
+}
+.landing-hero__desc{
+    font-size:17px;
+    color:var(--muted);
+    margin:0 0 20px;
+    line-height:1.5;
+}
+.landing-hero__benefits{
+    list-style:none;
+    padding:0;
+    margin:0 0 24px;
+}
+.landing-hero__benefits li{
+    position:relative;
+    padding-left:24px;
+    margin-bottom:10px;
+    font-size:15px;
+    color:#0f172a;
+}
+.landing-hero__benefits li::before{
+    content:"";
+    position:absolute;
+    left:0;
+    top:8px;
+    width:8px;
+    height:8px;
+    border-radius:50%;
+    background:var(--primary);
+}
+.landing-hero__actions{
+    display:flex;
+    flex-wrap:wrap;
+    gap:12px;
+}
+.landing-hero__search-card{
+    padding:24px;
+    margin:0;
+}
+.landing-hero__search-title{
+    margin:0 0 4px;
+    font-size:18px;
+    font-weight:700;
+}
+.landing-hero__search-desc{
+    margin:0 0 16px;
+    font-size:13px;
+}
+.landing-hero__search-fields{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    margin-bottom:16px;
+}
+.landing-hero__search-btn{
+    width:100%;
+}
+
+@media (max-width: 900px){
+    .landing-hero{
+        grid-template-columns:1fr;
+    }
+}
+
+/* Specialties grid */
+.landing-specialties__grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(240px, 1fr));
+    gap:20px;
+}
+.specialty-card{
+    padding:24px;
+    margin:0;
+    text-decoration:none;
+    color:inherit;
+    display:block;
+    transition:transform .2s ease, box-shadow .2s ease;
+}
+.specialty-card:hover{
+    transform:translateY(-4px);
+    box-shadow:0 24px 56px rgba(15,23,42,.1);
+}
+.specialty-card__icon{
+    width:56px;
+    height:56px;
+    border-radius:var(--radius-md);
+    background:rgba(18,191,174,.12);
+    color:var(--primary);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin-bottom:16px;
+}
+.specialty-card__title{
+    margin:0 0 8px;
+    font-size:17px;
+    font-weight:700;
+}
+.specialty-card__desc{
+    margin:0 0 8px;
+    font-size:13px;
+}
+.specialty-card__count{
+    margin:0;
+    font-size:12px;
+}
+
+/* Featured doctors */
+.landing-doctors__grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));
+    gap:24px;
+}
+.landing-doctor-card{
+    padding:20px;
+    margin:0;
+    text-align:center;
+    transition:transform .2s ease, box-shadow .2s ease;
+}
+.landing-doctor-card:hover{
+    transform:translateY(-4px);
+    box-shadow:0 24px 56px rgba(15,23,42,.1);
+}
+.landing-doctor-card__photo-wrap{
+    width:100px;
+    height:100px;
+    border-radius:50%;
+    overflow:hidden;
+    margin:0 auto 14px;
+    border:3px solid var(--border);
+}
+.landing-doctor-card__photo{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    display:block;
+}
+.landing-doctor-card__name{
+    margin:0 0 4px;
+    font-size:16px;
+    font-weight:700;
+}
+.landing-doctor-card__specialty{
+    margin:0 0 12px;
+    font-size:13px;
+}
+.landing-doctor-card__meta{
+    display:flex;
+    justify-content:center;
+    gap:12px;
+    flex-wrap:wrap;
+    margin-bottom:8px;
+    font-size:12px;
+    color:var(--muted);
+}
+.landing-doctor-card__rating{
+    color:#f59e0b;
+}
+.landing-doctor-card__price{
+    margin:0 0 14px;
+    font-size:14px;
+}
+.landing-doctor-card__btn{
+    width:100%;
+}
+
+/* Appointment section */
+.landing-appointment__wrap{
+    display:grid;
+    grid-template-columns:1fr 320px;
+    gap:28px;
+    align-items:start;
+}
+.landing-appointment__form-card{
+    padding:28px;
+    margin:0;
+}
+.landing-appointment__form-title{
+    margin:0 0 20px;
+    font-size:18px;
+    font-weight:700;
+}
+.landing-appointment__submit{
+    margin-top:8px;
+}
+.landing-appointment__info{
+    padding:24px;
+    margin:0;
+    background:rgba(18,191,174,.06);
+    border-color:rgba(18,191,174,.2);
+}
+.landing-appointment__info-title{
+    margin:0 0 16px;
+    font-size:16px;
+    font-weight:700;
+}
+.landing-appointment__info-list{
+    list-style:none;
+    padding:0;
+    margin:0;
+}
+.landing-appointment__info-list li{
+    position:relative;
+    padding-left:24px;
+    margin-bottom:12px;
+    font-size:14px;
+    line-height:1.4;
+}
+.landing-appointment__info-list li::before{
+    content:"✓";
+    position:absolute;
+    left:0;
+    color:var(--primary);
+    font-weight:700;
+}
+
+@media (max-width: 800px){
+    .landing-appointment__wrap{
+        grid-template-columns:1fr;
+    }
+}
+
+/* Testimonials carousel */
+.landing-testimonials__carousel{
+    display:flex;
+    align-items:center;
+    gap:16px;
+    max-width:640px;
+    margin:0 auto;
+}
+.landing-testimonials__arrow{
+    width:44px;
+    height:44px;
+    border-radius:50%;
+    border:1px solid var(--border);
+    background:#fff;
+    color:var(--text);
+    cursor:pointer;
+    font-size:24px;
+    line-height:1;
+    flex-shrink:0;
+    transition:background .2s, border-color .2s;
+}
+.landing-testimonials__arrow:hover{
+    background:var(--primary);
+    border-color:var(--primary);
+    color:#fff;
+}
+.landing-testimonials__track{
+    flex:1;
+    min-width:0;
+}
+.landing-testimonials__slide{
+    padding:8px 0;
+}
+.testimonial-card{
+    padding:24px;
+    margin:0;
+    text-align:center;
+}
+.testimonial-card__quote{
+    font-size:17px;
+    line-height:1.5;
+    margin:0 0 16px;
+    font-style:italic;
+    color:#0f172a;
+}
+.testimonial-card__author{
+    margin:0;
+    font-size:14px;
+}
+.landing-testimonials__dots{
+    display:flex;
+    justify-content:center;
+    gap:10px;
+    margin-top:20px;
+}
+.landing-testimonials__dot{
+    width:10px;
+    height:10px;
+    border-radius:50%;
+    border:none;
+    background:var(--border);
+    cursor:pointer;
+    padding:0;
+    transition:background .2s, transform .2s;
+}
+.landing-testimonials__dot:hover,
+.landing-testimonials__dot.is-active{
+    background:var(--primary);
+}
+.landing-testimonials__dot.is-active{
+    transform:scale(1.2);
+}
+
+/* FAQ accordion */
+.landing-faq__list{
+    max-width:680px;
+    margin:0 auto;
+}
+.faq-item{
+    border:1px solid var(--border);
+    border-radius:var(--radius-md);
+    margin-bottom:12px;
+    overflow:hidden;
+    background:var(--card);
+}
+.faq-item__trigger{
+    width:100%;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    padding:16px 18px;
+    border:none;
+    background:transparent;
+    font-size:15px;
+    font-weight:600;
+    text-align:left;
+    color:#0f172a;
+    cursor:pointer;
+    transition:background .2s;
+}
+.faq-item__trigger:hover{
+    background:#f8fafc;
+}
+.faq-item__icon{
+    font-size:20px;
+    color:var(--primary);
+    flex-shrink:0;
+    transition:transform .2s;
+}
+.faq-item--open .faq-item__icon{
+    transform:rotate(45deg);
+}
+.faq-item__content{
+    padding:0 18px 16px;
+}
+.faq-item__answer{
+    margin:0;
+    padding-top:0;
+    font-size:14px;
+    line-height:1.5;
 }
