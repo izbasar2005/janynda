@@ -1,3 +1,5 @@
+
+RUN apk add --no-cache git bash tzdata
 # --- 1) Frontend build stage ---
 FROM node:20-alpine AS frontend
 WORKDIR /frontend
