@@ -12,6 +12,15 @@ function fmtStartAt(s) {
     }
 }
 
+function isPastAppointment(startAt) {
+    if (!startAt) return false;
+    try {
+        return new Date(startAt).getTime() < Date.now();
+    } catch {
+        return false;
+    }
+}
+
 export default function Profile() {
     const nav = useNavigate();
     const [me, setMe] = useState(null);
@@ -106,7 +115,10 @@ export default function Profile() {
                                     : `Дәрігер: ${doctorName ?? "—"}`;
 
                             return (
-                                <li key={a.id}>
+                                <li
+                                    key={a.id}
+                                    className={isPastAppointment(startAt) ? "profile-appointment profile-appointment--past" : "profile-appointment"}
+                                >
                                     #{a.id} — {who} — {fmtStartAt(startAt)} — status: {status}
                                 </li>
                             );

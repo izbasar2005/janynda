@@ -2,7 +2,7 @@ FROM golang:1.25-alpine
 
 WORKDIR /app
 
-RUN apk add --no-cache git bash tzdata
+RUN apk add --no-cache git bash tzdata wget
 
 COPY go.mod go.sum ./
 RUN go mod download

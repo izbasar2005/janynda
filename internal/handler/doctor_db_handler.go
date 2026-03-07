@@ -156,11 +156,52 @@ func (h *DoctorDBHandler) Slots(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: сенің нақты slots логикаң осы жерге келеді
+	// Жұмыс уақыты: 09:00–17:00, 1 сағаттық слоттар (09:00, 10:00, ..., 16:00)
+	// Windows-та LoadLocation("Asia/Almaty") сәтсіз болуы мүмкін, сондықтан FixedZone қолданамыз
+	loc := time.FixedZone("+05", 5*3600) // Қазақстан +05:00
+	startOfDay := time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, loc)
+	nowInLoc := time.Now().In(loc)
+
+	var slots []string
+	for hour := 9; hour <= 16; hour++ {
+		slotStart := startOfDay.Add(time.Duration(hour) * time.Hour)
+		if slotStart.Before(nowInLoc) {
+			continue
+		}
+		slots = append(slots, slotStart.Format("15:04"))
+	}
+
+	// Дәрігердің сол күнгі занят слоттарын алу
+	var taken []time.Time
+	err = h.db.Model(&model.Appointment{}).
+		Where("doctor_user_id = ? AND start_at >= ? AND start_at < ? AND status IN ?",
+			doc.UserID,
+			startOfDay,
+			startOfDay.Add(24*time.Hour),
+			[]string{model.StatusPending, model.StatusApproved},
+		).
+		Pluck("start_at", &taken).Error
+	if err != nil {
+		http.Error(w, "DB error", http.StatusInternalServerError)
+		return
+	}
+
+	takenSet := make(map[string]bool)
+	for _, t := range taken {
+		takenSet[t.In(loc).Format("15:04")] = true
+	}
+
+	free := make([]string, 0, len(slots))
+	for _, s := range slots {
+		if !takenSet[s] {
+			free = append(free, s)
+		}
+	}
+
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"doctor_id":      doc.ID,
 		"doctor_user_id": doc.UserID,
-		"date":           day.Format("2006-01-02"), // ✅ day қолданылды -> unused болмайды
-		"slots":          []string{},
+		"date":           day.Format("2006-01-02"),
+		"slots":          free,
 	})
 }

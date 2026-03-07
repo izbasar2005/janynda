@@ -33,14 +33,19 @@ services:
     volumes:
       - ./:/app
       - ./static/uploads:/app/static/uploads
-
-  frontend:
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
     container_name: janymda_frontend_dev
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     environment:
       VITE_PROXY_TARGET: "http://api:8080"
       CHOKIDAR_USEPOLLING: "true"

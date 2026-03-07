@@ -822,6 +822,15 @@ h3{
 .card ul li .muted{
     color: rgba(15,23,42,.55);
 }
+/* Профиль: өткен жазылулар — ашық қара түс, алдағылардан айырмашылығы білінсін */
+.profile-appointment--past{
+    background: #eef1f5;
+    border-color: rgba(15,23,42,.12);
+    color: #475569;
+}
+.profile-appointment--past .muted{
+    color: #64748b;
+}
 /* Buttons бір стильде болсын */
 .btn, button{
     border-radius: 10px;
@@ -1339,4 +1348,40 @@ h3{
     padding-top:0;
     font-size:14px;
     line-height:1.5;
+}
+
+/* =========================
+   BOOK PAGE — уақыт слоттары
+========================= */
+.book-time-readonly{
+    background:#f1f5f9;
+    cursor:default;
+    color:var(--text);
+}
+.book-time-readonly::placeholder{
+    color:var(--muted);
+}
+
+.book-slots-wrap{
+    padding-top:4px;
+}
+
+.book-slots{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+}
+
+.book-slot-btn{
+    min-width:72px;
+}
+
+.book-slot-btn--active{
+    background:var(--primary);
+    color:#fff;
+    border-color:var(--primary);
+}
+.book-slot-btn--active:hover{
+    background:var(--primary2);
+    border-color:var(--primary2);
 }
