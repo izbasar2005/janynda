@@ -2,6 +2,22 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api, token } from "../services/api";
 
+const NO_AVATAR =
+    "data:image/svg+xml;utf8," +
+    encodeURIComponent(`
+  <svg xmlns='http://www.w3.org/2000/svg' width='256' height='256'>
+    <rect width='100%' height='100%' fill='#0b1220'/>
+    <circle cx='128' cy='102' r='46' fill='#1f2a44'/>
+    <rect x='52' y='160' width='152' height='64' rx='32' fill='#1f2a44'/>
+  </svg>`);
+
+function normalizePhoto(url) {
+    if (!url) return NO_AVATAR;
+    if (url.startsWith("http") || url.startsWith("//")) return url;
+    if (url.startsWith("/")) return url;
+    return "/" + url;
+}
+
 export default function Book() {
     const { doctorId } = useParams();
     const nav = useNavigate();
@@ -70,76 +86,102 @@ export default function Book() {
     }
 
     return (
-        <div className="page">
-            <div className="page-header">
-                <div>
-                    <h2 className="page-header__title">Дәрігерге жазылу</h2>
-                    <p className="muted page-header__subtitle">
-                        Күн мен уақытты таңдаңыз, біз сізге жазылуды растаймыз.
-                    </p>
-                </div>
+        <div className="page book-page">
+            <div className="book-hero">
+                <h1 className="book-hero__title">Дәрігерге жазылу</h1>
+                <p className="book-hero__subtitle muted">
+                    Күн мен уақытты таңдаңыз, біз сізге жазылуды растаймыз.
+                </p>
             </div>
 
-            <div className="card" style={{ maxWidth: 900 }}>
+            <div className="book-layout">
                 {doc && (
-                    <p className="muted" style={{ marginTop: 0 }}>
-                        Дәрігер: <b>{doc.full_name}</b> — {doc.specialty}
-                    </p>
+                    <div className="book-doctor-card card">
+                        <div className="book-doctor">
+                            <div className="book-doctor__photo-wrap">
+                                <img
+                                    src={normalizePhoto(doc.photo_url)}
+                                    alt={doc.full_name}
+                                    className="book-doctor__photo"
+                                    onError={(e) => {
+                                        e.currentTarget.onerror = null;
+                                        e.currentTarget.src = NO_AVATAR;
+                                    }}
+                                />
+                            </div>
+                            <div className="book-doctor__info">
+                                <p className="book-doctor__label">Дәрігер</p>
+                                <h2 className="book-doctor__name">{doc.full_name}</h2>
+                                <p className="book-doctor__specialty muted">{doc.specialty}</p>
+                            </div>
+                        </div>
+                    </div>
                 )}
 
-                <div className="form-row" style={{ marginTop: 12, alignItems: "flex-end" }}>
-                    <div className="form-field">
-                        <label className="form-label">Күні</label>
-                        <input
-                            type="date"
-                            value={date}
-                            onChange={(e) => setDate(e.target.value)}
-                        />
+                <div className="book-form-card card">
+                    <h3 className="book-form__title">Күн мен уақытты таңдаңыз</h3>
+
+                    <div className="book-form-row form-row">
+                        <div className="form-field">
+                            <label className="form-label">Күні</label>
+                            <input
+                                type="date"
+                                className="input book-date-input"
+                                value={date}
+                                onChange={(e) => setDate(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="form-field">
+                            <label className="form-label">Уақыты</label>
+                            <input
+                                type="text"
+                                readOnly
+                                value={time}
+                                placeholder={date ? "Уақытты төменнен таңдаңыз" : "Алдымен күнді таңдаңыз"}
+                                className="input book-time-readonly"
+                            />
+                        </div>
+
+                        <div className="book-form-submit">
+                            <button
+                                className="btn book-submit-btn"
+                                onClick={submit}
+                                disabled={!date || !time}
+                            >
+                                Жазылу
+                            </button>
+                        </div>
                     </div>
 
-                    <div className="form-field">
-                        <label className="form-label">Уақыты</label>
-                        <input
-                            type="text"
-                            readOnly
-                            value={time}
-                            placeholder={date ? "Уақытты төменнен таңдаңыз" : "Алдымен күнді таңдаңыз"}
-                            className="book-time-readonly"
-                        />
-                    </div>
+                    {date && (
+                        <div className="book-slots-wrap">
+                            {slotsLoading ? (
+                                <p className="muted book-slots-loading">Жүктелуде...</p>
+                            ) : slots.length > 0 ? (
+                                <>
+                                    <p className="form-label book-slots-label">Бос уақыттар</p>
+                                    <div className="book-slots">
+                                        {slots.map((slot) => (
+                                            <button
+                                                key={slot}
+                                                type="button"
+                                                className={`btn book-slot-btn ${time === slot ? "book-slot-btn--active" : "ghost"}`}
+                                                onClick={() => setTime(slot)}
+                                            >
+                                                {slot}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </>
+                            ) : (
+                                <p className="muted book-slots-empty">Бұл күні бос уақыт жоқ.</p>
+                            )}
+                        </div>
+                    )}
 
-                    <button className="btn" onClick={submit} disabled={!date || !time}>
-                        Жазылу
-                    </button>
+                    {msg && <p className="form-error book-form-error">{msg}</p>}
                 </div>
-
-                {date && (
-                    <div className="book-slots-wrap" style={{ marginTop: 14 }}>
-                        {slotsLoading ? (
-                            <p className="muted" style={{ margin: 0 }}>Жүктелуде...</p>
-                        ) : slots.length > 0 ? (
-                            <>
-                                <p className="form-label" style={{ marginBottom: 8 }}>Бос уақыттар</p>
-                                <div className="book-slots">
-                                    {slots.map((slot) => (
-                                        <button
-                                            key={slot}
-                                            type="button"
-                                            className={`btn book-slot-btn ${time === slot ? "book-slot-btn--active" : "ghost"}`}
-                                            onClick={() => setTime(slot)}
-                                        >
-                                            {slot}
-                                        </button>
-                                    ))}
-                                </div>
-                            </>
-                        ) : (
-                            <p className="muted" style={{ margin: 0 }}>Бұл күні бос уақыт жоқ.</p>
-                        )}
-                    </div>
-                )}
-
-                {msg && <p className="form-error" style={{ marginTop: 10 }}>{msg}</p>}
             </div>
         </div>
     );

@@ -161,19 +161,16 @@ func (h *DoctorDBHandler) Slots(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Жұмыс уақыты: 09:00–17:00, 1 сағаттық слоттар (09:00, 10:00, ..., 16:00)
-	// Windows-та LoadLocation("Asia/Almaty") сәтсіз болуы мүмкін, сондықтан FixedZone қолданамыз
-	loc := time.FixedZone("+05", 5*3600) // Қазақстан +05:00
+	// ТЕКСЕРУ ҮШІН: күн бойы 3 мин слоттар (00:00, 00:03, 00:06, ... 23:57)
+	loc := time.FixedZone("+05", 5*3600)
 	startOfDay := time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, loc)
-	nowInLoc := time.Now().In(loc)
 
 	var slots []string
-	for hour := 9; hour <= 16; hour++ {
-		slotStart := startOfDay.Add(time.Duration(hour) * time.Hour)
-		if slotStart.Before(nowInLoc) {
-			continue
+	for hour := 0; hour < 24; hour++ {
+		for min := 0; min < 60; min += 3 {
+			slotStart := startOfDay.Add(time.Duration(hour)*time.Hour + time.Duration(min)*time.Minute)
+			slots = append(slots, slotStart.Format("15:04"))
 		}
-		slots = append(slots, slotStart.Format("15:04"))
 	}
 
 	// Дәрігердің сол күнгі занят слоттарын алу

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { api } from "../services/api";
+import { api, token } from "../services/api";
 import Hero from "../components/landing/Hero";
 import SpecialtyCard from "../components/landing/SpecialtyCard";
 import DoctorCard from "../components/landing/DoctorCard";
@@ -14,12 +14,6 @@ const SPECIALTIES = [
     { iconKey: "dentist", title: "Тіс дәрігері", description: "Стоматология және тіс емдеу", doctorCount: 10 },
 ];
 
-const TESTIMONIALS = [
-    { quote: "Жазылу өте оңай болды. Дәрігерге тез жетімді болдым.", author: "Айгүл М.", role: "Пациент" },
-    { quote: "Платформа ыңғайлы. Уақытты үнемдедім.", author: "Дархан К.", role: "Пациент" },
-    { quote: "Қауіпсіз және сенімді сервис. Ұсынамын.", author: "Мадина С.", role: "Пациент" },
-];
-
 const FAQ_DATA = [
     { q: "Онлайн жазылу қалай жұмыс істейді?", a: "Сіз дәрігерді таңдап, күн мен уақытты белгілейсіз. Растау SMS арқылы келеді. Тіркелу үшін платформада тіркелу керек." },
     { q: "Жазылуды болдырмауға бола ма?", a: "Иә. Жазылуды кейінге қалдыру немесе болдырмау мүмкіндігі бар. Профиль бөлімінде өз жазылуларыңызды басқара аласыз." },
@@ -30,8 +24,13 @@ const FAQ_DATA = [
 export default function Home() {
     const [doctors, setDoctors] = useState([]);
     const [reviewsByDoctorId, setReviewsByDoctorId] = useState({});
+    const [platformFeedbacks, setPlatformFeedbacks] = useState([]);
+    const [me, setMe] = useState(null);
     const [testimonialIndex, setTestimonialIndex] = useState(0);
     const [faqOpenIndex, setFaqOpenIndex] = useState(null);
+    const [showFeedbackForm, setShowFeedbackForm] = useState(false);
+    const [feedbackText, setFeedbackText] = useState("");
+    const [feedbackMsg, setFeedbackMsg] = useState("");
 
     useEffect(() => {
         api("/api/v1/doctors")
@@ -41,6 +40,28 @@ export default function Home() {
             })
             .catch(() => setDoctors([]));
     }, []);
+
+    useEffect(() => {
+        const opts = token() ? { auth: true } : {};
+        api("/api/v1/feedback", opts)
+            .then((data) => setPlatformFeedbacks(Array.isArray(data) ? data : []))
+            .catch(() => setPlatformFeedbacks([]));
+    }, [me]);
+
+    useEffect(() => {
+        if (!token()) {
+            setMe(null);
+            return;
+        }
+        api("/api/v1/me", { auth: true })
+            .then((u) => setMe(u || null))
+            .catch(() => setMe(null));
+    }, []);
+
+    useEffect(() => {
+        const n = platformFeedbacks.length;
+        if (n > 0 && testimonialIndex >= n) setTestimonialIndex(0);
+    }, [platformFeedbacks.length, testimonialIndex]);
 
     useEffect(() => {
         if (doctors.length === 0) return;
@@ -55,8 +76,56 @@ export default function Home() {
         });
     }, [doctors]);
 
-    const nextTestimonial = () => setTestimonialIndex((i) => (i + 1) % TESTIMONIALS.length);
-    const prevTestimonial = () => setTestimonialIndex((i) => (i - 1 + TESTIMONIALS.length) % TESTIMONIALS.length);
+    const feedbacksCount = platformFeedbacks.length;
+    const nextTestimonial = () => setTestimonialIndex((i) => (i + 1) % Math.max(1, feedbacksCount));
+    const prevTestimonial = () => setTestimonialIndex((i) => (i - 1 + feedbacksCount) % Math.max(1, feedbacksCount));
+
+    function loadFeedbacks() {
+        const opts = token() ? { auth: true } : {};
+        api("/api/v1/feedback", opts)
+            .then((data) => setPlatformFeedbacks(Array.isArray(data) ? data : []))
+            .catch(() => setPlatformFeedbacks([]));
+    }
+
+    function handleDeleteFeedback(id) {
+        if (!window.confirm("Пікірді өшіргіңіз келетініне сенімдісіз бе?")) return;
+        api(`/api/v1/feedback/${id}`, { method: "DELETE", auth: true })
+            .then(() => {
+                loadFeedbacks();
+                setTestimonialIndex(0);
+            })
+            .catch((err) => alert(err.message || "Қате"));
+    }
+
+    function handleFeedbackSubmit(e) {
+        e.preventDefault();
+        setFeedbackMsg("");
+        const text = (feedbackText || "").trim();
+        if (!text) {
+            setFeedbackMsg("Пікір мәтінін енгізіңіз.");
+            return;
+        }
+        if (!token()) {
+            setFeedbackMsg("Пікір қалдыру үшін жүйеге кіріңіз.");
+            return;
+        }
+        api("/api/v1/feedback", {
+            method: "POST",
+            auth: true,
+            body: { text },
+        })
+            .then(() => {
+                setFeedbackMsg("Рақмет! Пікіріңіз қабылданды.");
+                setFeedbackText("");
+                setShowFeedbackForm(false);
+                loadFeedbacks();
+                setTestimonialIndex(0);
+            })
+            .catch((err) => {
+                const msg = err.message || "";
+                setFeedbackMsg(msg.includes("401") || msg.includes("кіріңіз") ? "Пікір қалдыру үшін жүйеге кіріңіз." : msg);
+            });
+    }
 
     return (
         <div className="landing-page">
@@ -174,35 +243,111 @@ export default function Home() {
                 <p className="landing-section__subtitle muted">
                     Нақты пациенттердің тәжірибесі.
                 </p>
-                <div className="landing-testimonials__carousel">
-                    <button type="button" className="landing-testimonials__arrow" onClick={prevTestimonial} aria-label="Алдыңғы">
-                        ‹
-                    </button>
-                    <div className="landing-testimonials__track">
-                        {TESTIMONIALS.map((t, i) => (
-                            <div
-                                key={i}
-                                className="landing-testimonials__slide"
-                                style={{ display: i === testimonialIndex ? "block" : "none" }}
-                            >
-                                <TestimonialCard quote={t.quote} author={t.author} role={t.role} />
-                            </div>
-                        ))}
+                {platformFeedbacks.length === 0 ? (
+                    <div className="landing-testimonials__empty card">
+                        <p className="muted landing-testimonials__empty-text">Әзірге пікірлер жоқ. Алғашқы пікірді сіз қалдырыңыз!</p>
                     </div>
-                    <button type="button" className="landing-testimonials__arrow" onClick={nextTestimonial} aria-label="Келесі">
-                        ›
-                    </button>
-                </div>
-                <div className="landing-testimonials__dots">
-                    {TESTIMONIALS.map((_, i) => (
+                ) : (
+                    <>
+                        <div className="landing-testimonials__carousel">
+                            <button type="button" className="landing-testimonials__arrow" onClick={prevTestimonial} aria-label="Алдыңғы">
+                                ‹
+                            </button>
+                            <div className="landing-testimonials__track">
+                                {platformFeedbacks.map((fb, i) => (
+                                    <div
+                                        key={fb.id}
+                                        className="landing-testimonials__slide"
+                                        style={{ display: i === testimonialIndex ? "block" : "none" }}
+                                    >
+                                        <div className="landing-testimonials__slide-inner">
+                                            <TestimonialCard
+                                                quote={fb.text}
+                                                author={fb.author || ""}
+                                                role=""
+                                            />
+                                            {(fb.is_mine || me?.role === "admin") && (
+                                                <button
+                                                    type="button"
+                                                    className="landing-testimonials__delete-btn btn ghost"
+                                                    onClick={() => handleDeleteFeedback(fb.id)}
+                                                    aria-label="Пікірді өшіру"
+                                                >
+                                                    Өшіру
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            <button type="button" className="landing-testimonials__arrow" onClick={nextTestimonial} aria-label="Келесі">
+                                ›
+                            </button>
+                        </div>
+                        <div className="landing-testimonials__dots">
+                            {platformFeedbacks.map((_, i) => (
+                                <button
+                                    key={i}
+                                    type="button"
+                                    className={`landing-testimonials__dot ${i === testimonialIndex ? "is-active" : ""}`}
+                                    onClick={() => setTestimonialIndex(i)}
+                                    aria-label={`Слайд ${i + 1}`}
+                                />
+                            ))}
+                        </div>
+                    </>
+                )}
+
+                <div className="landing-testimonials__leave-feedback">
+                    {!showFeedbackForm ? (
                         <button
-                            key={i}
                             type="button"
-                            className={`landing-testimonials__dot ${i === testimonialIndex ? "is-active" : ""}`}
-                            onClick={() => setTestimonialIndex(i)}
-                            aria-label={`Слайд ${i + 1}`}
-                        />
-                    ))}
+                            className="btn landing-testimonials__feedback-btn"
+                            onClick={() => setShowFeedbackForm(true)}
+                        >
+                            Пікір қалдыру
+                        </button>
+                    ) : (
+                        <form className="landing-testimonials__form card" onSubmit={handleFeedbackSubmit}>
+                            <label className="form-label" htmlFor="platform-feedback">
+                                Платформа туралы пікіріңіз
+                            </label>
+                            {!token() && (
+                                <p className="landing-testimonials__login-hint muted">
+                                    Пікір жіберу үшін <Link to="/login">жүйеге кіріңіз</Link>.
+                                </p>
+                            )}
+                            <textarea
+                                id="platform-feedback"
+                                className="input landing-testimonials__textarea"
+                                rows={4}
+                                value={feedbackText}
+                                onChange={(e) => setFeedbackText(e.target.value)}
+                                placeholder="Пікіріңізді жазыңыз..."
+                            />
+                            <div className="landing-testimonials__form-actions">
+                                <button type="submit" className="btn">
+                                    Жіберу
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn ghost"
+                                    onClick={() => {
+                                        setShowFeedbackForm(false);
+                                        setFeedbackText("");
+                                        setFeedbackMsg("");
+                                    }}
+                                >
+                                    Болдырмау
+                                </button>
+                            </div>
+                            {feedbackMsg && (
+                                <p className={`landing-testimonials__form-msg ${feedbackMsg.includes("Рақмет") ? "is-success" : ""}`}>
+                                    {feedbackMsg}
+                                </p>
+                            )}
+                        </form>
+                    )}
                 </div>
             </section>
 

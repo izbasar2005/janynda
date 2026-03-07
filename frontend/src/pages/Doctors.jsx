@@ -253,20 +253,6 @@ function DoctorCard({ d, role }) {
                     <span className="muted">Бағасы</span>
                     <b>{Number(d.price || 0)} ₸</b>
                 </div>
-
-                {d.education && (
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                        <span className="muted">Білімі</span>
-                        <span>{d.education}</span>
-                    </div>
-                )}
-
-                {d.languages && (
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                        <span className="muted">Тілдері</span>
-                        <span>{d.languages}</span>
-                    </div>
-                )}
             </div>
 
             <div style={{ marginTop: 16, textAlign: "center", display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>

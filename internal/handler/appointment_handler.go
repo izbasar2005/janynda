@@ -66,22 +66,10 @@ func (h *AppointmentHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ---- SLOT RULES ----
-	if startAt.Before(time.Now()) {
-		http.Error(w, "Өткен уақытқа жазылуға болмайды", http.StatusBadRequest)
-		return
-	}
-
-	if startAt.Minute() != 0 || startAt.Second() != 0 || startAt.Nanosecond() != 0 {
-		http.Error(w, "Тек толық сағатқа жазылуға болады (мысалы: 10:00, 11:00)", http.StatusBadRequest)
-		return
-	}
-
-	hour := startAt.Hour()
-	if hour < 9 || hour > 16 {
-		http.Error(w, "Жазылу уақыты 09:00-17:00 аралығында, 1 сағаттық слотпен (соңғысы 16:00)", http.StatusBadRequest)
-		return
-	}
+	// ---- ТЕКСЕРУ ҮШІН: кез келген уақытқа рұқсат (өткен, толық сағат емес, 9–17 шектеусіз) - кейін қатты ережелерді қайта қосуға болады
+	// if startAt.Before(time.Now()) { ... }
+	// if startAt.Minute() != 0 ... { ... }
+	// if hour < 9 || hour > 16 { ... }
 
 	// doctor user бар ма?
 	var u model.User

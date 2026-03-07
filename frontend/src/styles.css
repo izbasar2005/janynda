@@ -513,6 +513,10 @@ hr{
     border:1px solid rgba(18,191,174,.25);
     background:rgba(18,191,174,.14);
     display:inline-block;
+    object-fit:contain;
+}
+.app-brand__logo[src]{
+    background:transparent;
 }
 .app-brand__text{
     color:#12bfae;
@@ -555,6 +559,32 @@ hr{
     gap:18px;
     min-width:240px;
     justify-content:flex-end;
+}
+.app-header__notif{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:36px;
+    height:36px;
+    border-radius:10px;
+    text-decoration:none;
+    font-size:18px;
+    transition:background .15s;
+}
+.app-header__notif:hover{
+    background:rgba(18,191,174,.12);
+}
+.app-header__notif-wrap{ position:relative; display:inline-flex; }
+.app-header__notif-badge{
+    position:absolute;
+    top:4px;
+    right:4px;
+    width:10px;
+    height:10px;
+    border-radius:50%;
+    background:#ef4444;
+    border:2px solid var(--header-bg, #fff);
+    box-sizing:border-box;
 }
 
 .app-lang{
@@ -1688,7 +1718,15 @@ h3{
     min-width:0;
 }
 .landing-testimonials__slide{
-    padding:8px 0;
+    width:100%;
+}
+.landing-testimonials__slide-inner{
+    position:relative;
+}
+.landing-testimonials__delete-btn{
+    margin-top:10px;
+    font-size:13px;
+    padding:6px 12px;
 }
 .testimonial-card{
     padding:24px;
@@ -1728,6 +1766,64 @@ h3{
 }
 .landing-testimonials__dot.is-active{
     transform:scale(1.2);
+}
+.landing-testimonials__empty{
+    max-width:480px;
+    margin:0 auto;
+    padding:24px;
+    text-align:center;
+}
+.landing-testimonials__empty-text{
+    margin:0;
+    font-size:15px;
+}
+.landing-testimonials__leave-feedback{
+    margin-top:28px;
+    display:flex;
+    justify-content:center;
+}
+.landing-testimonials__feedback-btn{
+    padding:12px 24px;
+    font-size:15px;
+}
+.landing-testimonials__form{
+    width:100%;
+    max-width:520px;
+    margin:0 auto;
+    padding:20px;
+}
+.landing-testimonials__textarea{
+    width:100%;
+    margin-top:8px;
+    margin-bottom:14px;
+    padding:12px 14px;
+    border-radius:var(--radius-sm);
+    border:1px solid var(--border);
+    font-size:15px;
+    resize:vertical;
+    min-height:100px;
+}
+.landing-testimonials__form-actions{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+}
+.landing-testimonials__form-msg{
+    margin:14px 0 0;
+    font-size:14px;
+    color:var(--muted);
+}
+.landing-testimonials__form-msg.is-success{
+    color:var(--success);
+    font-weight:600;
+}
+.landing-testimonials__login-hint{
+    margin:4px 0 10px;
+    font-size:14px;
+}
+.landing-testimonials__login-hint a{
+    color:var(--primary);
+    font-weight:600;
 }
 
 /* FAQ accordion */
@@ -1783,6 +1879,184 @@ h3{
 /* =========================
    BOOK PAGE — уақыт слоттары
 ========================= */
+/* =========================
+   BOOK PAGE — уақыт слоттары
+========================= */
+.book-page {
+    max-width: 920px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.book-hero {
+    text-align: center;
+    padding: 28px 16px 32px;
+    margin-bottom: 8px;
+}
+
+.book-hero__title {
+    margin: 0 0 8px;
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: -0.02em;
+}
+
+.book-hero__subtitle {
+    margin: 0;
+    font-size: 15px;
+    max-width: 420px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.book-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.book-doctor-card {
+    padding: 24px;
+}
+
+.book-doctor {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+}
+
+.book-doctor__photo-wrap {
+    flex-shrink: 0;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid var(--border);
+    box-shadow: var(--shadow);
+    background: var(--bg);
+}
+
+.book-doctor__photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.book-doctor__info {
+    flex: 1;
+    min-width: 0;
+}
+
+.book-doctor__label {
+    margin: 0 0 4px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--primary);
+}
+
+.book-doctor__name {
+    margin: 0 0 4px;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1.2;
+}
+
+.book-doctor__specialty {
+    margin: 0;
+    font-size: 15px;
+}
+
+.book-form-card {
+    padding: 28px;
+}
+
+.book-form__title {
+    margin: 0 0 20px;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.book-form-row {
+    align-items: flex-end;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.book-form-row .form-field {
+    flex: 1;
+    min-width: 160px;
+}
+
+.book-date-input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    font-size: 15px;
+    background: var(--card);
+}
+
+.book-form-submit {
+    flex-shrink: 0;
+}
+
+.book-submit-btn {
+    padding: 12px 24px;
+    font-size: 15px;
+    min-width: 140px;
+}
+
+.book-slots-wrap {
+    padding-top: 20px;
+    margin-top: 20px;
+    border-top: 1px solid var(--border);
+}
+
+.book-slots-label {
+    margin: 0 0 12px;
+    font-size: 14px;
+}
+
+.book-slots-loading,
+.book-slots-empty {
+    margin: 0;
+    font-size: 14px;
+}
+
+.book-form-error {
+    margin-top: 16px;
+}
+
+@media (max-width: 640px) {
+    .book-hero__title {
+        font-size: 24px;
+    }
+    .book-doctor {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .book-doctor__photo-wrap {
+        width: 100px;
+        height: 100px;
+    }
+    .book-form-row .form-field {
+        min-width: 100%;
+    }
+    .book-form-submit {
+        width: 100%;
+    }
+    .book-submit-btn {
+        width: 100%;
+    }
+}
+
 .book-time-readonly{
     background:#f1f5f9;
     cursor:default;
@@ -1848,3 +2122,329 @@ h3{
 .doctor-detail-review-item__rating{ margin-bottom:6px; }
 .doctor-detail-review-item__text{ margin:0; font-size:14px; line-height:1.5; }
 @media (max-width:640px){ .doctor-detail__main{ flex-direction:column; align-items:center; } .doctor-detail__photo-wrap{ width:140px; height:140px; } }
+
+/* =========================
+   DOCTOR DETAIL V2 — жасыл стиль, екі бағана, табтар
+========================= */
+.doctor-detail-page-v2 {
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 0 0 40px;
+}
+
+.doctor-detail-header {
+    background: #16a34a;
+    color: #fff;
+    padding: 20px 24px 24px;
+    margin: 0 -16px 0;
+}
+
+.doctor-detail-header__title {
+    margin: 0;
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    line-height: 1.2;
+}
+
+.doctor-detail-layout {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 28px;
+    align-items: start;
+    margin-top: 24px;
+}
+
+.doctor-detail-main {
+    min-width: 0;
+}
+
+.doctor-detail-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--border);
+    margin-bottom: 20px;
+}
+
+.doctor-detail-tab {
+    padding: 12px 20px 14px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    position: relative;
+    margin-bottom: -2px;
+    border-bottom: 2px solid transparent;
+    transition: color .15s ease, border-color .15s ease;
+}
+
+.doctor-detail-tab:hover {
+    color: var(--text);
+}
+
+.doctor-detail-tab--active {
+    border-bottom-color: #16a34a;
+    color: #16a34a;
+}
+
+.doctor-detail-tab-content {
+    margin-top: 0;
+}
+
+.doctor-detail__review-section {
+    margin-bottom: 20px;
+}
+
+.doctor-detail-review-form-card {
+    padding: 20px;
+    max-width: 480px;
+}
+
+.doctor-detail-review-form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.doctor-detail-empty {
+    margin: 16px 0;
+    font-size: 15px;
+}
+
+.doctor-detail-reviews-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.doctor-detail-review-card {
+    padding: 18px 20px;
+    background: rgba(22, 163, 74, .04);
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(22, 163, 74, .12);
+}
+
+.doctor-detail-review-card__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.doctor-detail-review-card__name {
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--text);
+}
+
+.doctor-detail-review-card__date {
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.doctor-detail-review-card__rating {
+    margin-bottom: 8px;
+}
+
+.doctor-detail-review-card__text {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--text);
+}
+
+.doctor-detail-about-card {
+    padding: 24px;
+}
+
+.doctor-detail-about__title {
+    margin: 0 0 16px;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.doctor-detail-about__specialty {
+    margin: 16px 0 0;
+    font-size: 14px;
+}
+
+.doctor-detail-sidebar {
+    position: sticky;
+    top: 80px;
+}
+
+.doctor-detail-sidebar-card {
+    padding: 24px;
+    background: var(--card);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    background-image: radial-gradient(circle at 20% 80%, rgba(22, 163, 74, .03) 0%, transparent 50%),
+                      radial-gradient(circle at 80% 20%, rgba(22, 163, 74, .04) 0%, transparent 45%);
+}
+
+.doctor-detail-sidebar__photo-wrap {
+    width: 160px;
+    height: 160px;
+    margin: 0 auto 16px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid var(--border);
+    box-shadow: 0 4px 20px rgba(0,0,0,.08);
+    background: var(--bg);
+}
+
+.doctor-detail-sidebar__photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.doctor-detail-sidebar__name {
+    margin: 0 0 6px;
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text);
+    text-align: center;
+    line-height: 1.25;
+}
+
+.doctor-detail-sidebar__experience {
+    margin: 0 0 8px;
+    font-size: 14px;
+    text-align: center;
+}
+
+.doctor-detail-sidebar__price {
+    margin: 0 0 14px;
+    font-size: 14px;
+    color: var(--muted);
+    text-align: center;
+}
+
+.doctor-detail-sidebar__price-value {
+    color: #16a34a;
+    font-size: 18px;
+    font-weight: 800;
+}
+
+.doctor-detail-sidebar__stats {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 18px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.doctor-detail-sidebar__rating {
+    font-size: 16px;
+    font-weight: 800;
+    color: #16a34a;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.doctor-detail-sidebar__star {
+    font-size: 18px;
+}
+
+.doctor-detail-sidebar__reviews-count {
+    font-size: 14px;
+    color: var(--muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.doctor-detail-sidebar__bubble {
+    font-size: 14px;
+}
+
+.doctor-detail-sidebar__action {
+    text-align: center;
+}
+
+.doctor-detail-sidebar__btn {
+    width: 100%;
+    padding: 14px 20px;
+    font-size: 16px;
+    font-weight: 700;
+    background: #16a34a;
+    border: none;
+    color: #fff;
+}
+
+.doctor-detail-sidebar__btn:hover {
+    background: #15803d;
+}
+
+@media (max-width: 900px) {
+    .doctor-detail-layout {
+        grid-template-columns: 1fr;
+    }
+    .doctor-detail-sidebar {
+        position: static;
+        order: -1;
+    }
+    .doctor-detail-sidebar-card {
+        max-width: 400px;
+        margin: 0 auto;
+    }
+}
+
+@media (max-width: 640px) {
+    .doctor-detail-header__title {
+        font-size: 20px;
+    }
+    .doctor-detail-tab {
+        padding: 10px 14px 12px;
+        font-size: 14px;
+    }
+    .doctor-detail-sidebar__photo-wrap {
+        width: 130px;
+        height: 130px;
+    }
+}
+
+/* =========================
+   NOTIFICATIONS + CHAT
+========================= */
+.notif-list{ list-style:none; padding:0; margin:0; }
+.notif-card{ margin-bottom:12px; padding:18px; }
+.notif-card--read{ opacity:.9; }
+.notif-card__head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.notif-card__type{ font-weight:700; font-size:14px; }
+.notif-card__date{ font-size:12px; }
+.notif-card__text{ margin:0 0 12px; font-size:14px; line-height:1.45; }
+.notif-card__choices{ display:flex; flex-wrap:wrap; gap:10px; }
+.notif-choice-btn{ flex:1; min-width:120px; }
+.notif-card__chosen{ margin:0; font-size:13px; }
+.notif-card__patient-choice{ margin:8px 0 0; font-size:14px; }
+.notif-card__action-btn{ margin-top:12px; display:inline-block; }
+.notif-card__action-btn:visited{ background:#e5e7eb; color:#4b5563; border-color:#d1d5db; }
+.notif-card__action-btn:visited:hover{ background:#d1d5db; color:#374151; }
+
+.chat-page{ max-width:700px; margin-left:auto; margin-right:auto; }
+.chat-card{ padding:0; overflow:hidden; display:flex; flex-direction:column; max-height:70vh; }
+.chat-messages{ flex:1; overflow-y:auto; padding:16px; min-height:200px; }
+.chat-msg{ margin-bottom:14px; }
+.chat-msg__sender{ font-weight:700; font-size:12px; color:var(--muted); display:block; margin-bottom:2px; }
+.chat-msg__body{ margin:0; font-size:14px; line-height:1.45; }
+.chat-msg__time{ font-size:11px; }
+.chat-msg--system .chat-msg__body{ font-style:italic; }
+.chat-msg__video{ margin:8px 0; }
+.chat-video-link{ display:inline-block; margin-top:8px; }
+.chat-video-link--old{ background:rgba(15,23,42,.12); color:rgba(15,23,42,.7); border-color:rgba(15,23,42,.2); }
+.chat-video-link--old:hover{ background:rgba(15,23,42,.18); color:rgba(15,23,42,.85); }
+.chat-form{ display:flex; gap:10px; padding:14px; border-top:1px solid var(--border); }
+.chat-input{ flex:1; }

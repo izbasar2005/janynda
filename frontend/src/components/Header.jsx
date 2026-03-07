@@ -1,4 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { api } from "../services/api";
 
 function parseJwt(t) {
     try {
@@ -25,6 +27,23 @@ export default function Header() {
     const nav = useNavigate();
     const t = localStorage.getItem("token");
     const role = t ? (parseJwt(t)?.role || "user") : "guest";
+    const [unreadCount, setUnreadCount] = useState(0);
+
+    useEffect(() => {
+        if (!t) {
+            setUnreadCount(0);
+            return;
+        }
+        api("/api/v1/notifications", { auth: true })
+            .then((data) => {
+                const list = Array.isArray(data) ? data : [];
+                const count = list.filter((n) => !n.read_at).length;
+                setUnreadCount(count);
+            })
+            .catch(() => setUnreadCount(0));
+    }, [t, loc.pathname]);
+
+    const showNotifBadge = unreadCount > 0 && loc.pathname !== "/notifications";
 
     const active = (p) => (loc.pathname === p ? "is-active" : "");
 
@@ -38,7 +57,7 @@ export default function Header() {
             <div className="app-header__inner">
                 {/* Left: logo + brand */}
                 <Link className="app-brand" to="/">
-                    <span className="app-brand__logo" aria-hidden="true" />
+                    <img src="/img/logo.png" alt="Janymda" className="app-brand__logo" />
                     <span className="app-brand__text">Janymda</span>
                 </Link>
 
@@ -75,6 +94,14 @@ export default function Header() {
 
                 {/* Right: language + auth */}
                 <div className="app-header__right">
+                    {t && (
+                        <span className="app-header__notif-wrap">
+                            <Link to="/notifications" className="app-header__notif" title="Ескертулер" aria-label="Ескертулер">
+                                🔔
+                            </Link>
+                            {showNotifBadge && <span className="app-header__notif-badge" aria-hidden="true" />}
+                        </span>
+                    )}
                     <button className="app-lang" type="button">
                         Выбор языка
                     </button>

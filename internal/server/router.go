@@ -78,7 +78,44 @@ func NewRouter(db *gorm.DB) http.Handler {
 		middleware.AuthJWT(http.HandlerFunc(revH.My)),
 	)
 
-	// ---------------- ADMIN ONLY ----------------
+	// Platform feedback (GET public with optional auth for is_mine, POST JWT, DELETE JWT author or admin)
+	pfh := handler.NewPlatformFeedbackHandler(db)
+	mux.HandleFunc("/api/v1/feedback", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			middleware.OptionalAuthJWT(http.HandlerFunc(pfh.List)).ServeHTTP(w, r)
+			return
+		}
+		if r.Method == http.MethodPost {
+			middleware.AuthJWT(http.HandlerFunc(pfh.Create)).ServeHTTP(w, r)
+			return
+		}
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+	})
+	mux.Handle("/api/v1/feedback/", middleware.AuthJWT(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		pfh.Delete(w, r)
+	})))
+
+	// Notifications (JWT)
+	nh := handler.NewNotificationHandler(db)
+	mux.HandleFunc("/api/v1/notifications", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			middleware.AuthJWT(http.HandlerFunc(nh.List)).ServeHTTP(w, r)
+			return
+		}
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+	})
+	mux.Handle("/api/v1/notifications/", middleware.AuthJWT(http.HandlerFunc(nh.HandleWithID)))
+
+	// Conversations / chat (JWT)
+	convH := handler.NewConversationHandler(db)
+	mux.HandleFunc("/api/v1/conversations/by-appointment/", func(w http.ResponseWriter, r *http.Request) {
+		middleware.AuthJWT(http.HandlerFunc(convH.GetByAppointment)).ServeHTTP(w, r)
+	})
+	mux.Handle("/api/v1/conversations/", middleware.AuthJWT(http.HandlerFunc(convH.HandleWithID)))
 
 	// GET /api/v1/appointments/all (admin only)
 	mux.Handle("/api/v1/appointments/all",

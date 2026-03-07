@@ -80,12 +80,7 @@ export default function AdminUsers() {
                 </div>
             </div>
 
-            <div className="card">
-                <p className="muted" style={{ margin: 0 }}>
-                    Бұл бет admin token-мен жұмыс істейді: <b>GET /api/v1/admin/users</b>,{" "}
-                    <b>PUT /api/v1/admin/users/{`{id}`}/role</b>
-                </p>
-            </div>
+
 
             {msg && <p style={{ marginTop: 12, color: msg.includes("Қате") ? "#ef4444" : "#94a3b8" }}>{msg}</p>}
             {loading && <p className="muted">Жүктелуде...</p>}

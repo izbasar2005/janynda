@@ -11,6 +11,8 @@ import Profile from "./pages/Profile.jsx";
 import Book from "./pages/Book.jsx";
 import AdminUsers from "./pages/AdminUsers.jsx";
 import AdminDoctors from "./pages/AdminDoctors.jsx";
+import Notifications from "./pages/Notifications.jsx";
+import Chat from "./pages/Chat.jsx";
 
 export default function App() {
     return (
@@ -29,6 +31,8 @@ export default function App() {
 
                         <Route path="/profile" element={<Profile />} />
                         <Route path="/book/:doctorId" element={<Book />} />
+                        <Route path="/notifications" element={<Notifications />} />
+                        <Route path="/chat/:appointmentId" element={<Chat />} />
 
                         <Route path="/admin/users" element={<AdminUsers />} />
                         <Route path="/admin/doctors" element={<AdminDoctors />} />

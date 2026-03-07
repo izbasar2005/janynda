@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 
+	"janymda/internal/scheduler"
 	"janymda/internal/server"
 	"janymda/internal/storage"
 )
@@ -33,8 +34,19 @@ func main() {
 	if err := db.AutoMigrate(&model.Review{}); err != nil {
 		panic(err)
 	}
+	if err := db.AutoMigrate(&model.PlatformFeedback{}); err != nil {
+		panic(err)
+	}
+	if err := db.AutoMigrate(&model.Notification{}); err != nil {
+		panic(err)
+	}
+	if err := db.AutoMigrate(&model.Conversation{}, &model.Message{}); err != nil {
+		panic(err)
+	}
 
 	router := server.NewRouter(db)
+
+	go scheduler.RunNotificationWorker(db)
 
 	fmt.Println("Server: http://localhost:" + port)
 	http.ListenAndServe(":"+port, router)

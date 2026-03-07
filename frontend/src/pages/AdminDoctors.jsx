@@ -67,7 +67,6 @@ export default function AdminDoctors() {
                 };
             });
             setForm(init);
-            setMsg("Тізім жүктелді ✅");
         } catch (e) {
             setMsg(`Қате: ${e.message}`);
         } finally {
@@ -179,16 +178,6 @@ export default function AdminDoctors() {
                         Мамандық, тәжірибе, баға, фото және басқа да дәрігердің профиль өрістерін толтырыңыз.
                     </p>
                 </div>
-            </div>
-
-            <div className="card">
-                <p className="muted" style={{ margin: 0 }}>
-                    Бұл бет тек <b>admin token</b> арқылы жұмыс істейді.
-                    <br />
-                    1) Алдымен <b>Admin Users</b> бетінде role-ды <b>doctor</b> қылып қой.
-                    <br />
-                    2) Сосын осы бетте doctor profile толтыр.
-                </p>
             </div>
 
             {msg && (
