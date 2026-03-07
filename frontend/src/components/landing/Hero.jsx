@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 
 const benefits = [
@@ -6,7 +7,11 @@ const benefits = [
     "Қауіпсіз деректер — жеке ақпарат қорғалады",
 ];
 
+const HERO_IMAGE = "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&q=80";
+
 export default function Hero() {
+    const [imgError, setImgError] = useState(false);
+
     return (
         <section className="landing-hero">
             <div className="landing-hero__content">
@@ -31,46 +36,23 @@ export default function Hero() {
                     </Link>
                 </div>
             </div>
-            <div className="landing-hero__search-card card">
-                <h3 className="landing-hero__search-title">Дәрігерді іздеу</h3>
-                <p className="muted landing-hero__search-desc">
-                    Қала, мамандық немесе дәрігер аты бойынша іздеңіз.
-                </p>
-                <div className="landing-hero__search-fields">
-                    <div className="form-field">
-                        <label className="form-label">Қала</label>
-                        <input
-                            type="text"
-                            className="input"
-                            placeholder="Мысалы: Алматы"
-                            readOnly
-                            aria-readonly="true"
+            <div className="landing-hero__visual">
+                <div className="landing-hero__image-wrap">
+                    {!imgError ? (
+                        <img
+                            src={HERO_IMAGE}
+                            alt="Медициналық көмек — дәрігер мен пациент"
+                            className="landing-hero__image"
+                            onError={() => setImgError(true)}
                         />
-                    </div>
-                    <div className="form-field">
-                        <label className="form-label">Мамандық</label>
-                        <select className="input" defaultValue="" aria-readonly="true">
-                            <option value="">Барлығы</option>
-                            <option value="therapist">Терапевт</option>
-                            <option value="pediatrician">Педиатр</option>
-                            <option value="cardiologist">Кардиолог</option>
-                            <option value="dentist">Тіс дәрігері</option>
-                        </select>
-                    </div>
-                    <div className="form-field">
-                        <label className="form-label">Дәрігер аты</label>
-                        <input
-                            type="text"
-                            className="input"
-                            placeholder="Аты-жөні"
-                            readOnly
-                            aria-readonly="true"
-                        />
-                    </div>
+                    ) : (
+                        <div className="landing-hero__placeholder">
+                            <span className="landing-hero__placeholder-icon" aria-hidden="true">🏥</span>
+                            <p className="landing-hero__placeholder-text">Медициналық көмек</p>
+                            <p className="landing-hero__placeholder-desc">Дәрігер мен пациент</p>
+                        </div>
+                    )}
                 </div>
-                <Link className="btn landing-hero__search-btn" to="/doctors">
-                    Іздеу
-                </Link>
             </div>
         </section>
     );

@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { api, token } from "../services/api";
 
 function fmtStartAt(s) {
-    if (!s) return "—";
+    if (!s) return { date: "—", time: "", full: "—" };
     try {
         const d = new Date(s);
-        return d.toLocaleString();
+        const date = d.toLocaleDateString("kk-KZ", { day: "numeric", month: "long", year: "numeric" });
+        const time = d.toLocaleTimeString("kk-KZ", { hour: "2-digit", minute: "2-digit" });
+        return { date, time, full: d.toLocaleString("kk-KZ") };
     } catch {
-        return String(s);
+        return { date: String(s), time: "", full: String(s) };
     }
 }
 
@@ -19,6 +21,40 @@ function isPastAppointment(startAt) {
     } catch {
         return false;
     }
+}
+
+function getInitials(name) {
+    if (!name || typeof name !== "string") return "?";
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    return (name[0] || "?").toUpperCase();
+}
+
+function fmtDate(s) {
+    if (!s) return "—";
+    try {
+        return new Date(s).toLocaleDateString("kk-KZ", { day: "numeric", month: "long", year: "numeric" });
+    } catch {
+        return String(s);
+    }
+}
+
+function genderLabel(g) {
+    if (!g) return "—";
+    const v = (g + "").toLowerCase();
+    if (v === "male" || v === "m" || v === "ер") return "Ер адам";
+    if (v === "female" || v === "f" || v === "әйел") return "Әйел адам";
+    return g;
+}
+
+function statusLabel(s, isPast = false) {
+    if (isPast) return "Өтті";
+    const v = (s || "").toLowerCase();
+    if (v === "pending") return "Күтуде";
+    if (v === "approved") return "Расталды";
+    if (v === "canceled" || v === "cancelled") return "Бас тартылды";
+    if (v === "done") return "Аяқталды";
+    return s || "—";
 }
 
 export default function Profile() {
@@ -33,99 +69,160 @@ export default function Profile() {
             nav("/login");
             return;
         }
-
         setMsg("");
-
-        // 1) алдымен /me аламыз
         api("/api/v1/me", { auth: true })
             .then((u) => {
                 setMe(u);
-
-                // ✅ admin болса — appointments сұрамаймыз (403 болмайды)
                 if (u?.role === "admin") {
                     setApps([]);
                     return;
                 }
-
-                // ✅ admin емес болса ғана "my appointments" аламыз
                 api("/api/v1/appointments/my", { auth: true })
                     .then((d) => setApps(Array.isArray(d) ? d : []))
-                    .catch(() => setApps([])); // мұнда msg шығармаймыз
+                    .catch(() => setApps([]));
             })
-            .catch((e) => {
-                setMsg("Қате: " + e.message);
-            });
+            .catch((e) => setMsg("Қате: " + e.message));
     }, [nav]);
 
     const isAdmin = me?.role === "admin";
+    const displayName = me?.full_name || [me?.first_name, me?.last_name].filter(Boolean).join(" ") || me?.name || "Пациент";
+
+    const infoRows = [];
+    if (me) {
+        if (displayName) infoRows.push({ label: "Аты-жөні", value: displayName });
+        infoRows.push({ label: "Рөлі", value: me.role === "doctor" ? "Дәрігер" : me.role === "admin" ? "Админ" : "Пациент" });
+        if (me.phone) infoRows.push({ label: "Телефон", value: me.phone });
+        if (me.iin) infoRows.push({ label: "ЖСН", value: me.iin });
+        if (me.first_name) infoRows.push({ label: "Аты", value: me.first_name });
+        if (me.last_name) infoRows.push({ label: "Тегі", value: me.last_name });
+        if (me.patronymic) infoRows.push({ label: "Әкесінің аты", value: me.patronymic });
+        if (me.gender) infoRows.push({ label: "Жынысы", value: genderLabel(me.gender) });
+        if (me.created_at) infoRows.push({ label: "Тіркелген", value: fmtDate(me.created_at) });
+    }
 
     return (
-        <div className="page">
+        <div className="page profile-page">
             <div className="page-header">
                 <div>
-                    <h2 className="page-header__title">Профиль</h2>
+                    <h2 className="page-header__title">Менің профилім</h2>
                     <p className="muted page-header__subtitle">
-                        Жеке деректеріңіз бен жазылуларыңыздың қысқаша көрінісі.
+                        Жеке деректеріңіз бен дәрігерге жазылулар тізімі.
                     </p>
                 </div>
             </div>
 
             {msg && <p className="form-error">{msg}</p>}
 
-            <div className="card" style={{ maxWidth: 900 }}>
-                {me ? (
-                    <>
-                        <p style={{ marginTop: 0 }}>
-                            <b>{me.full_name || me.name}</b>
-                        </p>
-                        <p className="muted" style={{ marginTop: 0 }}>
-                            Role: {me.role}
-                        </p>
-                    </>
-                ) : (
+            {!me ? (
+                <div className="card profile-card">
                     <p className="muted">Жүктелуде...</p>
-                )}
-
-                <h3 style={{ marginTop: 18 }}>Менің жазылуларым</h3>
-
-                {isAdmin ? (
-                    <div className="empty-state">
-                        <h4 className="empty-state__title">Admin аккаунт</h4>
-                        <p className="empty-state__text">Admin аккаунтта пациент жазылулары көрсетілмейді.</p>
+                </div>
+            ) : (
+                <>
+                    {/* Hero: аватар + аты + рөл */}
+                    <div className="profile-hero">
+                        <div className="profile-hero__avatar" aria-hidden="true">
+                            {getInitials(displayName)}
+                        </div>
+                        <div className="profile-hero__info">
+                            <h1 className="profile-hero__name">{displayName}</h1>
+                            <span className={`profile-hero__role profile-hero__role--${me.role || "patient"}`}>
+                                {me.role === "doctor" ? "Дәрігер" : me.role === "admin" ? "Админ" : "Пациент"}
+                            </span>
+                        </div>
                     </div>
-                ) : apps.length === 0 ? (
-                    <div className="empty-state">
-                        <h4 className="empty-state__title">Әзірге жазылу жоқ</h4>
-                        <p className="empty-state__text">
-                            Дәрігерге жазылу үшін дәрігерлер тізімінен маманды таңдап, ыңғайлы уақытты белгілеңіз.
-                        </p>
+
+                    <div className="profile-layout">
+                        {/* Жеке деректер карточкасы */}
+                        <section className="profile-card profile-card--info">
+                            <h3 className="profile-card__title">Жеке деректер</h3>
+                            <dl className="profile-info">
+                                {infoRows.length > 0 ? (
+                                    infoRows.map((row) => (
+                                        <div key={row.label} className="profile-info__row">
+                                            <dt className="profile-info__label">{row.label}</dt>
+                                            <dd className="profile-info__value">{row.value}</dd>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="profile-info__row">
+                                        <dt className="profile-info__label">Аты-жөні</dt>
+                                        <dd className="profile-info__value">{displayName}</dd>
+                                    </div>
+                                )}
+                            </dl>
+                        </section>
+
+                        {/* Жазылулар */}
+                        <section className="profile-card profile-card--appointments">
+                            <h3 className="profile-card__title">Жазылуларым</h3>
+
+                            {isAdmin ? (
+                                <div className="profile-empty">
+                                    <span className="profile-empty__icon" aria-hidden="true">👤</span>
+                                    <p className="profile-empty__title">Admin аккаунт</p>
+                                    <p className="profile-empty__text">Пациент жазылулары бұл аккаунтта көрсетілмейді.</p>
+                                </div>
+                            ) : apps.length === 0 ? (
+                                <div className="profile-empty">
+                                    <span className="profile-empty__icon" aria-hidden="true">📅</span>
+                                    <p className="profile-empty__title">Әзірге жазылу жоқ</p>
+                                    <p className="profile-empty__text">
+                                        Дәрігерлер тізімінен маманды таңдап, ыңғайлы уақытты белгілеңіз.
+                                    </p>
+                                    <Link to="/doctors" className="btn profile-empty__cta">Дәрігерлерге өту</Link>
+                                </div>
+                            ) : (
+                                <ul className="profile-appointments">
+                                    {[...apps]
+                                        .sort((a, b) => {
+                                            const aStart = new Date(a.start_at ?? a.startAt ?? a.StartAt).getTime();
+                                            const bStart = new Date(b.start_at ?? b.startAt ?? b.StartAt).getTime();
+                                            const now = Date.now();
+                                            const aPast = aStart < now;
+                                            const bPast = bStart < now;
+                                            if (!aPast && bPast) return -1;
+                                            if (aPast && !bPast) return 1;
+                                            if (!aPast && !bPast) return aStart - bStart;
+                                            return bStart - aStart;
+                                        })
+                                        .map((a) => {
+                                        const startAt = a.start_at ?? a.startAt ?? a.StartAt;
+                                        const status = a.status ?? a.Status ?? "—";
+                                        const doctorName = (a.doctor?.full_name || a.doctor?.FullName) ?? "—";
+                                        const patientName = (a.patient?.full_name || a.patient?.FullName) ?? "—";
+                                        const { date, time, full } = fmtStartAt(startAt);
+                                        const isPast = isPastAppointment(startAt);
+                                        const who = me?.role === "doctor" ? patientName : doctorName;
+                                        const whoLabel = me?.role === "doctor" ? "Пациент" : "Дәрігер";
+
+                                        return (
+                                            <li
+                                                key={a.id}
+                                                className={`profile-appointment ${isPast ? "profile-appointment--past" : ""}`}
+                                            >
+                                                <div className="profile-appointment__main">
+                                                    <div className="profile-appointment__date-block">
+                                                        <span className="profile-appointment__date">{date}</span>
+                                                        {time && <span className="profile-appointment__time">{time}</span>}
+                                                    </div>
+                                                    <div className="profile-appointment__details">
+                                                        <p className="profile-appointment__label">{whoLabel}</p>
+                                                        <p className="profile-appointment__name">{who}</p>
+                                                    </div>
+                                                    <span className={`profile-appointment__status profile-appointment__status--${isPast ? "past" : (status || "").toLowerCase()}`}>
+                                                        {statusLabel(status, isPast)}
+                                                    </span>
+                                                </div>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            )}
+                        </section>
                     </div>
-                ) : (
-                    <ul>
-                        {apps.map((a) => {
-                            const startAt = a.start_at ?? a.startAt ?? a.StartAt;
-                            const status = a.status ?? a.Status ?? "—";
-
-                            const doctorName = a.doctor?.full_name || a.doctor?.FullName;
-                            const patientName = a.patient?.full_name || a.patient?.FullName;
-
-                            const who =
-                                me?.role === "doctor"
-                                    ? `Пациент: ${patientName ?? "—"}`
-                                    : `Дәрігер: ${doctorName ?? "—"}`;
-
-                            return (
-                                <li
-                                    key={a.id}
-                                    className={isPastAppointment(startAt) ? "profile-appointment profile-appointment--past" : "profile-appointment"}
-                                >
-                                    #{a.id} — {who} — {fmtStartAt(startAt)} — status: {status}
-                                </li>
-                            );
-                        })}
-                    </ul>
-                )}
-            </div>
+                </>
+            )}
         </div>
     );
 }
