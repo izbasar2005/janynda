@@ -87,6 +87,11 @@ func (h *DoctorDBHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		h.Slots(w, r)
 		return
 	}
+	// /api/v1/doctors/{id}/reviews -> reviews
+	if strings.HasSuffix(r.URL.Path, "/reviews") {
+		h.DoctorReviews(w, r)
+		return
+	}
 
 	// /api/v1/doctors/{id}
 	idStr := strings.TrimPrefix(r.URL.Path, "/api/v1/doctors/")
@@ -203,5 +208,60 @@ func (h *DoctorDBHandler) Slots(w http.ResponseWriter, r *http.Request) {
 		"doctor_user_id": doc.UserID,
 		"date":           day.Format("2006-01-02"),
 		"slots":          free,
+	})
+}
+
+// -------------------- GET /api/v1/doctors/{id}/reviews --------------------
+// Пікірлер ашық, орташа рейтинг + тізім (соңғылар бірінші)
+func (h *DoctorDBHandler) DoctorReviews(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	p := strings.TrimPrefix(r.URL.Path, "/api/v1/doctors/")
+	p = strings.TrimSuffix(p, "/reviews")
+	p = strings.TrimSuffix(p, "/")
+	id, err := strconv.Atoi(p)
+	if err != nil || id <= 0 {
+		http.Error(w, "Invalid id", http.StatusBadRequest)
+		return
+	}
+	var doc model.Doctor
+	if err := h.db.First(&doc, uint(id)).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			http.Error(w, "doctor not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "DB error", http.StatusInternalServerError)
+		return
+	}
+	var reviews []model.Review
+	if err := h.db.Preload("Patient").Where("doctor_user_id = ?", doc.UserID).Order("created_at desc").Find(&reviews).Error; err != nil {
+		http.Error(w, "DB error", http.StatusInternalServerError)
+		return
+	}
+	var sum int
+	list := make([]map[string]any, 0, len(reviews))
+	for _, rev := range reviews {
+		sum += rev.Rating
+		list = append(list, map[string]any{
+			"id":         rev.ID,
+			"rating":     rev.Rating,
+			"text":       rev.Text,
+			"created_at": rev.CreatedAt,
+			"patient": map[string]any{
+				"full_name": rev.Patient.FullName,
+			},
+		})
+	}
+	avg := 0.0
+	if len(reviews) > 0 {
+		avg = float64(sum) / float64(len(reviews))
+	}
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"average_rating": avg,
+		"total":          len(reviews),
+		"reviews":        list,
 	})
 }

@@ -30,6 +30,9 @@ func main() {
 	if err := db.AutoMigrate(&model.User{}, &model.Doctor{}, &model.Appointment{}); err != nil {
 		panic(err)
 	}
+	if err := db.AutoMigrate(&model.Review{}); err != nil {
+		panic(err)
+	}
 
 	router := server.NewRouter(db)
 

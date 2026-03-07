@@ -16,19 +16,39 @@ function normalizePhoto(url) {
     return "/" + url;
 }
 
-export default function DoctorCard({ doctor }) {
+function fmtDate(s) {
+    if (!s) return "";
+    try {
+        return new Date(s).toLocaleDateString("kk-KZ", { day: "numeric", month: "short", year: "numeric" });
+    } catch {
+        return "";
+    }
+}
+
+function Stars({ rating }) {
+    const r = Math.min(5, Math.max(0, Number(rating) || 0));
+    return <span className="landing-doctor-card-stars">{"★".repeat(r)}{"☆".repeat(5 - r)}</span>;
+}
+
+export default function DoctorCard({ doctor, reviewsData }) {
     const {
         full_name,
         specialty,
         experience = 0,
         price = 0,
         photo_url,
+        id,
     } = doctor || {};
     const src = normalizePhoto(photo_url);
-    const rating = 4.8;
+    const avgRating = reviewsData?.average_rating != null ? Number(reviewsData.average_rating).toFixed(1) : null;
+    const lastReview = reviewsData?.reviews?.[0];
 
     return (
-        <div className="landing-doctor-card card">
+        <Link
+            to={`/doctors/${Number(id)}`}
+            className="landing-doctor-card card landing-doctor-card--link"
+            style={{ textDecoration: "none", color: "inherit", display: "block" }}
+        >
             <div className="landing-doctor-card__photo-wrap">
                 <img
                     src={src}
@@ -44,16 +64,31 @@ export default function DoctorCard({ doctor }) {
             <p className="landing-doctor-card__specialty muted">{specialty || "Мамандығы жоқ"}</p>
             <div className="landing-doctor-card__meta">
                 <span className="landing-doctor-card__exp">Тәжірибе: {Number(experience)} жыл</span>
-                <span className="landing-doctor-card__rating" aria-label={`Рейтинг ${rating}`}>
-                    ★ {rating}
+                <span className="landing-doctor-card__rating" aria-label={avgRating ? `Орташа рейтинг ${avgRating}` : "Рейтинг жоқ"}>
+                    ★ {avgRating ?? "—"}
                 </span>
             </div>
             <p className="landing-doctor-card__price">
                 Бағасы: <strong>{Number(price)} ₸</strong>
             </p>
-            <Link to={`/book/${Number(doctor?.id)}`} className="btn landing-doctor-card__btn">
-                Жазылу
-            </Link>
-        </div>
+            {lastReview && (
+                <div className="landing-doctor-card__last-review">
+                    <div className="landing-doctor-card__last-review-head">
+                        <span className="landing-doctor-card__last-review-name">
+                            {(lastReview.patient && lastReview.patient.full_name) || "Пациент"}
+                        </span>
+                        <span className="landing-doctor-card__last-review-date">{fmtDate(lastReview.created_at)}</span>
+                    </div>
+                    <div className="landing-doctor-card__last-review-stars">
+                        <Stars rating={lastReview.rating} />
+                    </div>
+                    {lastReview.text && (
+                        <p className="landing-doctor-card__last-review-text">
+                            {lastReview.text.length > 120 ? lastReview.text.slice(0, 120) + "…" : lastReview.text}
+                        </p>
+                    )}
+                </div>
+            )}
+        </Link>
     );
 }

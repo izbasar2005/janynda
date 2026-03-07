@@ -54,7 +54,6 @@ export default function Doctors() {
     const filtered = useMemo(() => {
         const s = (q || "").trim().toLowerCase();
         if (!s) return list;
-
         return list.filter((d) => {
             const name = String(d.full_name || "").toLowerCase();
             const spec = String(d.specialty || "").toLowerCase();
@@ -63,6 +62,24 @@ export default function Doctors() {
             return name.includes(s) || spec.includes(s) || edu.includes(s) || lang.includes(s);
         });
     }, [q, list]);
+
+    const groupedBySpecialty = useMemo(() => {
+        const map = {};
+        filtered.forEach((d) => {
+            const spec = (d.specialty || "").trim() || "Басқа";
+            if (!map[spec]) map[spec] = [];
+            map[spec].push(d);
+        });
+        return map;
+    }, [filtered]);
+
+    const specialties = useMemo(() => Object.keys(groupedBySpecialty).sort(), [groupedBySpecialty]);
+
+    const [selectedSpecialty, setSelectedSpecialty] = useState(null);
+
+    const specialtiesToShow = selectedSpecialty
+        ? (groupedBySpecialty[selectedSpecialty] ? [selectedSpecialty] : specialties)
+        : specialties;
 
     return (
         <div className="page">
@@ -94,18 +111,46 @@ export default function Doctors() {
                 </div>
             )}
 
-            <div
-                style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-                    gap: 20,
-                    marginTop: 16,
-                }}
-            >
-                {filtered.map((d) => (
-                    <DoctorCard key={`${d.id}-${d.user_id}`} d={d} role={role} />
-                ))}
-            </div>
+            {!msg && filtered.length > 0 && (
+                <div className="doctors-layout">
+                    <aside className="doctors-sidebar">
+                        <h3 className="doctors-sidebar__title">Мамандықтар</h3>
+                        <button
+                            type="button"
+                            className={`doctors-sidebar__item ${selectedSpecialty === null ? "is-active" : ""}`}
+                            onClick={() => setSelectedSpecialty(null)}
+                        >
+                            Барлығы
+                        </button>
+                        {specialties.map((spec) => (
+                            <button
+                                key={spec}
+                                type="button"
+                                className={`doctors-sidebar__item ${selectedSpecialty === spec ? "is-active" : ""}`}
+                                onClick={() => setSelectedSpecialty(spec)}
+                            >
+                                {spec}
+                            </button>
+                        ))}
+                    </aside>
+                    <div className="doctors-main">
+                        {specialtiesToShow.map((spec) => (
+                            <section key={spec} className="doctors-row">
+                                <h3 className="doctors-row__title">{spec}</h3>
+                                <div className="doctors-row__grid">
+                                    {groupedBySpecialty[spec].map((d) => (
+                                        <DoctorCard key={`${d.id}-${d.user_id}`} d={d} role={role} />
+                                    ))}
+                                </div>
+                            </section>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {!msg && filtered.length === 0 && list.length > 0 && (
+                <p className="muted">Іздеу нәтижесі бос.</p>
+            )}
 
             <style>{`
         @keyframes pulse {
@@ -189,7 +234,9 @@ function DoctorCard({ d, role }) {
             </div>
 
             <h3 style={{ textAlign: "center", margin: 0 }}>
-                {d.full_name || "Аты көрсетілмеген"}
+                <Link to={`/doctors/${Number(d.id)}`} style={{ color: "inherit", textDecoration: "none" }}>
+                    {d.full_name || "Аты көрсетілмеген"}
+                </Link>
             </h3>
 
             <p className="muted" style={{ textAlign: "center", margin: "8px 0 14px" }}>
@@ -222,7 +269,10 @@ function DoctorCard({ d, role }) {
                 )}
             </div>
 
-            <div style={{ marginTop: 16, textAlign: "center" }}>
+            <div style={{ marginTop: 16, textAlign: "center", display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+                <Link to={`/doctors/${Number(d.id)}`} className="btn ghost">
+                    Толығырақ
+                </Link>
                 {role === "guest" ? (
                     <Link to="/login" className="btn">
                         Кіру

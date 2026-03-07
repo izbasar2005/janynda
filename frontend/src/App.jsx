@@ -4,6 +4,7 @@ import Footer from "./components/Footer";
 
 import Home from "./pages/Home.jsx";
 import Doctors from "./pages/Doctors.jsx";
+import DoctorDetail from "./pages/DoctorDetail.jsx";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
 import Profile from "./pages/Profile.jsx";
@@ -21,6 +22,7 @@ export default function App() {
                     <Routes>
                         <Route path="/" element={<Home />} />
                         <Route path="/doctors" element={<Doctors />} />
+                        <Route path="/doctors/:id" element={<DoctorDetail />} />
 
                         <Route path="/login" element={<Login />} />
                         <Route path="/register" element={<Register />} />

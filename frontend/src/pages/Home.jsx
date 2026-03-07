@@ -29,6 +29,7 @@ const FAQ_DATA = [
 
 export default function Home() {
     const [doctors, setDoctors] = useState([]);
+    const [reviewsByDoctorId, setReviewsByDoctorId] = useState({});
     const [testimonialIndex, setTestimonialIndex] = useState(0);
     const [faqOpenIndex, setFaqOpenIndex] = useState(null);
 
@@ -40,6 +41,19 @@ export default function Home() {
             })
             .catch(() => setDoctors([]));
     }, []);
+
+    useEffect(() => {
+        if (doctors.length === 0) return;
+        Promise.all(
+            doctors.map((d) =>
+                api(`/api/v1/doctors/${d.id}/reviews`).then((data) => ({ id: d.id, data })).catch(() => ({ id: d.id, data: { average_rating: 0, total: 0, reviews: [] } }))
+            )
+        ).then((results) => {
+            const byId = {};
+            results.forEach(({ id, data }) => { byId[id] = data; });
+            setReviewsByDoctorId(byId);
+        });
+    }, [doctors]);
 
     const nextTestimonial = () => setTestimonialIndex((i) => (i + 1) % TESTIMONIALS.length);
     const prevTestimonial = () => setTestimonialIndex((i) => (i - 1 + TESTIMONIALS.length) % TESTIMONIALS.length);
@@ -74,7 +88,11 @@ export default function Home() {
                 {doctors.length > 0 ? (
                     <div className="landing-doctors__grid">
                         {doctors.map((d) => (
-                            <DoctorCard key={`${d.id}-${d.user_id}`} doctor={d} />
+                            <DoctorCard
+                                key={`${d.id}-${d.user_id}`}
+                                doctor={d}
+                                reviewsData={reviewsByDoctorId[d.id]}
+                            />
                         ))}
                     </div>
                 ) : (

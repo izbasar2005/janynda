@@ -69,6 +69,15 @@ func NewRouter(db *gorm.DB) http.Handler {
 		middleware.AuthJWT(http.HandlerFunc(aph.Cancel)),
 	)
 
+	// Reviews (JWT, patient: create)
+	revH := handler.NewReviewHandler(db)
+	mux.Handle("/api/v1/reviews",
+		middleware.AuthJWT(http.HandlerFunc(revH.Create)),
+	)
+	mux.Handle("/api/v1/reviews/my",
+		middleware.AuthJWT(http.HandlerFunc(revH.My)),
+	)
+
 	// ---------------- ADMIN ONLY ----------------
 
 	// GET /api/v1/appointments/all (admin only)
