@@ -117,10 +117,10 @@ func NewRouter(db *gorm.DB) http.Handler {
 	})
 	mux.Handle("/api/v1/conversations/", middleware.AuthJWT(http.HandlerFunc(convH.HandleWithID)))
 
-	// GET /api/v1/appointments/all (admin only)
+	// GET /api/v1/appointments/all (super_admin only — барлық жазылулар тек супер админге)
 	mux.Handle("/api/v1/appointments/all",
 		middleware.AuthJWT(
-			middleware.AdminOnly(http.HandlerFunc(aph.All)),
+			middleware.SuperAdminOnly(http.HandlerFunc(aph.All)),
 		),
 	)
 
@@ -152,6 +152,34 @@ func NewRouter(db *gorm.DB) http.Handler {
 	mux.Handle("/api/v1/admin/doctors/",
 		middleware.AuthJWT(
 			middleware.AdminOnly(http.HandlerFunc(adh.UpdateDoctorProfile)),
+		),
+	)
+
+	// Admin Dashboard (super_admin only) — әр эндпоинт жеке тіркелген
+	dashH := handler.NewAdminDashboardHandler(db)
+	mux.Handle("/api/v1/admin/dashboard/stats",
+		middleware.AuthJWT(
+			middleware.SuperAdminOnly(http.HandlerFunc(dashH.Stats)),
+		),
+	)
+	mux.Handle("/api/v1/admin/dashboard/low-reviews",
+		middleware.AuthJWT(
+			middleware.SuperAdminOnly(http.HandlerFunc(dashH.LowReviews)),
+		),
+	)
+	mux.Handle("/api/v1/admin/dashboard/appointments-daily",
+		middleware.AuthJWT(
+			middleware.SuperAdminOnly(http.HandlerFunc(dashH.AppointmentsDaily)),
+		),
+	)
+	mux.Handle("/api/v1/admin/dashboard/top-doctors",
+		middleware.AuthJWT(
+			middleware.SuperAdminOnly(http.HandlerFunc(dashH.TopDoctors)),
+		),
+	)
+	mux.Handle("/api/v1/admin/dashboard/doctor-ratings",
+		middleware.AuthJWT(
+			middleware.SuperAdminOnly(http.HandlerFunc(dashH.DoctorRatings)),
 		),
 	)
 

@@ -82,7 +82,7 @@ func (h *AdminUsersHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 	}
 
 	req.Role = strings.TrimSpace(req.Role)
-	if req.Role != "patient" && req.Role != "doctor" && req.Role != "admin" {
+	if req.Role != "patient" && req.Role != "doctor" && req.Role != "admin" && req.Role != "super_admin" {
 		http.Error(w, "role қате", http.StatusBadRequest)
 		return
 	}

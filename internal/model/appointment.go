@@ -19,6 +19,8 @@ type Appointment struct {
 	Doctor  User `gorm:"foreignKey:DoctorUserID" json:"doctor,omitempty"`
 }
 
+func (Appointment) TableName() string { return "appointments" }
+
 const (
 	StatusPending  = "pending"
 	StatusApproved = "approved"

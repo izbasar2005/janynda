@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useEffect, useState, useMemo } from "react";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { api, token } from "../services/api";
 
 function fmtStartAt(s) {
@@ -18,6 +18,17 @@ function isPastAppointment(startAt) {
     if (!startAt) return false;
     try {
         return new Date(startAt).getTime() < Date.now();
+    } catch {
+        return false;
+    }
+}
+
+/** Кездесуге 30 минуттан көп қалды ма (отмена батырмасы көрсету үшін) */
+function canCancelByPatient(startAt) {
+    if (!startAt) return false;
+    try {
+        const start = new Date(startAt).getTime();
+        return start - Date.now() > 30 * 60 * 1000;
     } catch {
         return false;
     }
@@ -48,20 +59,30 @@ function genderLabel(g) {
 }
 
 function statusLabel(s, isPast = false) {
-    if (isPast) return "Өтті";
     const v = (s || "").toLowerCase();
+    if (v === "canceled" || v === "cancelled") return "Бас тартылды";
+    if (isPast) return "Өтті";
     if (v === "pending") return "Күтуде";
     if (v === "approved") return "Расталды";
-    if (v === "canceled" || v === "cancelled") return "Бас тартылды";
     if (v === "done") return "Аяқталды";
     return s || "—";
 }
 
 export default function Profile() {
     const nav = useNavigate();
+    const location = useLocation();
     const [me, setMe] = useState(null);
     const [apps, setApps] = useState([]);
+    const [dashboardStats, setDashboardStats] = useState(null);
     const [msg, setMsg] = useState("");
+    const [cancellingId, setCancellingId] = useState(null);
+
+    function fetchAppointments() {
+        if (!token()) return;
+        api("/api/v1/appointments/my", { auth: true })
+            .then((d) => setApps(Array.isArray(d) ? d : []))
+            .catch(() => setApps([]));
+    }
 
     useEffect(() => {
         const t = token();
@@ -77,20 +98,57 @@ export default function Profile() {
                     setApps([]);
                     return;
                 }
-                api("/api/v1/appointments/my", { auth: true })
-                    .then((d) => setApps(Array.isArray(d) ? d : []))
-                    .catch(() => setApps([]));
+                if (u?.role === "super_admin") {
+                    setApps([]);
+                    api("/api/v1/admin/dashboard/stats", { auth: true })
+                        .then((d) => setDashboardStats(d))
+                        .catch(() => setDashboardStats(null));
+                    return;
+                }
+                fetchAppointments();
             })
             .catch((e) => setMsg("Қате: " + e.message));
     }, [nav]);
 
+    // Жазылулар тізімін жаңарту: бетке кіргенде немесе жазылудан қайтқанда (state.fromBook)
+    useEffect(() => {
+        if (!me || me?.role === "admin" || me?.role === "super_admin") return;
+        if (location.state?.fromBook === true) {
+            fetchAppointments();
+            nav(location.pathname, { replace: true, state: {} });
+        }
+    }, [me, location.state?.fromBook]);
+
+    async function cancelAppointment(id) {
+        setCancellingId(id);
+        setMsg("");
+        try {
+            await api(`/api/v1/appointments/${id}/cancel`, { method: "PATCH", auth: true });
+            setApps((prev) => prev.map((a) => (Number(a.id) === Number(id) ? { ...a, status: "canceled" } : a)));
+        } catch (e) {
+            setMsg(e.message || "Қате");
+        } finally {
+            setCancellingId(null);
+        }
+    }
+
     const isAdmin = me?.role === "admin";
+    const isSuperAdmin = me?.role === "super_admin";
     const displayName = me?.full_name || [me?.first_name, me?.last_name].filter(Boolean).join(" ") || me?.name || "Пациент";
+
+    const sortedApps = useMemo(() => {
+        const getTime = (a) => {
+            const raw = a?.start_at ?? a?.startAt ?? a?.StartAt;
+            const t = new Date(raw).getTime();
+            return Number.isNaN(t) ? 0 : t;
+        };
+        return [...apps].sort((a, b) => getTime(b) - getTime(a));
+    }, [apps]);
 
     const infoRows = [];
     if (me) {
         if (displayName) infoRows.push({ label: "Аты-жөні", value: displayName });
-        infoRows.push({ label: "Рөлі", value: me.role === "doctor" ? "Дәрігер" : me.role === "admin" ? "Админ" : "Пациент" });
+        infoRows.push({ label: "Рөлі", value: me.role === "doctor" ? "Дәрігер" : me.role === "admin" ? "Админ" : me.role === "super_admin" ? "Сүпер админ" : "Пациент" });
         if (me.phone) infoRows.push({ label: "Телефон", value: me.phone });
         if (me.iin) infoRows.push({ label: "ЖСН", value: me.iin });
         if (me.first_name) infoRows.push({ label: "Аты", value: me.first_name });
@@ -127,7 +185,7 @@ export default function Profile() {
                         <div className="profile-hero__info">
                             <h1 className="profile-hero__name">{displayName}</h1>
                             <span className={`profile-hero__role profile-hero__role--${me.role || "patient"}`}>
-                                {me.role === "doctor" ? "Дәрігер" : me.role === "admin" ? "Админ" : "Пациент"}
+                                {me.role === "doctor" ? "Дәрігер" : me.role === "admin" ? "Админ" : me.role === "super_admin" ? "Сүпер админ" : "Пациент"}
                             </span>
                         </div>
                     </div>
@@ -153,8 +211,42 @@ export default function Profile() {
                             </dl>
                         </section>
 
-                        {/* Жазылулар */}
+                        {/* Жазылулар / Super Admin: статистика */}
                         <section className="profile-card profile-card--appointments">
+                            {isSuperAdmin ? (
+                                <>
+                                    <h3 className="profile-card__title">Жалпы статистика</h3>
+                                    {dashboardStats ? (
+                                        <>
+                                            <div className="admin-dashboard-cards" style={{ marginTop: 12 }}>
+                                                <div className="admin-dashboard-card card">
+                                                    <div className="admin-dashboard-card__label">Users</div>
+                                                    <div className="admin-dashboard-card__value">{dashboardStats.users ?? 0}</div>
+                                                    <p className="admin-dashboard-card__hint">Қолданушылар</p>
+                                                </div>
+                                                <div className="admin-dashboard-card card">
+                                                    <div className="admin-dashboard-card__label">Doctors</div>
+                                                    <div className="admin-dashboard-card__value">{dashboardStats.doctors ?? 0}</div>
+                                                    <p className="admin-dashboard-card__hint">Дәрігерлер</p>
+                                                </div>
+                                                <div className="admin-dashboard-card card">
+                                                    <div className="admin-dashboard-card__label">Appointments</div>
+                                                    <div className="admin-dashboard-card__value">{dashboardStats.appointments ?? 0}</div>
+                                                    <p className="admin-dashboard-card__hint">Жазылулар</p>
+                                                </div>
+                                                <div className="admin-dashboard-card card">
+                                                    <div className="admin-dashboard-card__label">Reviews</div>
+                                                    <div className="admin-dashboard-card__value">{dashboardStats.reviews ?? 0}</div>
+                                                    <p className="admin-dashboard-card__hint">Пікірлер</p>
+                                                </div>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <p className="muted">Статистика жүктелуде...</p>
+                                    )}
+                                </>
+                            ) : (
+                                <>
                             <h3 className="profile-card__title">Жазылуларым</h3>
 
                             {isAdmin ? (
@@ -174,19 +266,7 @@ export default function Profile() {
                                 </div>
                             ) : (
                                 <ul className="profile-appointments">
-                                    {[...apps]
-                                        .sort((a, b) => {
-                                            const aStart = new Date(a.start_at ?? a.startAt ?? a.StartAt).getTime();
-                                            const bStart = new Date(b.start_at ?? b.startAt ?? b.StartAt).getTime();
-                                            const now = Date.now();
-                                            const aPast = aStart < now;
-                                            const bPast = bStart < now;
-                                            if (!aPast && bPast) return -1;
-                                            if (aPast && !bPast) return 1;
-                                            if (!aPast && !bPast) return aStart - bStart;
-                                            return bStart - aStart;
-                                        })
-                                        .map((a) => {
+                                    {sortedApps.map((a) => {
                                         const startAt = a.start_at ?? a.startAt ?? a.StartAt;
                                         const status = a.status ?? a.Status ?? "—";
                                         const doctorName = (a.doctor?.full_name || a.doctor?.FullName) ?? "—";
@@ -195,6 +275,7 @@ export default function Profile() {
                                         const isPast = isPastAppointment(startAt);
                                         const who = me?.role === "doctor" ? patientName : doctorName;
                                         const whoLabel = me?.role === "doctor" ? "Пациент" : "Дәрігер";
+                                        const canCancel = me?.role === "patient" && !isPast && canCancelByPatient(startAt) && status !== "canceled" && status !== "cancelled";
 
                                         return (
                                             <li
@@ -214,10 +295,22 @@ export default function Profile() {
                                                         {statusLabel(status, isPast)}
                                                     </span>
                                                 </div>
+                                                {canCancel && (
+                                                    <button
+                                                        type="button"
+                                                        className="btn profile-appointment__cancel"
+                                                        onClick={() => cancelAppointment(a.id)}
+                                                        disabled={cancellingId === a.id}
+                                                    >
+                                                        {cancellingId === a.id ? "..." : "Отмена"}
+                                                    </button>
+                                                )}
                                             </li>
                                         );
                                     })}
                                 </ul>
+                            )}
+                                </>
                             )}
                         </section>
                     </div>

@@ -173,7 +173,7 @@ func (h *DoctorDBHandler) Slots(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Дәрігердің сол күнгі занят слоттарын алу
+	// Дәрігердің сол күнгі занят слоттарын алу (тек pending/approved — canceled слот бос, қайта жазылуға болады)
 	var taken []time.Time
 	err = h.db.Model(&model.Appointment{}).
 		Where("doctor_user_id = ? AND start_at >= ? AND start_at < ? AND status IN ?",

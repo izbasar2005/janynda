@@ -75,7 +75,7 @@ export default function AdminUsers() {
                 <div>
                     <h2 className="page-header__title">Admin — Users (Role басқару)</h2>
                     <p className="muted page-header__subtitle">
-                        Пайдаланушылардың рөлдерін (patient / doctor / admin) қауіпсіз түрде өзгертіңіз.
+                        Пайдаланушылардың рөлдерін (patient / doctor / admin / super_admin) қауіпсіз түрде өзгертіңіз.
                     </p>
                 </div>
             </div>
@@ -112,6 +112,7 @@ export default function AdminUsers() {
                                     <option value="patient">patient</option>
                                     <option value="doctor">doctor</option>
                                     <option value="admin">admin</option>
+                                    <option value="super_admin">super_admin</option>
                                 </select>
                             </td>
                             <td style={{ minWidth: 140 }}>

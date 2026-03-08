@@ -67,10 +67,12 @@ export default function Header() {
                         Главная
                     </Link>
 
-                    {/* "Запись" — бізде /doctors арқылы */}
-                    <Link className={`app-nav__link ${active("/doctors")}`} to="/doctors">
-                        Запись
-                    </Link>
+                    {/* "Запись" — super_admin үшін көрсетілмейді */}
+                    {role !== "super_admin" && (
+                        <Link className={`app-nav__link ${active("/doctors")}`} to="/doctors">
+                            Запись
+                        </Link>
+                    )}
 
                     {/* "Мои данные" — бізде /profile */}
                     {t && (
@@ -87,6 +89,16 @@ export default function Header() {
                             </Link>
                             <Link className={`app-nav__link ${active("/admin/users")}`} to="/admin/users">
                                 Users
+                            </Link>
+                        </>
+                    )}
+                    {t && role === "super_admin" && (
+                        <>
+                            <Link className={`app-nav__link ${active("/admin/dashboard")}`} to="/admin/dashboard">
+                                Dashboard
+                            </Link>
+                            <Link className={`app-nav__link ${active("/admin/doctors-stats")}`} to="/admin/doctors-stats">
+                                Дәрігерлер
                             </Link>
                         </>
                     )}

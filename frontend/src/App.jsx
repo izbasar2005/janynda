@@ -11,6 +11,8 @@ import Profile from "./pages/Profile.jsx";
 import Book from "./pages/Book.jsx";
 import AdminUsers from "./pages/AdminUsers.jsx";
 import AdminDoctors from "./pages/AdminDoctors.jsx";
+import AdminDashboard from "./pages/AdminDashboard.jsx";
+import AdminDoctorsStats from "./pages/AdminDoctorsStats.jsx";
 import Notifications from "./pages/Notifications.jsx";
 import Chat from "./pages/Chat.jsx";
 
@@ -36,6 +38,8 @@ export default function App() {
 
                         <Route path="/admin/users" element={<AdminUsers />} />
                         <Route path="/admin/doctors" element={<AdminDoctors />} />
+                        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                        <Route path="/admin/doctors-stats" element={<AdminDoctorsStats />} />
 
                         <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>

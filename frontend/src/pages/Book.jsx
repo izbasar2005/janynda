@@ -79,7 +79,7 @@ export default function Book() {
                 },
             });
 
-            nav("/profile");
+            nav("/profile", { state: { fromBook: true } });
         } catch (e) {
             setMsg("Қате: " + e.message);
         }

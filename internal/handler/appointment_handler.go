@@ -83,6 +83,7 @@ func (h *AppointmentHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// ---- AVAILABILITY CHECK ----
+	// Тек pending және approved бөгеу; canceled/done слоттар бос — сол уақытқа қайта жазылуға болады
 	var cnt int64
 	err = h.db.Model(&model.Appointment{}).
 		Where("doctor_user_id = ? AND start_at = ? AND status IN ?",
@@ -95,6 +96,22 @@ func (h *AppointmentHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	if cnt > 0 {
 		http.Error(w, "Орын жоқ (бұл уақыт бос емес)", http.StatusConflict)
+		return
+	}
+
+	// Сол пациенттің осы дәрігерде, осы уақытта отмена жасалған жазылуы бар болса — оны қайта «Күтуде» етіп жаңартамыз (жаңа қатар қоспаймыз)
+	var existing model.Appointment
+	if err := h.db.Where("patient_id = ? AND doctor_user_id = ? AND start_at = ? AND status = ?",
+		patientID, req.DoctorUserID, startAt, model.StatusCanceled,
+	).First(&existing).Error; err == nil {
+		existing.Status = model.StatusPending
+		existing.Note = req.Note
+		if err := h.db.Save(&existing).Error; err != nil {
+			http.Error(w, "DB error", http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(existing)
 		return
 	}
 
@@ -134,27 +151,26 @@ func (h *AppointmentHandler) My(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var aps []model.Appointment
-	var q *gorm.DB
 
 	if role == "patient" {
-		// Пациент өз жазылуларын көреді (дәрігері көрінсін)
-		q = h.db.Preload("Doctor").
-			Where("patient_id = ?", userID).
-			Order("start_at asc")
-
+		// Күтуде/Расталды алдымен (жақын уақыт жоғарыда), қалғандары уақыты бойынша (ерте жоғарыда)
+		var active, rest []model.Appointment
+		h.db.Preload("Doctor").Where("patient_id = ? AND status IN ?", userID, []string{model.StatusPending, model.StatusApproved}).
+			Order("start_at desc").Find(&active)
+		h.db.Preload("Doctor").Where("patient_id = ? AND status NOT IN ?", userID, []string{model.StatusPending, model.StatusApproved}).
+			Order("start_at asc").Find(&rest)
+		aps = append(active, rest...)
 	} else if role == "doctor" {
-		// Дәрігер тек өз пациенттерін көреді + отмена болғандар шықпасын
-		q = h.db.Preload("Patient").
-			Where("doctor_user_id = ? AND status = ?", userID, model.StatusPending).
-			Order("start_at asc")
-
+		// Дәрігер: барлық жазылулар (Күтуде, Бас тартылды, Өтті) — уақыт бойынша кему
+		if err := h.db.Preload("Patient").
+			Where("doctor_user_id = ?", userID).
+			Order("start_at desc").
+			Find(&aps).Error; err != nil {
+			http.Error(w, "DB error", http.StatusInternalServerError)
+			return
+		}
 	} else {
 		http.Error(w, "Forbidden", http.StatusForbidden)
-		return
-	}
-
-	if err := q.Find(&aps).Error; err != nil {
-		http.Error(w, "DB error", http.StatusInternalServerError)
 		return
 	}
 
@@ -170,7 +186,7 @@ func (h *AppointmentHandler) All(w http.ResponseWriter, r *http.Request) {
 	}
 
 	role, _ := r.Context().Value(middleware.CtxRole).(string)
-	if role != "admin" {
+	if strings.ToLower(strings.TrimSpace(role)) != "super_admin" {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
@@ -243,6 +259,16 @@ func (h *AppointmentHandler) Cancel(w http.ResponseWriter, r *http.Request) {
 	}
 	if ap.Status == model.StatusDone {
 		http.Error(w, "Аяқталған жазылуды отмена жасауға болмайды", http.StatusBadRequest)
+		return
+	}
+
+	// Пациент кездесуге 30 минут қалғанша ғана отмена жасай алады
+	loc := time.FixedZone("+05", 5*3600)
+	now := time.Now().In(loc)
+	startAt := ap.StartAt.In(loc)
+	deadline := startAt.Add(-30 * time.Minute)
+	if now.After(deadline) || now.Equal(deadline) {
+		http.Error(w, "Жазылуды кездесуге 30 минут қалғанша ғана отмена жасауға болады", http.StatusBadRequest)
 		return
 	}
 

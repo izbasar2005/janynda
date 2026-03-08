@@ -14,4 +14,5 @@ type Review struct {
 	CreatedAt time.Time `json:"created_at"`
 
 	Patient User `gorm:"foreignKey:PatientID" json:"patient,omitempty"`
+	Doctor  User `gorm:"foreignKey:DoctorUserID" json:"doctor,omitempty"`
 }
