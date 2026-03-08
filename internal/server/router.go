@@ -124,16 +124,16 @@ func NewRouter(db *gorm.DB) http.Handler {
 		),
 	)
 
-	// Admin Users
+	// Admin Users (admin + super_admin; list/update logic by role in handler)
 	auh := handler.NewAdminUsersHandler(db)
 	mux.Handle("/api/v1/admin/users",
 		middleware.AuthJWT(
-			middleware.AdminOnly(http.HandlerFunc(auh.List)),
+			middleware.AdminOrSuperAdmin(http.HandlerFunc(auh.List)),
 		),
 	)
 	mux.Handle("/api/v1/admin/users/",
 		middleware.AuthJWT(
-			middleware.AdminOnly(http.HandlerFunc(auh.UpdateRole)),
+			middleware.AdminOrSuperAdmin(http.HandlerFunc(auh.UpdateRole)),
 		),
 	)
 

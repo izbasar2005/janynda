@@ -100,6 +100,9 @@ export default function Header() {
                             <Link className={`app-nav__link ${active("/admin/doctors-stats")}`} to="/admin/doctors-stats">
                                 Дәрігерлер
                             </Link>
+                            <Link className={`app-nav__link ${active("/admin/users")}`} to="/admin/users">
+                                Users
+                            </Link>
                         </>
                     )}
                 </nav>
