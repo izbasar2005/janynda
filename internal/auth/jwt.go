@@ -17,7 +17,7 @@ type Claims struct {
 func secret() []byte {
 	s := os.Getenv("JWT_SECRET")
 	if s == "" {
-		// dev үшін уақытша. production-да міндетті түрде env қою керек.
+
 		s = "dev_secret_change_me"
 	}
 	return []byte(s)

@@ -7,7 +7,7 @@ const benefits = [
     "Қауіпсіз деректер — жеке ақпарат қорғалады",
 ];
 
-const HERO_IMAGE = "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&q=80";
+const HERO_IMAGE = "/img/doctor.png";
 
 export default function Hero() {
     const [imgError, setImgError] = useState(false);

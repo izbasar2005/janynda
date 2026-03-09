@@ -29,6 +29,7 @@ export default function Header() {
     const role = t ? (parseJwt(t)?.role || "user") : "guest";
     const [unreadCount, setUnreadCount] = useState(0);
     const [hidden, setHidden] = useState(false);
+    const [scrolled, setScrolled] = useState(false);
     const lastScrollY = useRef(0);
 
     useEffect(() => {
@@ -48,6 +49,7 @@ export default function Header() {
     // Hide header on scroll down, show on scroll up
     useEffect(() => {
         lastScrollY.current = window.scrollY || 0;
+        setScrolled(lastScrollY.current > 120);
         const handleScroll = () => {
             const currentY = window.scrollY || 0;
             const diff = currentY - lastScrollY.current;
@@ -64,6 +66,9 @@ export default function Header() {
                 // жоғары қайтқанда — қайта көрсетеміз
                 setHidden(false);
             }
+
+            // hero-дан айтарлықтай төмен түскенде — хедерді толық ақ қыламыз
+            setScrolled(currentY > 120);
 
             lastScrollY.current = currentY;
         };
@@ -82,7 +87,7 @@ export default function Header() {
     };
 
     return (
-        <header className={`app-header ${hidden ? "app-header--hidden" : ""}`}>
+        <header className={`app-header ${hidden ? "app-header--hidden" : ""} ${scrolled ? "app-header--solid" : "app-header--overlay"}`}>
             <div className="app-header__inner">
                 {/* Left: logo + brand */}
                 <Link className="app-brand" to="/">

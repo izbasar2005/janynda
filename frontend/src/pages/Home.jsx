@@ -238,6 +238,10 @@ export default function Home() {
                 )}
             </section>
 
+            <div className="landing-heartline">
+                <img src="/img/heartline.png" alt="" className="landing-heartline__img" />
+            </div>
+
             <section className="landing-section landing-testimonials">
                 <h2 className="landing-section__title">Пайдаланушылар пікірлері</h2>
                 <p className="landing-section__subtitle muted">
