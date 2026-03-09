@@ -42,6 +42,12 @@ func NewRouter(db *gorm.DB) http.Handler {
 	mux.HandleFunc("/api/v1/auth/register", ah.Register)
 	mux.HandleFunc("/api/v1/auth/login", ah.Login)
 
+	// News (public)
+	newsH := handler.NewNewsHandler(db)
+	mux.HandleFunc("/api/v1/news", newsH.List)
+	mux.HandleFunc("/api/v1/news/home", newsH.Home)
+	mux.HandleFunc("/api/v1/news/", newsH.GetBySlug)
+
 	// ---------------- PROTECTED (JWT) ----------------
 
 	// Profile (JWT required)
@@ -154,6 +160,37 @@ func NewRouter(db *gorm.DB) http.Handler {
 			middleware.AdminOnly(http.HandlerFunc(adh.UpdateDoctorProfile)),
 		),
 	)
+
+	// Admin News (admin + super_admin)
+	anh := handler.NewAdminNewsHandler(db)
+	mux.HandleFunc("/api/v1/admin/news", func(w http.ResponseWriter, r *http.Request) {
+		h := middleware.AuthJWT(middleware.AdminOrSuperAdmin(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodGet {
+				anh.List(w, r)
+				return
+			}
+			if r.Method == http.MethodPost {
+				anh.Create(w, r)
+				return
+			}
+			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		})))
+		h.ServeHTTP(w, r)
+	})
+	mux.HandleFunc("/api/v1/admin/news/", func(w http.ResponseWriter, r *http.Request) {
+		h := middleware.AuthJWT(middleware.AdminOrSuperAdmin(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPut {
+				anh.Update(w, r)
+				return
+			}
+			if r.Method == http.MethodDelete {
+				anh.Delete(w, r)
+				return
+			}
+			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		})))
+		h.ServeHTTP(w, r)
+	})
 
 	// Admin Dashboard (super_admin only) — әр эндпоинт жеке тіркелген
 	dashH := handler.NewAdminDashboardHandler(db)

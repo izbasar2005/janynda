@@ -13,8 +13,11 @@ import AdminUsers from "./pages/AdminUsers.jsx";
 import AdminDoctors from "./pages/AdminDoctors.jsx";
 import AdminDashboard from "./pages/AdminDashboard.jsx";
 import AdminDoctorsStats from "./pages/AdminDoctorsStats.jsx";
+import AdminNews from "./pages/AdminNews.jsx";
 import Notifications from "./pages/Notifications.jsx";
 import Chat from "./pages/Chat.jsx";
+import NewsList from "./pages/NewsList.jsx";
+import NewsDetail from "./pages/NewsDetail.jsx";
 
 export default function App() {
     return (
@@ -36,10 +39,14 @@ export default function App() {
                         <Route path="/notifications" element={<Notifications />} />
                         <Route path="/chat/:appointmentId" element={<Chat />} />
 
+                        <Route path="/news" element={<NewsList />} />
+                        <Route path="/news/:slug" element={<NewsDetail />} />
+
                         <Route path="/admin/users" element={<AdminUsers />} />
                         <Route path="/admin/doctors" element={<AdminDoctors />} />
                         <Route path="/admin/dashboard" element={<AdminDashboard />} />
                         <Route path="/admin/doctors-stats" element={<AdminDoctorsStats />} />
+                        <Route path="/admin/news" element={<AdminNews />} />
 
                         <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>

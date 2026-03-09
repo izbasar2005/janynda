@@ -24,6 +24,7 @@ const FAQ_DATA = [
 export default function Home() {
     const [doctors, setDoctors] = useState([]);
     const [reviewsByDoctorId, setReviewsByDoctorId] = useState({});
+    const [newsHome, setNewsHome] = useState({ featured: null, items: [] });
     const [platformFeedbacks, setPlatformFeedbacks] = useState([]);
     const [me, setMe] = useState(null);
     const [testimonialIndex, setTestimonialIndex] = useState(0);
@@ -39,6 +40,16 @@ export default function Home() {
                 setDoctors(arr.slice(0, 6));
             })
             .catch(() => setDoctors([]));
+    }, []);
+
+    useEffect(() => {
+        api("/api/v1/news/home")
+            .then((d) => {
+                const featured = d?.featured || null;
+                const items = Array.isArray(d?.items) ? d.items : [];
+                setNewsHome({ featured, items });
+            })
+            .catch(() => setNewsHome({ featured: null, items: [] }));
     }, []);
 
     useEffect(() => {
@@ -175,67 +186,56 @@ export default function Home() {
                 </div>
             </section>
 
-            <section className="landing-section landing-appointment">
-                <h2 className="landing-section__title">Жазылу формасы</h2>
-                <p className="landing-section__subtitle muted">
-                    Өзіңізге ыңғайлы уақытты таңдаңыз. Біз сізге хабарласамыз.
-                </p>
-                <div className="landing-appointment__wrap">
-                    <div className="landing-appointment__form-card card">
-                        <h3 className="landing-appointment__form-title">Жаңа жазылу</h3>
-                        <div className="form">
-                            <div className="form-row">
-                                <div className="form-field">
-                                    <label className="form-label">Аты-жөні</label>
-                                    <input type="text" className="input" placeholder="Толық атыңыз" readOnly aria-readonly="true" />
-                                </div>
-                                <div className="form-field">
-                                    <label className="form-label">Телефон</label>
-                                    <input type="tel" className="input" placeholder="+7 700 000 00 00" readOnly aria-readonly="true" />
-                                </div>
-                            </div>
-                            <div className="form-row">
-                                <div className="form-field">
-                                    <label className="form-label">Қала</label>
-                                    <input type="text" className="input" placeholder="Қала" readOnly aria-readonly="true" />
-                                </div>
-                                <div className="form-field">
-                                    <label className="form-label">Мамандық</label>
-                                    <select className="input" defaultValue="" aria-readonly="true">
-                                        <option value="">Таңдаңыз</option>
-                                        <option value="therapist">Терапевт</option>
-                                        <option value="pediatrician">Педиатр</option>
-                                        <option value="cardiologist">Кардиолог</option>
-                                        <option value="dentist">Тіс дәрігері</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div className="form-row">
-                                <div className="form-field">
-                                    <label className="form-label">Күні</label>
-                                    <input type="date" className="input" readOnly aria-readonly="true" />
-                                </div>
-                                <div className="form-field">
-                                    <label className="form-label">Уақыты</label>
-                                    <input type="time" className="input" readOnly aria-readonly="true" />
-                                </div>
-                            </div>
-                            <div className="form-field">
-                                <label className="form-label">Пікір / Ескерту</label>
-                                <textarea className="input" rows={3} placeholder="Қосымша ақпарат" readOnly aria-readonly="true" />
-                            </div>
-                            <Link to="/doctors" className="btn landing-appointment__submit">Жазылуды жалғастыру</Link>
-                        </div>
-                    </div>
-                    <div className="landing-appointment__info card">
-                        <h3 className="landing-appointment__info-title">Не үшін Janymda?</h3>
-                        <ul className="landing-appointment__info-list">
-                            <li>SMS еске салу — жазылу күні сізге еске салады</li>
-                            <li>Қауіпсіз деректер — жеке ақпарат қорғалады</li>
-                            <li>Онлайн жазылу — уақытты үнемдеңіз, кездесуге дайын келіңіз</li>
-                        </ul>
-                    </div>
+            <section className="landing-section landing-news">
+                <div className="landing-news__header">
+                    <h2 className="landing-news__title">НОВОСТИ ЗДРАВООХРАНЕНИЯ</h2>
+                    <Link to="/news" className="landing-news__all">
+                        Посмотреть Все
+                    </Link>
                 </div>
+
+                {newsHome?.featured ? (
+                    <>
+                        <Link
+                            to={`/news/${newsHome.featured.slug}`}
+                            className="landing-news__featured card"
+                            style={{ textDecoration: "none", color: "inherit" }}
+                        >
+                            <div className="landing-news__featured-cover">
+                                {newsHome.featured.cover_url ? (
+                                    <img className="landing-news__featured-img" src={newsHome.featured.cover_url} alt="" />
+                                ) : (
+                                    <div className="landing-news__featured-placeholder" />
+                                )}
+                            </div>
+                            <div className="landing-news__featured-body">
+                                <div className="landing-news__featured-title">{newsHome.featured.title}</div>
+                                {newsHome.featured.excerpt ? (
+                                    <div className="landing-news__featured-excerpt muted">{newsHome.featured.excerpt}</div>
+                                ) : null}
+                            </div>
+                        </Link>
+
+                        <div className="landing-news__grid">
+                            {(newsHome.items || []).slice(0, 3).map((n) => (
+                                <Link
+                                    key={n.id}
+                                    to={`/news/${n.slug}`}
+                                    className="landing-news__item card"
+                                    style={{ textDecoration: "none", color: "inherit" }}
+                                >
+                                    <div className="landing-news__item-title">{n.title}</div>
+                                </Link>
+                            ))}
+                        </div>
+                    </>
+                ) : (
+                    <div className="card" style={{ padding: 18 }}>
+                        <p className="muted" style={{ margin: 0 }}>
+                            Әзірге жаңалық жоқ.
+                        </p>
+                    </div>
+                )}
             </section>
 
             <section className="landing-section landing-testimonials">

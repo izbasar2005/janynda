@@ -43,6 +43,9 @@ func main() {
 	if err := db.AutoMigrate(&model.Conversation{}, &model.Message{}); err != nil {
 		panic(err)
 	}
+	if err := db.AutoMigrate(&model.News{}); err != nil {
+		panic(err)
+	}
 
 	router := server.NewRouter(db)
 

@@ -79,6 +79,7 @@ func (h *NotificationHandler) List(w http.ResponseWriter, r *http.Request) {
 			"id":              n.ID,
 			"type":            n.Type,
 			"choice":          n.Choice,
+			"message":         n.Message,
 			"read_at":         n.ReadAt,
 			"created_at":      n.CreatedAt,
 			"appointment_id":  n.AppointmentID,

@@ -9,6 +9,7 @@ type Notification struct {
 	AppointmentID uint       `gorm:"not null;index" json:"appointment_id"`
 	Type          string     `gorm:"type:varchar(30);not null" json:"type"` // "15min_reminder", "5min_choice"
 	Choice        string     `gorm:"type:varchar(20)" json:"choice"`        // "in_person", "chat", "video" — 5min таңдауы
+	Message       string     `gorm:"type:text;not null;default:''" json:"message"`
 	ReadAt        *time.Time `json:"read_at,omitempty"`
 	CreatedAt     time.Time  `json:"created_at"`
 
@@ -19,6 +20,7 @@ type Notification struct {
 const (
 	NotificationType15Min = "15min_reminder"
 	NotificationType5Min  = "5min_choice"
+	NotificationTypeRoleChange = "role_change"
 	ChoiceInPerson        = "in_person"
 	ChoiceChat            = "chat"
 	ChoiceVideo           = "video"

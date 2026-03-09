@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -70,6 +71,7 @@ func (h *AdminUsersHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 
 	callerRole, _ := r.Context().Value(middleware.CtxRole).(string)
 	callerRole = strings.ToLower(strings.TrimSpace(callerRole))
+	callerID, _ := r.Context().Value(middleware.CtxUserID).(uint)
 	if callerRole != "admin" && callerRole != "super_admin" {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
@@ -129,6 +131,8 @@ func (h *AdminUsersHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	oldRole := strings.ToLower(strings.TrimSpace(u.Role))
+
 	u.Role = req.Role
 	if err := h.db.Save(&u).Error; err != nil {
 		http.Error(w, "DB error", http.StatusInternalServerError)
@@ -137,4 +141,37 @@ func (h *AdminUsersHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 
 	u.Password = ""
 	_ = json.NewEncoder(w).Encode(u)
+
+	// Рөл өзгерісі туралы notification.
+	// Notification моделінде appointment_id-ға FK бар, сондықтан кез келген бар жазылымды байлап жібереміз.
+	var anyAp model.Appointment
+	if err := h.db.Select("id").First(&anyAp).Error; err == nil && anyAp.ID != 0 {
+		apptID := anyAp.ID
+
+		// 1) Рөлі өзгерген user-ге
+		userMsg := fmt.Sprintf("Сіздің рөліңіз %s → %s болып өзгертілді.", oldRole, req.Role)
+		_ = h.db.Create(&model.Notification{
+			UserID:        u.ID,
+			AppointmentID: apptID,
+			Type:          model.NotificationTypeRoleChange,
+			Message:       userMsg,
+		}).Error
+
+		// 2) Барлық super_admin-дерге
+		var supers []model.User
+		var actor model.User
+		_ = h.db.Select("id", "full_name").First(&actor, callerID).Error
+		actorName := strings.TrimSpace(actor.FullName)
+		if err := h.db.Where("role = ?", "super_admin").Find(&supers).Error; err == nil && len(supers) > 0 {
+			adminMsg := fmt.Sprintf("Пайдаланушы %s рөлі %s → %s болып өзгертілді. Өзгерткен: %s.", u.FullName, oldRole, req.Role, actorName)
+			for _, sa := range supers {
+				_ = h.db.Create(&model.Notification{
+					UserID:        sa.ID,
+					AppointmentID: apptID,
+					Type:          model.NotificationTypeRoleChange,
+					Message:       adminMsg,
+				}).Error
+			}
+		}
+	}
 }

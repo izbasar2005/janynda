@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { api } from "../services/api";
 
 function parseJwt(t) {
@@ -28,6 +28,8 @@ export default function Header() {
     const t = localStorage.getItem("token");
     const role = t ? (parseJwt(t)?.role || "user") : "guest";
     const [unreadCount, setUnreadCount] = useState(0);
+    const [hidden, setHidden] = useState(false);
+    const lastScrollY = useRef(0);
 
     useEffect(() => {
         if (!t) {
@@ -43,6 +45,33 @@ export default function Header() {
             .catch(() => setUnreadCount(0));
     }, [t, loc.pathname]);
 
+    // Hide header on scroll down, show on scroll up
+    useEffect(() => {
+        lastScrollY.current = window.scrollY || 0;
+        const handleScroll = () => {
+            const currentY = window.scrollY || 0;
+            const diff = currentY - lastScrollY.current;
+
+            // кішкентай қозғалысты елемеу
+            if (Math.abs(diff) < 8) {
+                return;
+            }
+
+            if (currentY > 80 && diff > 0) {
+                // төмен қарай жылжығанда — жасырамыз
+                setHidden(true);
+            } else if (diff < 0) {
+                // жоғары қайтқанда — қайта көрсетеміз
+                setHidden(false);
+            }
+
+            lastScrollY.current = currentY;
+        };
+
+        window.addEventListener("scroll", handleScroll);
+        return () => window.removeEventListener("scroll", handleScroll);
+    }, []);
+
     const showNotifBadge = unreadCount > 0 && loc.pathname !== "/notifications";
 
     const active = (p) => (loc.pathname === p ? "is-active" : "");
@@ -53,7 +82,7 @@ export default function Header() {
     };
 
     return (
-        <header className="app-header">
+        <header className={`app-header ${hidden ? "app-header--hidden" : ""}`}>
             <div className="app-header__inner">
                 {/* Left: logo + brand */}
                 <Link className="app-brand" to="/">
@@ -90,6 +119,9 @@ export default function Header() {
                             <Link className={`app-nav__link ${active("/admin/users")}`} to="/admin/users">
                                 Users
                             </Link>
+                            <Link className={`app-nav__link ${active("/admin/news")}`} to="/admin/news">
+                                News
+                            </Link>
                         </>
                     )}
                     {t && role === "super_admin" && (
@@ -103,6 +135,9 @@ export default function Header() {
                             <Link className={`app-nav__link ${active("/admin/users")}`} to="/admin/users">
                                 Users
                             </Link>
+                            <Link className={`app-nav__link ${active("/admin/news")}`} to="/admin/news">
+                                News
+                            </Link>
                         </>
                     )}
                 </nav>
@@ -112,14 +147,11 @@ export default function Header() {
                     {t && (
                         <span className="app-header__notif-wrap">
                             <Link to="/notifications" className="app-header__notif" title="Ескертулер" aria-label="Ескертулер">
-                                🔔
+                                {initialsFromToken(t)}
                             </Link>
                             {showNotifBadge && <span className="app-header__notif-badge" aria-hidden="true" />}
                         </span>
                     )}
-                    <button className="app-lang" type="button">
-                        Выбор языка
-                    </button>
 
                     {!t ? (
                         <div className="app-authlinks">
@@ -132,9 +164,6 @@ export default function Header() {
                         </div>
                     ) : (
                         <div className="app-user">
-                            <button className="app-user__avatar" type="button" title="Профиль">
-                                {initialsFromToken(t)}
-                            </button>
                             <a
                                 className="app-user__logout"
                                 href="#"

@@ -65,9 +65,9 @@ export default function Notifications() {
     return (
         <div className="page">
             <div className="page-header">
-                <h2 className="page-header__title">Ескертулер</h2>
+                <h2 className="page-header__title">Хабарламалар</h2>
                 <p className="muted page-header__subtitle">
-                    Жазылу ескертулері және кездесу тәсілін таңдау.
+                    Жазылу туралы еске салулар және кездесу тәсілін таңдау.
                 </p>
             </div>
 
@@ -81,16 +81,22 @@ export default function Notifications() {
                         <li key={n.id} className={`card notif-card ${n.read_at ? "notif-card--read" : ""}`}>
                             <div className="notif-card__head">
                                 <span className="notif-card__type">
-                                    {n.type === "15min_reminder" ? "⏰ 15 мин қалды" : "📋 5 мин — таңдау"}
+                                    {n.type === "15min_reminder"
+                                        ? "⏰ 15 мин қалды"
+                                        : n.type === "5min_choice"
+                                        ? "📋 5 мин — таңдау"
+                                        : "ℹ️ Рөл өзгерісі"}
                                 </span>
                                 <span className="muted notif-card__date">{fmtDate(n.created_at)}</span>
                             </div>
                             <p className="notif-card__text">
                                 {n.type === "15min_reminder"
                                     ? `Сіздің жазылымыңыз бар: ${n.doctor_name || "Дәрігер"} — ${fmtDate(n.start_at)}. Ұмытпаңыз.`
-                                    : n.patient_choice !== undefined
-                                    ? "Кездесу жақындады. Пациенттің таңдауы төменде."
-                                    : "Кездесу жақындады. Қалай сөйлескіңіз келеді?"}
+                                    : n.type === "5min_choice"
+                                    ? n.patient_choice !== undefined
+                                        ? "Кездесу жақындады. Пациенттің таңдауы төменде."
+                                        : "Кездесу жақындады. Қалай сөйлескіңіз келеді?"
+                                    : n.message || "Сіздің рөліңіз өзгертілді."}
                             </p>
                             {n.type === "5min_choice" && n.patient_choice !== undefined && n.patient_choice !== null && (
                                 <>
