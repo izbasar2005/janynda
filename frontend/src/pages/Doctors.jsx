@@ -82,7 +82,7 @@ export default function Doctors() {
         : specialties;
 
     return (
-        <div className="page">
+        <div className="page doctors-page">
             <div className="page-header">
                 <div>
                     <h2 className="page-header__title">Дәрігерлер тізімі</h2>
@@ -179,50 +179,15 @@ function DoctorCard({ d, role }) {
     }, [src]);
 
     return (
-        <div
-            className="card"
-            style={{
-                padding: 20,
-                borderRadius: 18,
-                transition: "transform .15s ease",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.transform = "translateY(-2px)")}
-            onMouseLeave={(e) => (e.currentTarget.style.transform = "translateY(0)")}
-        >
-            <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}>
-                <div
-                    style={{
-                        width: 124,
-                        height: 124,
-                        borderRadius: "50%",
-                        overflow: "hidden",
-                        border: "2px solid rgba(255,255,255,0.10)",
-                        position: "relative",
-                    }}
-                >
-                    {!loaded && (
-                        <div
-                            style={{
-                                position: "absolute",
-                                inset: 0,
-                                background:
-                                    "linear-gradient(90deg, rgba(255,255,255,0.04), rgba(255,255,255,0.10), rgba(255,255,255,0.04))",
-                                animation: "pulse 1.2s infinite",
-                                zIndex: 1,
-                            }}
-                        />
-                    )}
-
+        <article className="card doctor-card">
+            <div className="doctor-card__avatar-wrap">
+                <div className="doctor-card__avatar-inner">
+                    {!loaded && <div className="doctor-card__avatar-skeleton" />}
                     <img
                         ref={imgRef}
                         src={src}
                         alt={d.full_name || "doctor"}
-                        style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
-                            display: "block",
-                        }}
+                        className="doctor-card__avatar"
                         onLoad={() => setLoaded(true)}
                         onError={(e) => {
                             e.currentTarget.onerror = null;
@@ -233,29 +198,33 @@ function DoctorCard({ d, role }) {
                 </div>
             </div>
 
-            <h3 style={{ textAlign: "center", margin: 0 }}>
-                <Link to={`/doctors/${Number(d.id)}`} style={{ color: "inherit", textDecoration: "none" }}>
+            <h3 className="doctor-card__name">
+                <Link to={`/doctors/${Number(d.id)}`} className="doctor-card__name-link">
                     {d.full_name || "Аты көрсетілмеген"}
                 </Link>
             </h3>
 
-            <p className="muted" style={{ textAlign: "center", margin: "8px 0 14px" }}>
+            <p className="doctor-card__specialty muted">
                 {d.specialty || "Мамандығы көрсетілмеген"}
             </p>
 
-            <div style={{ display: "grid", gap: 8 }}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <div className="doctor-card__meta">
+                <div className="doctor-card__meta-row">
                     <span className="muted">Тәжірибе</span>
-                    <b>{Number(d.experience || 0)} жыл</b>
+                    <span className="doctor-card__meta-value">
+                        {Number(d.experience || 0)} жыл
+                    </span>
                 </div>
 
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <div className="doctor-card__meta-row">
                     <span className="muted">Бағасы</span>
-                    <b>{Number(d.price || 0)} ₸</b>
+                    <span className="doctor-card__meta-value">
+                        {Number(d.price || 0)} ₸
+                    </span>
                 </div>
             </div>
 
-            <div style={{ marginTop: 16, textAlign: "center", display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+            <div className="doctor-card__actions">
                 <Link to={`/doctors/${Number(d.id)}`} className="btn ghost">
                     Толығырақ
                 </Link>
@@ -268,9 +237,9 @@ function DoctorCard({ d, role }) {
                         Жазылу
                     </Link>
                 ) : (
-                    <span className="muted">Тек пациент</span>
+                    <span className="muted doctor-card__only-patient">Тек пациент</span>
                 )}
             </div>
-        </div>
+        </article>
     );
 }
