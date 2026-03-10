@@ -56,14 +56,14 @@ export default function Login() {
               <div className="login-logo" aria-hidden="true">
                 <img src="/img/logo.png" alt="" className="login-logo-img" />
               </div>
-              <span className="login-brand login-brand--small">Janymda</span>
+              <span className="login-brand login-brand--small">Janynda</span>
             </div>
 
-            <h2 className="login-title">Войти</h2>
+            <h2 className="login-title">Кіру</h2>
 
             <form onSubmit={onSubmit} className="login-form form">
               <div className="form-field">
-                <label className="form-label">Телефон или логин</label>
+                <label className="form-label">Телефон немесе логин</label>
                 <input
                     className="login-input"
                     value={phone}
@@ -73,7 +73,7 @@ export default function Login() {
               </div>
 
               <div className="form-field">
-                <label className="form-label">Пароль</label>
+                <label className="form-label">Құпия сөз</label>
                 <div className="password-field">
                   <input
                       className="login-input password-field__input"
@@ -96,13 +96,13 @@ export default function Login() {
               {msg && <div className="form-error login-error">{msg}</div>}
 
               <button className="login-btn" type="submit">
-                Войти
+                Кіру
               </button>
             </form>
 
             <div className="login-links">
               <button className="login-link" type="button">
-                Забыли пароль
+                Құпия сөзді ұмыттыңыз ба?
               </button>
 
               {/* Мынау сенің /register маршрутыңа апарады */}

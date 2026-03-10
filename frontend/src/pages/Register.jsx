@@ -57,12 +57,12 @@ export default function Register() {
         <div className="reg-card">
           <div className="reg-top">
             <div className="reg-logo" aria-hidden="true" />
-            <div className="reg-brand">Janymda</div>
+            <div className="reg-brand">Janynda</div>
           </div>
 
           <div className="reg-head">
-            <h2 className="reg-title">Регистрация</h2>
-            <Link className="reg-mini" to="/login">Уже есть аккаунт</Link>
+            <h2 className="reg-title">Тіркелу</h2>
+            <Link className="reg-mini" to="/login">Аккаунтыңыз бар ма?</Link>
           </div>
 
           <form className="reg-form form" onSubmit={onSubmit}>
@@ -73,7 +73,7 @@ export default function Register() {
 
             <div className="form-row">
               <div className="form-field">
-                <label className="form-label">Пароль</label>
+                <label className="form-label">Құпия сөз</label>
                 <input className="reg-input" type="password" placeholder="PASSWORD" value={password} onChange={(e)=>setPassword(e.target.value)} />
               </div>
               <div className="form-field">

@@ -116,6 +116,25 @@ func NewRouter(db *gorm.DB) http.Handler {
 	})
 	mux.Handle("/api/v1/notifications/", middleware.AuthJWT(http.HandlerFunc(nh.HandleWithID)))
 
+	// Diary (JWT) — жеке күнделік
+	dhDiary := handler.NewDiaryHandler(db)
+	mux.Handle("/api/v1/diary",
+		middleware.AuthJWT(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodGet {
+				dhDiary.ListMy(w, r)
+				return
+			}
+			if r.Method == http.MethodPost {
+				dhDiary.Create(w, r)
+				return
+			}
+			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		})),
+	)
+	mux.Handle("/api/v1/diary/summary",
+		middleware.AuthJWT(http.HandlerFunc(dhDiary.Summary)),
+	)
+
 	// Conversations / chat (JWT)
 	convH := handler.NewConversationHandler(db)
 	mux.HandleFunc("/api/v1/conversations/by-appointment/", func(w http.ResponseWriter, r *http.Request) {

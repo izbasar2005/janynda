@@ -46,6 +46,9 @@ func main() {
 	if err := db.AutoMigrate(&model.News{}); err != nil {
 		panic(err)
 	}
+	if err := db.AutoMigrate(&model.DiaryEntry{}); err != nil {
+		panic(err)
+	}
 
 	router := server.NewRouter(db)
 

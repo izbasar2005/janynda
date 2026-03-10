@@ -25,7 +25,7 @@ export default function Navbar() {
 
     return (
         <div className="nav">
-            <div className="brand">Janymda</div>
+            <div className="brand">Janynda</div>
             <div className="nav-links">
                 <Link className={active("/")} to="/">Басты бет</Link>
                 <Link className={active("/doctors")} to="/doctors">Дәрігерлер</Link>

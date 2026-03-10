@@ -91,27 +91,27 @@ export default function Header() {
             <div className="app-header__inner">
                 {/* Left: logo + brand */}
                 <Link className="app-brand" to="/">
-                    <img src="/img/logo.png" alt="Janymda" className="app-brand__logo" />
-                    <span className="app-brand__text">Janymda</span>
+                    <img src="/img/logo.png" alt="Janynda логотипі" className="app-brand__logo" />
+                    <span className="app-brand__text">Janynda</span>
                 </Link>
 
                 {/* Center: nav */}
                 <nav className="app-nav" aria-label="Main">
                     <Link className={`app-nav__link ${active("/")}`} to="/">
-                        Главная
+                        Басты бет
                     </Link>
 
                     {/* "Запись" — super_admin үшін көрсетілмейді */}
                     {role !== "super_admin" && (
                         <Link className={`app-nav__link ${active("/doctors")}`} to="/doctors">
-                            Запись
+                            Дәрігерге жазылу
                         </Link>
                     )}
 
-                    {/* "Мои данные" — бізде /profile */}
+                    {/* Профиль беті */}
                     {t && (
                         <Link className={`app-nav__link ${active("/profile")}`} to="/profile">
-                            Мои данные
+                            Менің деректерім
                         </Link>
                     )}
 
@@ -149,6 +149,11 @@ export default function Header() {
 
                 {/* Right: language + auth */}
                 <div className="app-header__right">
+                    {/* Diary icon link */}
+                    <Link to="/diary" className="app-header__diary-link" title="Күнделікке өту" aria-label="Күнделікке өту">
+                        <span className="app-header__diary-emoji" aria-hidden="true">📓</span>
+                    </Link>
+
                     {t && (
                         <span className="app-header__notif-wrap">
                             <Link to="/notifications" className="app-header__notif" title="Ескертулер" aria-label="Ескертулер">
@@ -161,10 +166,10 @@ export default function Header() {
                     {!t ? (
                         <div className="app-authlinks">
                             <Link className={`app-authlinks__link ${active("/login")}`} to="/login">
-                                Войти
+                                Кіру
                             </Link>
                             <Link className={`app-authlinks__link ${active("/register")}`} to="/register">
-                                Регистрация
+                                Тіркелу
                             </Link>
                         </div>
                     ) : (

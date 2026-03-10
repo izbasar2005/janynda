@@ -33,6 +33,14 @@ export default function Home() {
     const [feedbackText, setFeedbackText] = useState("");
     const [feedbackMsg, setFeedbackMsg] = useState("");
 
+    // Күнделік мини-виджеті үшін
+    const [diaryMood, setDiaryMood] = useState(3);
+    const [diaryText, setDiaryText] = useState("");
+    const [diarySummary, setDiarySummary] = useState(null);
+    const [diarySaving, setDiarySaving] = useState(false);
+    const [diaryError, setDiaryError] = useState("");
+    const [showDiaryWidget, setShowDiaryWidget] = useState(true);
+
     useEffect(() => {
         api("/api/v1/doctors")
             .then((d) => {
@@ -62,12 +70,31 @@ export default function Home() {
     useEffect(() => {
         if (!token()) {
             setMe(null);
+            setDiarySummary(null);
+            setShowDiaryWidget(false);
             return;
         }
         api("/api/v1/me", { auth: true })
-            .then((u) => setMe(u || null))
-            .catch(() => setMe(null));
+            .then((u) => {
+                setMe(u || null);
+                setShowDiaryWidget(true);
+            })
+            .catch(() => {
+                setMe(null);
+                setShowDiaryWidget(false);
+            });
     }, []);
+
+    // Күнделік summary — тек кірген қолданушыға
+    useEffect(() => {
+        if (!token()) {
+            setDiarySummary(null);
+            return;
+        }
+        api("/api/v1/diary/summary", { auth: true })
+            .then((s) => setDiarySummary(s || null))
+            .catch(() => setDiarySummary(null));
+    }, [me]);
 
     useEffect(() => {
         const n = platformFeedbacks.length;
@@ -136,6 +163,90 @@ export default function Home() {
                 const msg = err.message || "";
                 setFeedbackMsg(msg.includes("401") || msg.includes("кіріңіз") ? "Пікір қалдыру үшін жүйеге кіріңіз." : msg);
             });
+    }
+
+    const DIARY_MOOD_OPTIONS = [
+        { value: 1, label: "Өте ауыр", emoji: "😢" },
+        { value: 2, label: "Қиындау", emoji: "😟" },
+        { value: 3, label: "Жай", emoji: "😐" },
+        { value: 4, label: "Жақсы", emoji: "🙂" },
+        { value: 5, label: "Жақсырақ", emoji: "😊" },
+    ];
+
+    function moodTemplate(value) {
+        switch (value) {
+            case 1:
+                return "Бүгін өзімді өте ауыр сезініп тұрмын, себебі ";
+            case 2:
+                return "Бүгін жағдайым қиындау, мені уайымдатқан нәрсе ";
+            case 3:
+                return "Бүгінгі көңіл-күйім жай, ойымда жүргені ";
+            case 4:
+                return "Бүгін өзімді жақсырақ сезініп тұрмын, мені қуантқан нәрсе ";
+            case 5:
+                return "Бүгін өзімді жақсы сезінемін, ризалық білдіргім келетіні ";
+            default:
+                return "";
+        }
+    }
+
+    function handleDiaryMoodClick(value) {
+        setDiaryError("");
+        if (!token()) {
+            setDiaryError("Күнделікке жазу үшін жүйеге кіріңіз.");
+            return;
+        }
+        setDiaryMood(value);
+        // Әр смайликке жеке шаблон
+        const tpl = moodTemplate(value);
+        setDiaryText(tpl);
+    }
+
+    function handleDiarySave(e) {
+        e.preventDefault();
+        setDiaryError("");
+        if (!token()) {
+            setDiaryError("Күнделікке жазу үшін жүйеге кіріңіз.");
+            return;
+        }
+        if (!diaryMood) {
+            setDiaryError("Алдымен көңіл-күйді таңдаңыз.");
+            return;
+        }
+        setDiarySaving(true);
+        api("/api/v1/diary", {
+            method: "POST",
+            auth: true,
+            body: { mood: diaryMood, text: diaryText },
+        })
+            .then((entry) => {
+                setDiarySummary((prev) => {
+                    const now = entry.mood;
+                    if (!prev || !prev.count) {
+                        return {
+                            count: 1,
+                            avg_mood: now,
+                            first_mood: now,
+                            latest_mood: now,
+                        };
+                    }
+                    const newCount = prev.count + 1;
+                    const newAvg = (prev.avg_mood * prev.count + now) / newCount;
+                    return {
+                        ...prev,
+                        count: newCount,
+                        avg_mood: newAvg,
+                        latest_mood: now,
+                    };
+                });
+                // сақталғанда — виджет өшеді
+                setShowDiaryWidget(false);
+                setDiaryText("");
+            })
+            .catch((err) => {
+                setDiaryError(err.message || "Күнделік жазбасын сақтау қатесі");
+            })
+            .finally(() => setDiarySaving(false));
     }
 
     return (
@@ -354,6 +465,65 @@ export default function Home() {
                     )}
                 </div>
             </section>
+
+            {me && showDiaryWidget && (
+                <div className="landing-diary-widget">
+                    <div className="landing-diary-widget__inner">
+                        <div className="landing-diary-widget__header">
+                            <div>
+                                <div className="landing-diary-widget__title">Бүгінгі күйіңіз?</div>
+                                <div className="landing-diary-widget__subtitle">
+                                    Бір смайлик басу жеткілікті. Жазбалар құпия сақталады.
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                className="landing-diary-widget__close"
+                                onClick={() => setShowDiaryWidget(false)}
+                                aria-label="Жабу"
+                            >
+                                ×
+                            </button>
+                        </div>
+                        <form className="landing-diary-widget__form" onSubmit={handleDiarySave}>
+                            <div className="landing-diary-widget__moods">
+                            {DIARY_MOOD_OPTIONS.map((opt) => (
+                                <button
+                                    key={opt.value}
+                                    type="button"
+                                    className={
+                                        "landing-diary__mood" +
+                                        (diaryMood === opt.value ? " landing-diary__mood--active" : "")
+                                    }
+                                    onClick={() => handleDiaryMoodClick(opt.value)}
+                                    disabled={diarySaving}
+                                >
+                                    <span className="landing-diary__mood-emoji" aria-hidden="true">
+                                        {opt.emoji}
+                                    </span>
+                                    <span className="landing-diary__mood-label">{opt.label}</span>
+                                </button>
+                            ))}
+                            </div>
+                            {diaryText && (
+                                <textarea
+                                    className="landing-diary-widget__textarea"
+                                    rows={3}
+                                    value={diaryText}
+                                    onChange={(e) => setDiaryText(e.target.value)}
+                                    placeholder="Ойыңызды бірнеше сөйлеммен жалғастырып жазыңыз..."
+                                />
+                            )}
+                            {diaryError && <div className="form-error diary-error">{diaryError}</div>}
+                            <div className="landing-diary-widget__footer">
+                                <button className="btn btn-sm" type="submit" disabled={diarySaving || !diaryText}>
+                                    {diarySaving ? "Сақталуда..." : "Жазбаны сақтау"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             <section className="landing-section landing-faq">
                 <h2 className="landing-section__title">Жиі қойылатын сұрақтар</h2>

@@ -19,7 +19,7 @@ export default function Hero() {
                     Дәрігерге онлайн жазылу
                 </h1>
                 <p className="landing-hero__desc">
-                    Janymda — заманауи медициналық платформа. Дәрігерді таңдаңыз,
+                    Janynda — заманауи медициналық платформа. Дәрігерді таңдаңыз,
                     ыңғайлы уақытты белгілеңіз және қауіпсіз түрде жазылыңыз.
                 </p>
                 <ul className="landing-hero__benefits">

@@ -5,7 +5,7 @@ export default function Footer() {
         <footer className="app-footer">
             <div className="app-footer__inner">
                 <div className="app-footcol">
-                    <div className="app-footcol__brand">Janymda</div>
+                    <div className="app-footcol__brand">Janynda</div>
                     <p className="app-footcol__text">
                         Медициналық онлайн платформа — дәрігерге оңай жазылу.
                     </p>
@@ -17,10 +17,10 @@ export default function Footer() {
 
                 <div className="app-footcol">
                     <div className="app-footcol__title">Платформа</div>
-                    <Link className="app-footlink" to="/">Главная</Link>
-                    <Link className="app-footlink" to="/doctors">Запись к врачу</Link>
-                    <Link className="app-footlink" to="/login">Войти</Link>
-                    <Link className="app-footlink" to="/register">Регистрация</Link>
+                    <Link className="app-footlink" to="/">Басты бет</Link>
+                    <Link className="app-footlink" to="/doctors">Дәрігерге жазылу</Link>
+                    <Link className="app-footlink" to="/login">Кіру</Link>
+                    <Link className="app-footlink" to="/register">Тіркелу</Link>
                 </div>
 
                 <div className="app-footcol">
@@ -34,7 +34,7 @@ export default function Footer() {
                 <div className="app-footcol">
                     <div className="app-footcol__title">Байланыс</div>
                     <p className="app-footcol__text">+7 (700) 000-00-00</p>
-                    <p className="app-footcol__text">support@janymda.kz</p>
+                    <p className="app-footcol__text">support@Janynda.kz</p>
                 </div>
 
                 <div className="app-footcol">
@@ -53,7 +53,7 @@ export default function Footer() {
                 </div>
             </div>
             <div className="app-footer__bottom">
-                <p className="app-footer__copy">© {new Date().getFullYear()} Janymda. Барлық құқықтар қорғалған.</p>
+                <p className="app-footer__copy">© {new Date().getFullYear()} Janynda. Барлық құқықтар қорғалған.</p>
             </div>
         </footer>
     );

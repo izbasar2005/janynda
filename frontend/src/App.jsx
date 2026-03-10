@@ -8,6 +8,7 @@ import DoctorDetail from "./pages/DoctorDetail.jsx";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
 import Profile from "./pages/Profile.jsx";
+import Diary from "./pages/Diary.jsx";
 import Book from "./pages/Book.jsx";
 import AdminUsers from "./pages/AdminUsers.jsx";
 import AdminDoctors from "./pages/AdminDoctors.jsx";
@@ -35,6 +36,7 @@ export default function App() {
                         <Route path="/register" element={<Register />} />
 
                         <Route path="/profile" element={<Profile />} />
+                        <Route path="/diary" element={<Diary />} />
                         <Route path="/book/:doctorId" element={<Book />} />
                         <Route path="/notifications" element={<Notifications />} />
                         <Route path="/chat/:appointmentId" element={<Chat />} />
