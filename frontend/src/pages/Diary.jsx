@@ -85,6 +85,12 @@ export default function Diary() {
         return "Көңіл-күйіңіз жақсы. Көңілді жүру, өзіңізге қамқор болу – өміріңізді ұзартып, сапасын жақсартады.";
     }, [avgMood]);
 
+    const [showAllEntries, setShowAllEntries] = useState(false);
+    const entriesToShow = useMemo(() => {
+        const list = Array.isArray(entries) ? entries : [];
+        return showAllEntries ? list : list.slice(0, 5);
+    }, [entries, showAllEntries]);
+
     async function handleSubmit(e) {
         e.preventDefault();
         setError("");
@@ -151,34 +157,6 @@ export default function Diary() {
                         <p className="diary-subtitle diary-subtitle--mood">{moodMessage}</p>
                     </header>
 
-                    <div className="diary-stats">
-                        <div className="diary-stat-card">
-                            <div className="diary-stat-label">Орташа көңіл-күй</div>
-                            <div className="diary-stat-value">
-                                {summary?.avg_mood
-                                    ? (summary.avg_mood.toFixed ? summary.avg_mood.toFixed(1) : summary.avg_mood)
-                                    : "—"}
-                            </div>
-                            <div className="diary-stat-hint">
-                                1 — өте ауыр, 5 — жақсы. Уақыт өте өз өзгерісіңізді байқауға болады.
-                            </div>
-                        </div>
-                        <div className="diary-stat-card">
-                            <div className="diary-stat-label">Жазбалар саны</div>
-                            <div className="diary-stat-value">{summary?.count ?? 0}</div>
-                            <div className="diary-stat-hint">Соңғы 30 күнде сақталған жазбалар.</div>
-                        </div>
-                        <div className="diary-stat-card">
-                            <div className="diary-stat-label">Соңғы жазба</div>
-                            <div className="diary-stat-value">
-                                {latestMoodLabel || "Әзірге белгіленбеген"}
-                            </div>
-                            <div className="diary-stat-hint">
-                                Көңіл-күйді таңдаңыз, содан кейін ойыңызды қысқаша жалғастыра аласыз.
-                            </div>
-                        </div>
-                    </div>
-
                     <section className="diary-card">
                         <form onSubmit={handleSubmit} className="diary-form">
                             <div className="diary-form__row">
@@ -237,7 +215,18 @@ export default function Diary() {
                     </section>
 
                     <section className="diary-history">
-                        <h2 className="diary-history__title">Алдыңғы жазбалар</h2>
+                        <div className="diary-history__head">
+                            <h2 className="diary-history__title">Алдыңғы жазбалар</h2>
+                            {!loading && entries.length > 5 && (
+                                <button
+                                    type="button"
+                                    className="diary-history__toggle"
+                                    onClick={() => setShowAllEntries((p) => !p)}
+                                >
+                                    {showAllEntries ? "Жасыру" : "Толық көру"}
+                                </button>
+                            )}
+                        </div>
                         {loading && <p className="muted">Күнделік жүктелуде…</p>}
                         {!loading && entries.length === 0 && (
                             <p className="muted">
@@ -246,7 +235,7 @@ export default function Diary() {
                         )}
                         {!loading && entries.length > 0 && (
                             <ul className="diary-list">
-                                {entries.map((e) => {
+                                {entriesToShow.map((e) => {
                                     const d = new Date(e.created_at || e.CreatedAt || e.createdAt);
                                     const opt = MOOD_OPTIONS.find((o) => o.value === e.mood);
                                     return (

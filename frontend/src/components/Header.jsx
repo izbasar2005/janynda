@@ -114,6 +114,11 @@ export default function Header() {
                             Менің деректерім
                         </Link>
                     )}
+                    {t && (
+                        <Link className={`app-nav__link ${active("/groups")}`} to="/groups">
+                            Топтар
+                        </Link>
+                    )}
 
                     {/* Admin логикасы сақталсын */}
                     {t && role === "admin" && (

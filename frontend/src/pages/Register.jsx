@@ -16,6 +16,7 @@ export default function Register() {
   const [patronymic, setPatronymic] = useState(""); // ОТЧЕСТВО
   const [gender, setGender] = useState("");         // ПОЛ
   const [phone, setPhone] = useState("");           // ТЕЛЕФОН
+  const [role, setRole] = useState("patient");      // РӨЛ
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -44,6 +45,7 @@ export default function Register() {
           last_name: lastName,
           patronymic,
           gender,
+          role,
         },
       });
       nav("/login");
@@ -122,6 +124,19 @@ export default function Register() {
                   <option value="female">Женщина</option>
                 </select>
               </div>
+            </div>
+
+            <div className="form-field">
+              <label className="form-label">Рөл</label>
+              <select
+                  className="reg-input"
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  required
+              >
+                <option value="patient">Пациент</option>
+                <option value="volunteer">Волонтер</option>
+              </select>
             </div>
 
             {msg && <div className="reg-msg form-error">{msg}</div>}

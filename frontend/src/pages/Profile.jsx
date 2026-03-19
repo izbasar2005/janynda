@@ -211,19 +211,6 @@ export default function Profile() {
                             </dl>
                         </section>
 
-                        {/* Күнделікке қысқа шақыру */}
-                        <section className="profile-card profile-card--diary">
-                            <h3 className="profile-card__title">Күнделік</h3>
-                            <p className="profile-card__text">
-                                Күнделікке қысқаша жазып тұру — өз сезіміңізді түсінуге және уақыт өте қалай өзгергенін
-                                көруге көмектеседі. Жазбаларды ешкім оқымайды, тек өте қиын жағдайда ғана психологқа
-                                көрінуі мүмкін.
-                            </p>
-                            <Link to="/diary" className="btn profile-empty__cta">
-                                Күнделікке өту
-                            </Link>
-                        </section>
-
                         {/* Жазылулар / Super Admin: статистика */}
                         <section className="profile-card profile-card--appointments">
                             {isSuperAdmin ? (

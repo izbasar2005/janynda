@@ -135,12 +135,25 @@ func NewRouter(db *gorm.DB) http.Handler {
 		middleware.AuthJWT(http.HandlerFunc(dhDiary.Summary)),
 	)
 
+	// Groups / group chat (JWT)
+	gh := handler.NewGroupHandler(db)
+	mux.Handle("/api/v1/groups", middleware.AuthJWT(http.HandlerFunc(gh.HandleRoot)))
+	mux.Handle("/api/v1/groups/my", middleware.AuthJWT(http.HandlerFunc(gh.ListMy)))
+	mux.Handle("/api/v1/groups/candidates", middleware.AuthJWT(http.HandlerFunc(gh.ListCandidates)))
+	mux.Handle("/api/v1/groups/", middleware.AuthJWT(http.HandlerFunc(gh.HandleWithID)))
+
 	// Conversations / chat (JWT)
 	convH := handler.NewConversationHandler(db)
 	mux.HandleFunc("/api/v1/conversations/by-appointment/", func(w http.ResponseWriter, r *http.Request) {
 		middleware.AuthJWT(http.HandlerFunc(convH.GetByAppointment)).ServeHTTP(w, r)
 	})
 	mux.Handle("/api/v1/conversations/", middleware.AuthJWT(http.HandlerFunc(convH.HandleWithID)))
+
+	// Direct chats between group participants (JWT)
+	directH := handler.NewDirectChatHandler(db)
+	mux.Handle("/api/v1/direct-chats", middleware.AuthJWT(http.HandlerFunc(directH.HandleRoot)))
+	mux.Handle("/api/v1/direct-chats/start", middleware.AuthJWT(http.HandlerFunc(directH.Start)))
+	mux.Handle("/api/v1/direct-chats/", middleware.AuthJWT(http.HandlerFunc(directH.HandleWithID)))
 
 	// GET /api/v1/appointments/all (super_admin only — барлық жазылулар тек супер админге)
 	mux.Handle("/api/v1/appointments/all",

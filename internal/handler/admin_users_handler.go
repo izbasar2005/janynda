@@ -22,7 +22,7 @@ func NewAdminUsersHandler(db *gorm.DB) *AdminUsersHandler {
 }
 
 // GET /api/v1/admin/users (admin or super_admin)
-// admin: patient + doctor; super_admin: только doctor + admin (супер админдер тізімде көрінбейді)
+// admin: patient + doctor + volunteer; super_admin: только doctor + admin (супер админдер тізімде көрінбейді)
 func (h *AdminUsersHandler) List(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if r.Method != http.MethodGet {
@@ -41,7 +41,7 @@ func (h *AdminUsersHandler) List(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case "admin":
-		if err := h.db.Where("role IN ?", []string{"patient", "doctor"}).Order("id asc").Find(&users).Error; err != nil {
+		if err := h.db.Where("role IN ?", []string{"patient", "doctor", "volunteer"}).Order("id asc").Find(&users).Error; err != nil {
 			http.Error(w, "DB error", http.StatusInternalServerError)
 			return
 		}
@@ -61,7 +61,7 @@ type UpdateRoleRequest struct {
 }
 
 // PUT /api/v1/admin/users/{id}/role
-// admin: only patient, doctor, admin. super_admin: patient, doctor, admin, super_admin (супер админды юзер/рөлге қайтаруға болады).
+// admin: only patient, doctor, volunteer, admin. super_admin: patient, doctor, volunteer, admin, super_admin.
 func (h *AdminUsersHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if r.Method != http.MethodPut {
@@ -101,12 +101,12 @@ func (h *AdminUsersHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 
 	// allowed roles per caller
 	if callerRole == "super_admin" {
-		if req.Role != "patient" && req.Role != "doctor" && req.Role != "admin" && req.Role != "super_admin" {
+		if req.Role != "patient" && req.Role != "doctor" && req.Role != "volunteer" && req.Role != "admin" && req.Role != "super_admin" {
 			http.Error(w, "role қате", http.StatusBadRequest)
 			return
 		}
 	} else {
-		if req.Role != "patient" && req.Role != "doctor" && req.Role != "admin" {
+		if req.Role != "patient" && req.Role != "doctor" && req.Role != "volunteer" && req.Role != "admin" {
 			http.Error(w, "role қате", http.StatusBadRequest)
 			return
 		}

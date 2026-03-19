@@ -17,6 +17,8 @@ import AdminDoctorsStats from "./pages/AdminDoctorsStats.jsx";
 import AdminNews from "./pages/AdminNews.jsx";
 import Notifications from "./pages/Notifications.jsx";
 import Chat from "./pages/Chat.jsx";
+import DirectChat from "./pages/DirectChat.jsx";
+import Groups from "./pages/Groups.jsx";
 import NewsList from "./pages/NewsList.jsx";
 import NewsDetail from "./pages/NewsDetail.jsx";
 
@@ -40,6 +42,8 @@ export default function App() {
                         <Route path="/book/:doctorId" element={<Book />} />
                         <Route path="/notifications" element={<Notifications />} />
                         <Route path="/chat/:appointmentId" element={<Chat />} />
+                        <Route path="/dm/:chatId" element={<DirectChat />} />
+                        <Route path="/groups" element={<Groups />} />
 
                         <Route path="/news" element={<NewsList />} />
                         <Route path="/news/:slug" element={<NewsDetail />} />

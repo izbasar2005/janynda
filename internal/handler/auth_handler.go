@@ -24,6 +24,7 @@ type RegisterRequest struct {
 	FullName string `json:"full_name"`
 	Phone    string `json:"phone"`
 	Password string `json:"password"`
+	Role     string `json:"role"`
 
 	IIN        string `json:"iin"`
 	FirstName  string `json:"first_name"`
@@ -48,9 +49,18 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	req.FullName = strings.TrimSpace(req.FullName)
 	req.Phone = strings.TrimSpace(req.Phone)
+	req.Role = strings.ToLower(strings.TrimSpace(req.Role))
 
 	if req.FullName == "" || req.Phone == "" || req.Password == "" {
 		http.Error(w, "full_name, phone, password міндетті", http.StatusBadRequest)
+		return
+	}
+
+	if req.Role == "" {
+		req.Role = "patient"
+	}
+	if req.Role != "patient" && req.Role != "volunteer" {
+		http.Error(w, "role тек patient немесе volunteer болуы керек", http.StatusBadRequest)
 		return
 	}
 
@@ -65,7 +75,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		FullName: req.FullName,
 		Phone:    req.Phone,
 		Password: string(hash),
-		Role:     "patient",
+		Role:     req.Role,
 
 		IIN:        strings.TrimSpace(req.IIN),
 		FirstName:  strings.TrimSpace(req.FirstName),

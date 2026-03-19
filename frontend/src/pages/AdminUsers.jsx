@@ -16,7 +16,7 @@ export default function AdminUsers() {
     const nav = useNavigate();
     const [list, setList] = useState([]);
     const [msg, setMsg] = useState("");
-    const [roles, setRoles] = useState({}); // { userId: "admin|doctor|patient|super_admin" }
+    const [roles, setRoles] = useState({}); // { userId: "admin|doctor|patient|volunteer|super_admin" }
     const [loading, setLoading] = useState(false);
     const [myRole, setMyRole] = useState(""); // "admin" | "super_admin"
 
@@ -48,7 +48,7 @@ export default function AdminUsers() {
             arr.forEach((u) => (map[u.id] = (u.role || "patient").toLowerCase()));
             setRoles(map);
 
-            if (arr.length === 0) setMsg(callerRole === "super_admin" ? "Дәрігер мен админ жоқ." : "Пациент пен дәрігер жоқ.");
+            if (arr.length === 0) setMsg(callerRole === "super_admin" ? "Дәрігер мен админ жоқ." : "Пациент, волонтер және дәрігер жоқ.");
         } catch (e) {
             setMsg(`Қате: ${e.message}`);
         } finally {
@@ -75,19 +75,23 @@ export default function AdminUsers() {
         ? [
             { value: "patient", label: "patient" },
             { value: "doctor", label: "doctor" },
+            { value: "volunteer", label: "volunteer" },
             { value: "admin", label: "admin" },
             { value: "super_admin", label: "super_admin" },
         ]
         : [
-            // Қарапайым admin тек patient ↔ doctor ауыстыра алады
+            // Қарапайым admin patient/doctor/volunteer рөлдерін қоя алады
             { value: "patient", label: "patient" },
             { value: "doctor", label: "doctor" },
+            { value: "volunteer", label: "volunteer" },
         ];
 
     // Топтар тек сақталған role бойынша бөлінеді (select өзгергенде бірден орнын ауыстырмау үшін).
     const effectiveRole = (u) => (u.role || (myRole === "super_admin" ? "admin" : "patient")).toLowerCase();
     const doctorUsers = list.filter((u) => effectiveRole(u) === "doctor");
-    const otherUsers = list.filter((u) => effectiveRole(u) !== "doctor");
+    const patientUsers = list.filter((u) => effectiveRole(u) === "patient");
+    const volunteerUsers = list.filter((u) => effectiveRole(u) === "volunteer");
+    const adminUsers = list.filter((u) => effectiveRole(u) === "admin");
 
     const renderRows = (items) =>
         items.map((u) => (
@@ -124,7 +128,7 @@ export default function AdminUsers() {
                     <p className="muted page-header__subtitle">
                         {myRole === "super_admin"
                             ? "Тек дәрігерлер мен админдер. Рөлді patient / doctor / admin / super_admin қоюға болады. Супер админдер тізімде көрінбейді."
-                            : "Пациент пен дәрігерлер. Рөл: patient / doctor / admin өзгерту (super_admin қойылмайды)."}
+                            : "Пациент, волонтер және дәрігерлер. Рөл: patient / doctor / volunteer / admin өзгерту (super_admin қойылмайды)."}
                     </p>
                 </div>
             </div>
@@ -173,7 +177,7 @@ export default function AdminUsers() {
                             </tr>
                             </thead>
                             <tbody>
-                            {otherUsers.length > 0 ? renderRows(otherUsers) : (
+                            {(myRole === "super_admin" ? adminUsers : patientUsers).length > 0 ? renderRows(myRole === "super_admin" ? adminUsers : patientUsers) : (
                                 <tr>
                                     <td colSpan={5} className="muted">
                                         {myRole === "super_admin" ? "Админдер жоқ." : "Пациенттер жоқ."}
@@ -185,6 +189,32 @@ export default function AdminUsers() {
                     </div>
                 </div>
             </div>
+
+            {myRole !== "super_admin" && (
+                <div className="admin-users-column" style={{ marginTop: 16 }}>
+                    <h3 className="admin-users-column__title">Волонтерлар</h3>
+                    <div className="table-wrap admin-users-tablewrap">
+                        <table className="table admin-users-table" style={{ minWidth: 480 }}>
+                            <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Аты-жөні</th>
+                                <th>Телефон</th>
+                                <th>Role</th>
+                                <th>Сақтау</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {volunteerUsers.length > 0 ? renderRows(volunteerUsers) : (
+                                <tr>
+                                    <td colSpan={5} className="muted">Волонтерлар жоқ.</td>
+                                </tr>
+                            )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
