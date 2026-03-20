@@ -57,6 +57,10 @@ func NewRouter(db *gorm.DB) http.Handler {
 	mh := handler.NewMeHandler(db)
 	mux.Handle("/api/v1/me", middleware.AuthJWT(http.HandlerFunc(mh.Me)))
 
+	// Users (JWT required) — безопасный get by id
+	uh := handler.NewUserDBHandler(db)
+	mux.Handle("/api/v1/users/", middleware.AuthJWT(http.HandlerFunc(uh.GetByID)))
+
 	// Appointments (JWT required)
 	aph := handler.NewAppointmentHandler(db)
 

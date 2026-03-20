@@ -22,6 +22,7 @@ export default function Groups() {
 
     const [myGroups, setMyGroups] = useState([]);
     const [selectedGroupId, setSelectedGroupId] = useState(0);
+    const selectedGroupIdRef = useRef(0);
     const [messages, setMessages] = useState([]);
     const [directChats, setDirectChats] = useState([]);
     const [activeDirect, setActiveDirect] = useState(null);
@@ -33,7 +34,7 @@ export default function Groups() {
     const [msgText, setMsgText] = useState("");
     const [status, setStatus] = useState("");
 
-    const [newGroup, setNewGroup] = useState({ name: "", diagnosis_type: "", description: "" });
+    const [newGroup, setNewGroup] = useState({ name: "", diagnosis_type: "", description: "", photo_url: "" });
     const [newGroupMembers, setNewGroupMembers] = useState([]);
     const [createMemberRole, setCreateMemberRole] = useState("patient");
     const [createMemberUserIds, setCreateMemberUserIds] = useState([]);
@@ -44,8 +45,111 @@ export default function Groups() {
     const [createMembersOpen, setCreateMembersOpen] = useState(false);
     const [groupInfoOpen, setGroupInfoOpen] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
-    const [settingsForm, setSettingsForm] = useState({ name: "", diagnosis_type: "", description: "" });
+    const [settingsForm, setSettingsForm] = useState({ name: "", diagnosis_type: "", description: "", photo_url: "" });
+    const [groupPhotoUploading, setGroupPhotoUploading] = useState(false);
     const seenDirectRef = useRef({});
+    const groupMessagesScrollRef = useRef(null);
+    const groupMessagesEndRef = useRef(null);
+    const directMessagesScrollRef = useRef(null);
+    const directMessagesEndRef = useRef(null);
+    const initialGroupScrollDoneRef = useRef(false);
+    const initialDirectScrollDoneRef = useRef(false);
+    const groupAutoScrollOnceRef = useRef(false);
+    const directAutoScrollOnceRef = useRef(false);
+    const didAutoSelectOnceRef = useRef(false);
+
+    const [peerProfileOpen, setPeerProfileOpen] = useState(false);
+    const [peerProfileLoading, setPeerProfileLoading] = useState(false);
+    const [peerProfileError, setPeerProfileError] = useState("");
+    const [peerProfile, setPeerProfile] = useState(null);
+
+    const peerAvatarReqIdRef = useRef(0);
+
+    useEffect(() => {
+        selectedGroupIdRef.current = selectedGroupId;
+    }, [selectedGroupId]);
+
+    function roleLabel(role) {
+        const v = (role || "").toLowerCase();
+        if (v === "doctor") return "Дәрігер";
+        if (v === "admin") return "Админ";
+        if (v === "super_admin") return "Сүпер админ";
+        if (v === "patient") return "Пациент";
+        return role || "—";
+    }
+
+    function normalizePhoto(url) {
+        if (!url) return "";
+        if (url.startsWith("http://") || url.startsWith("https://")) return url;
+        if (url.startsWith("/")) return url;
+        return "/" + url;
+    }
+
+    async function uploadFileToServer(file) {
+        if (!file) return "";
+        const fd = new FormData();
+        fd.append("file", file);
+
+        const res = await fetch("/api/v1/upload", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token()}` },
+            body: fd,
+        });
+
+        const text = await res.text();
+        if (!res.ok) throw new Error(text || "Upload failed");
+
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch {
+            data = {};
+        }
+        return data.url || "";
+    }
+
+    async function openPeerProfile(peerUserId) {
+        const id = Number(peerUserId || 0);
+        if (!id) return;
+        setPeerProfileError("");
+        setPeerProfileLoading(true);
+        setPeerProfileOpen(true);
+        try {
+            const data = await api(`/api/v1/users/${id}`, { auth: true });
+            setPeerProfile(data || null);
+        } catch (e) {
+            setPeerProfileError(e.message || "Қате");
+        } finally {
+            setPeerProfileLoading(false);
+        }
+    }
+
+    function closePeerProfile() {
+        setPeerProfileOpen(false);
+        setPeerProfileError("");
+        setPeerProfileLoading(false);
+    }
+
+    // Direct chat header үшін аватар фотоны әр ашылғанда (қажет болса) жүктейміз.
+    useEffect(() => {
+        if (!activeDirect?.peer_user_id) return;
+        const peerID = Number(activeDirect.peer_user_id);
+        if (!peerID) return;
+
+        // Егер фото бар болса, қайта сұрамаймыз.
+        if (activeDirect.photo_url) return;
+
+        const reqID = ++peerAvatarReqIdRef.current;
+        api(`/api/v1/users/${peerID}`, { auth: true })
+            .then((u) => {
+                if (!u || reqID !== peerAvatarReqIdRef.current) return;
+                setActiveDirect((prev) => {
+                    if (!prev || Number(prev.peer_user_id) !== peerID) return prev;
+                    return { ...prev, photo_url: u.photo_url || "" };
+                });
+            })
+            .catch(() => {});
+    }, [activeDirect?.peer_user_id, activeDirect?.photo_url]);
 
     const selectedGroup = useMemo(
         () => myGroups.find((g) => g.id === selectedGroupId) || null,
@@ -132,6 +236,17 @@ export default function Groups() {
     useEffect(() => {
         if (!t) return;
         const timer = setInterval(() => {
+            // Groups list unread_count (GroupChatRead) серверде есептеледі,
+            // сондықтан біз оны мезгіл-мезгіл қайта жүктеп тұрамыз.
+            loadMyGroups();
+        }, 5000);
+        return () => clearInterval(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [t]);
+
+    useEffect(() => {
+        if (!t) return;
+        const timer = setInterval(() => {
             loadDirectChats();
         }, 5000);
         return () => clearInterval(timer);
@@ -164,6 +279,49 @@ export default function Groups() {
         setSettingsOpen(false);
     }, [selectedGroupId]);
 
+    // Switch reset: next time we mount/receive messages, scroll to bottom like WhatsApp.
+    useEffect(() => {
+        initialGroupScrollDoneRef.current = false;
+    }, [selectedGroupId, activeDirect?.id]);
+
+    useEffect(() => {
+        initialDirectScrollDoneRef.current = false;
+    }, [activeDirect?.id]);
+
+    useEffect(() => {
+        // Group chat auto-scroll (only when not in direct chat).
+        if (activeDirect?.id) return;
+        const container = groupMessagesScrollRef.current;
+        const end = groupMessagesEndRef.current;
+        if (!container || !end) return;
+
+        if (!initialGroupScrollDoneRef.current) {
+            end.scrollIntoView({ behavior: "auto", block: "end" });
+            initialGroupScrollDoneRef.current = true;
+            return;
+        }
+        if (!groupAutoScrollOnceRef.current) return;
+        end.scrollIntoView({ behavior: "smooth", block: "end" });
+        groupAutoScrollOnceRef.current = false;
+    }, [messages.length, selectedGroupId, activeDirect?.id]);
+
+    useEffect(() => {
+        // Direct chat auto-scroll inside groups page.
+        if (!activeDirect?.id) return;
+        const container = directMessagesScrollRef.current;
+        const end = directMessagesEndRef.current;
+        if (!container || !end) return;
+
+        if (!initialDirectScrollDoneRef.current) {
+            end.scrollIntoView({ behavior: "auto", block: "end" });
+            initialDirectScrollDoneRef.current = true;
+            return;
+        }
+        if (!directAutoScrollOnceRef.current) return;
+        end.scrollIntoView({ behavior: "smooth", block: "end" });
+        directAutoScrollOnceRef.current = false;
+    }, [directMessages.length, activeDirect?.id]);
+
     useEffect(() => {
         if (!activeDirect?.id) return;
         const timer = setInterval(() => {
@@ -189,7 +347,12 @@ export default function Groups() {
             const data = await api("/api/v1/groups/my", { auth: true });
             const arr = Array.isArray(data) ? data : [];
             setMyGroups(arr);
-            if (!selectedGroupId && arr.length > 0) setSelectedGroupId(arr[0].id);
+            // Only auto-select the first group ONCE ever.
+            // Polling must not reset user's current selection.
+            if (!didAutoSelectOnceRef.current && arr.length > 0 && selectedGroupIdRef.current === 0) {
+                didAutoSelectOnceRef.current = true;
+                setSelectedGroupId(arr[0].id);
+            }
         } catch (e) {
             setStatus("Топтарды жүктеу қатесі: " + (e.message || ""));
         }
@@ -352,9 +515,10 @@ export default function Groups() {
                     });
                 }
             }
-            setNewGroup({ name: "", diagnosis_type: "", description: "" });
+            setNewGroup({ name: "", diagnosis_type: "", description: "", photo_url: "" });
+            setGroupPhotoUploading(false);
             setNewGroupMembers([]);
-            setStatus("Топ құрылды ✅");
+            setToastText("Топ құрылды ✅");
             setCreateOpen(false);
             setCreateMembersOpen(false);
             loadMyGroups();
@@ -402,12 +566,31 @@ export default function Groups() {
                 auth: true,
                 body: { user_id: uid, role_in_group: memberForm.role_in_group },
             });
-            setStatus("Қолданушы топқа қосылды ✅");
+            setToastText("Қолданушы топқа қосылды ✅");
             setMemberForm((p) => ({ ...p, user_id: "" }));
             loadMembers(selectedGroupId);
             loadMyGroups();
         } catch (e2) {
             setStatus("Қосу қатесі: " + (e2.message || ""));
+        }
+    }
+
+    async function removeMember(uid) {
+        uid = Number(uid);
+        if (!selectedGroupId || !uid) return;
+        const ok = window.confirm("Сіз шынымен де осы адамды топтан шығарғыңыз келе ме?");
+        if (!ok) return;
+        setStatus("");
+        try {
+            await api(`/api/v1/groups/${selectedGroupId}/members/${uid}`, {
+                method: "DELETE",
+                auth: true,
+            });
+            setToastText("Адам топтан шығарылды ✅");
+            await loadMembers(selectedGroupId);
+            await loadMyGroups();
+        } catch (e2) {
+            setStatus("Шығару қатесі: " + (e2.message || ""));
         }
     }
 
@@ -420,7 +603,7 @@ export default function Groups() {
                 auth: true,
                 body: settingsForm,
             });
-            setStatus("Топ ақпараты жаңартылды ✅");
+            setToastText("Топ ақпараты жаңартылды ✅");
             setSettingsOpen(false);
             loadMyGroups();
         } catch (e2) {
@@ -439,6 +622,7 @@ export default function Groups() {
             });
             const sent = msgText.trim();
             setMsgText("");
+            groupAutoScrollOnceRef.current = true;
             setMyGroups((prev) => (prev || []).map((g) => (
                 Number(g.id) === Number(selectedGroupId)
                     ? { ...g, last_message: sent, unread_count: 0 }
@@ -469,8 +653,20 @@ export default function Groups() {
                 peer_user_id: peerID,
                 peer_name: member.full_name || "Қатысушы",
                 last_message: "",
+                photo_url: "",
             };
             setActiveDirect(next);
+            // Load peer avatar (doctor photo) for the header.
+            const reqID = ++peerAvatarReqIdRef.current;
+            api(`/api/v1/users/${peerID}`, { auth: true })
+                .then((u) => {
+                    if (!u || reqID !== peerAvatarReqIdRef.current) return;
+                    setActiveDirect((prev) => {
+                        if (!prev || Number(prev.peer_user_id) !== peerID) return prev;
+                        return { ...prev, photo_url: u.photo_url || "" };
+                    });
+                })
+                .catch(() => {});
             setDirectChats((prev) => {
                 const exists = prev.some((c) => Number(c.id) === cid);
                 const result = exists ? prev : [next, ...prev];
@@ -498,6 +694,7 @@ export default function Groups() {
                 body: { body: text },
             });
             setDirectText("");
+            directAutoScrollOnceRef.current = true;
             // UI-ды бірден жаңартамыз (WhatsApp сияқты).
             setDirectChats((prev) => {
                 const cid = Number(activeDirect.id);
@@ -577,6 +774,38 @@ export default function Groups() {
                                 value={newGroup.description}
                                 onChange={(e) => setNewGroup((p) => ({ ...p, description: e.target.value }))}
                             />
+                            <div style={{ marginTop: 8 }}>
+                                <div className="muted" style={{ fontSize: 12, marginBottom: 6, fontWeight: 700 }}>
+                                    Фото (міндетті емес)
+                                </div>
+                                {newGroup.photo_url ? (
+                                    <img
+                                        src={normalizePhoto(newGroup.photo_url)}
+                                        alt=""
+                                        style={{ width: 72, height: 72, borderRadius: 12, objectFit: "cover", border: "1px solid rgba(148,163,184,.35)" }}
+                                    />
+                                ) : null}
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="input"
+                                    style={{ marginTop: 8, width: "100%" }}
+                                    disabled={groupPhotoUploading}
+                                    onChange={async (e) => {
+                                        const f = e.target.files?.[0];
+                                        if (!f) return;
+                                        try {
+                                            setGroupPhotoUploading(true);
+                                            const url = await uploadFileToServer(f);
+                                            setNewGroup((p) => ({ ...p, photo_url: url || "" }));
+                                        } catch (err) {
+                                            setStatus("Фото жүктеу қатесі: " + (err.message || ""));
+                                        } finally {
+                                            setGroupPhotoUploading(false);
+                                        }
+                                    }}
+                                />
+                            </div>
                             <button
                                 type="button"
                                 className="groups-create-inline__toggle"
@@ -623,7 +852,7 @@ export default function Groups() {
                                                             />
                                                             <span className="groups-create-check__mark">{checked ? "✓" : ""}</span>
                                                             <span className="groups-create-check__text">
-                                                                {u.full_name || `User ${u.id}`} (ID: {u.id})
+                                                                {u.full_name || "Қолданушы"}
                                                             </span>
                                                         </label>
                                                     );
@@ -664,10 +893,33 @@ export default function Groups() {
                                 <button
                                     key={g.id}
                                     className={`groups-list__item ${selectedGroupId === g.id ? "is-active" : ""}`}
-                                    onClick={() => setSelectedGroupId(g.id)}
+                                    onClick={() => {
+                                        didAutoSelectOnceRef.current = true;
+                                        setSelectedGroupId(g.id);
+                                    }}
                                 >
-                                    <span className="groups-list__name">{g.name}</span>
-                                    <span className="groups-list__meta">{g.last_message || "Топтық чат"}</span>
+                                    <span className="groups-list__row">
+                                        <span className="groups-list__avatar">
+                                            {g.photo_url ? (
+                                                <img
+                                                    src={normalizePhoto(g.photo_url)}
+                                                    alt=""
+                                                    style={{
+                                                        width: "100%",
+                                                        height: "100%",
+                                                        objectFit: "cover",
+                                                        display: "block",
+                                                    }}
+                                                />
+                                            ) : (
+                                                String(g.name || "Г")?.slice(0, 1)?.toUpperCase()
+                                            )}
+                                        </span>
+                                        <span className="groups-list__titleBlock">
+                                            <span className="groups-list__name">{g.name}</span>
+                                            <span className="groups-list__meta">{g.last_message || "Топтық чат"}</span>
+                                        </span>
+                                    </span>
                                     {Number(g.unread_count || 0) > 0 && (
                                         <span className="groups-list__badge">{Number(g.unread_count || 0)}</span>
                                     )}
@@ -716,36 +968,57 @@ export default function Groups() {
                         <>
                             {activeDirect ? (
                                 <>
-                                    <div className="groups-chat__head">
-                                        <div className="groups-chat__avatar">{(activeDirect.peer_name || "Қ").slice(0, 1).toUpperCase()}</div>
+                                    <div
+                                        className="groups-chat__head"
+                                        style={{ cursor: "pointer" }}
+                                        onClick={() => openPeerProfile(activeDirect.peer_user_id)}
+                                    >
+                                        <div className="groups-chat__avatar">
+                                            {activeDirect.photo_url ? (
+                                                <img
+                                                    src={normalizePhoto(activeDirect.photo_url)}
+                                                    alt=""
+                                                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                                                />
+                                            ) : (
+                                                (activeDirect.peer_name || "Қ").slice(0, 1).toUpperCase()
+                                            )}
+                                        </div>
                                         <div className="groups-chat__identity">
                                             <div className="groups-chat__title-btn">{activeDirect.peer_name || "Қатысушы"}</div>
                                             <div className="groups-chat__subtitle">Жеке чат</div>
                                         </div>
-                                        <button
-                                            type="button"
-                                            className="groups-chat__edit-btn"
-                                            onClick={() => setActiveDirect(null)}
-                                        >
-                                            Топқа оралу
-                                        </button>
                                     </div>
-                                    <div className="groups-chat__messages">
+                                    <div className="groups-chat__messages" ref={directMessagesScrollRef}>
                                         {directMessages.length === 0 ? (
                                             <p className="muted">Әзірге хабарламалар жоқ.</p>
                                         ) : (
-                                            directMessages.map((m) => (
-                                                <div
-                                                    key={m.id}
-                                                    className={`groups-msg ${Number(m.sender_id) === myUserId ? "is-own" : ""}`}
-                                                >
-                                                    <div className="groups-msg__meta">
-                                                        {m.sender_name || "—"} · {new Date(m.created_at).toLocaleString("kk-KZ")}
+                                            directMessages.map((m, idx) => {
+                                                const isLast = idx === directMessages.length - 1;
+                                                const isMine = Number(m.sender_id) === myUserId;
+                                                return (
+                                                    <div
+                                                        key={m.id}
+                                                        className={`groups-msg ${Number(m.sender_id) === myUserId ? "is-own" : ""}`}
+                                                    >
+                                                        <div className="groups-msg__meta">
+                                                            {m.sender_name || "—"} · {new Date(m.created_at).toLocaleString("kk-KZ")}
+                                                        </div>
+                                                        <div className="groups-msg__body">{m.body}</div>
+                                                        {!m.is_system && isLast && isMine && m.is_read_by_peer && m.read_at_by_peer ? (
+                                                            <div className="groups-msg__read">
+                                                                Просмотрено:{" "}
+                                                                {new Date(m.read_at_by_peer).toLocaleString("kk-KZ", {
+                                                                    hour: "2-digit",
+                                                                    minute: "2-digit",
+                                                                })}
+                                                            </div>
+                                                        ) : null}
                                                     </div>
-                                                    <div className="groups-msg__body">{m.body}</div>
-                                                </div>
-                                            ))
+                                                );
+                                            })
                                         )}
+                                        <div ref={directMessagesEndRef} style={{ height: 1 }} />
                                     </div>
                                     <form onSubmit={sendDirectMessage} className="groups-chat__composer">
                                         <input
@@ -771,7 +1044,17 @@ export default function Groups() {
                                     }
                                 }}
                             >
-                                <div className="groups-chat__avatar">{selectedGroup.name.slice(0, 1).toUpperCase()}</div>
+                                <div className="groups-chat__avatar">
+                                    {selectedGroup.photo_url ? (
+                                        <img
+                                            src={normalizePhoto(selectedGroup.photo_url)}
+                                            alt=""
+                                            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                                        />
+                                    ) : (
+                                        selectedGroup.name.slice(0, 1).toUpperCase()
+                                    )}
+                                </div>
                                 <div className="groups-chat__identity">
                                     <div className="groups-chat__title-btn">
                                         {selectedGroup.name}
@@ -789,6 +1072,7 @@ export default function Groups() {
                                                 name: selectedGroup.name || "",
                                                 diagnosis_type: selectedGroup.diagnosis_type || "",
                                                 description: selectedGroup.description || "",
+                                                photo_url: selectedGroup.photo_url || "",
                                             });
                                             setSettingsOpen((v) => !v);
                                         }}
@@ -798,7 +1082,7 @@ export default function Groups() {
                                 )}
                             </div>
 
-                            {groupInfoOpen && (
+                            {groupInfoOpen && !settingsOpen && (
                                 <div className="groups-info-card">
                                     <div className="groups-info-card__row">
                                         <strong>{selectedGroup.name || "—"}</strong>
@@ -816,18 +1100,20 @@ export default function Groups() {
                                                 <span className="groups-members-mini__item">Әзірше қатысушы жоқ</span>
                                             ) : (
                                                 members.slice(0, 10).map((m) => (
-                                                <span key={m.user_id} className="groups-members-mini__item">
-                                                    <span>{m.full_name}</span>
-                                                    {Number(m.user_id) !== myUserId && (
+                                                    Number(m.user_id) !== myUserId ? (
                                                         <button
+                                                            key={m.user_id}
                                                             type="button"
-                                                            className="groups-members-mini__chatbtn"
+                                                            className="groups-members-mini__item is-clickable"
                                                             onClick={() => startDirectChat(m)}
                                                         >
-                                                            Чат бастау
+                                                            {m.full_name || "—"}
                                                         </button>
-                                                    )}
-                                                </span>
+                                                    ) : (
+                                                        <span key={m.user_id} className="groups-members-mini__item">
+                                                            Вы
+                                                        </span>
+                                                    )
                                                 ))
                                             )}
                                         </div>
@@ -836,104 +1122,248 @@ export default function Groups() {
                             )}
 
                             {canEditSelected && settingsOpen && (
-                                <div className="groups-inline-settings">
-                                    <form className="groups-inline-settings__edit" onSubmit={updateGroup}>
-                                        <div className="groups-inline-settings__title">Топ баптаулары</div>
-                                        <input
-                                            className="input"
-                                            value={settingsForm.name}
-                                            onChange={(e) => setSettingsForm((p) => ({ ...p, name: e.target.value }))}
-                                            placeholder="Топ атауы"
-                                            required
-                                        />
-                                        <input
-                                            className="input"
-                                            value={settingsForm.diagnosis_type}
-                                            onChange={(e) => setSettingsForm((p) => ({ ...p, diagnosis_type: e.target.value }))}
-                                            placeholder="Диагноз түрі"
-                                        />
-                                        <textarea
-                                            className="input"
-                                            rows={2}
-                                            value={settingsForm.description}
-                                            onChange={(e) => setSettingsForm((p) => ({ ...p, description: e.target.value }))}
-                                            placeholder="Сипаттама"
-                                        />
-                                        <button className="btn" type="submit">Атын өзгерту/сақтау</button>
-                                    </form>
-
-                                    <form className="groups-inline-settings__add" onSubmit={addMember}>
-                                        <div className="groups-inline-settings__title">Топқа адам қосу</div>
-                                        <select
-                                            className="input"
-                                            value={memberForm.role_in_group}
-                                            onChange={(e) => setMemberForm((p) => ({ ...p, role_in_group: e.target.value }))}
-                                        >
-                                            <option value="patient">patient</option>
-                                            <option value="doctor">doctor</option>
-                                            <option value="volunteer">volunteer</option>
-                                        </select>
-                                        <select
-                                            className="input"
-                                            value={memberForm.user_id}
-                                            onChange={(e) => setMemberForm((p) => ({ ...p, user_id: e.target.value }))}
-                                            required
-                                        >
-                                            {candidateUsers.length === 0 ? (
-                                                <option value="">Қолданушы табылмады</option>
-                                            ) : (
-                                                candidateUsers.map((u) => (
-                                                    <option key={u.id} value={u.id}>
-                                                        {u.full_name || `User ${u.id}`} (ID: {u.id})
-                                                    </option>
-                                                ))
-                                            )}
-                                        </select>
-                                        <button className="btn" type="submit">Қосу</button>
-                                        <div className="groups-members-mini">
-                                            {(members || []).slice(0, 8).map((m) => (
-                                                <span key={m.user_id} className="groups-members-mini__item">
-                                                    {m.full_name}
-                                                </span>
-                                            ))}
+                                <div
+                                    className="groups-settings-modal__overlay"
+                                    onClick={() => setSettingsOpen(false)}
+                                    role="dialog"
+                                    aria-modal="true"
+                                >
+                                    <div
+                                        className="groups-settings-modal__panel"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <div className="groups-settings-modal__topbar">
+                                            <div className="groups-settings-modal__title">Топ баптаулары</div>
+                                            <button
+                                                type="button"
+                                                className="groups-settings-modal__close"
+                                                onClick={() => setSettingsOpen(false)}
+                                            >
+                                                Жабу
+                                            </button>
                                         </div>
-                                    </form>
+
+                                        <div className="groups-inline-settings groups-inline-settings--modal">
+                                            <form className="groups-inline-settings__edit" onSubmit={updateGroup}>
+                                                <div className="groups-inline-settings__title">Топ баптаулары</div>
+                                                <input
+                                                    className="input"
+                                                    value={settingsForm.name}
+                                                    onChange={(e) => setSettingsForm((p) => ({ ...p, name: e.target.value }))}
+                                                    placeholder="Топ атауы"
+                                                    required
+                                                />
+                                                <input
+                                                    className="input"
+                                                    value={settingsForm.diagnosis_type}
+                                                    onChange={(e) => setSettingsForm((p) => ({ ...p, diagnosis_type: e.target.value }))}
+                                                    placeholder="Диагноз түрі"
+                                                />
+                                                <textarea
+                                                    className="input"
+                                                    rows={2}
+                                                    value={settingsForm.description}
+                                                    onChange={(e) => setSettingsForm((p) => ({ ...p, description: e.target.value }))}
+                                                    placeholder="Сипаттама"
+                                                />
+                                                <div style={{ marginTop: 8 }}>
+                                                    <div className="muted" style={{ fontSize: 12, marginBottom: 6, fontWeight: 700 }}>
+                                                        Фото (міндетті емес)
+                                                    </div>
+                                                    {settingsForm.photo_url ? (
+                                                        <img
+                                                            src={normalizePhoto(settingsForm.photo_url)}
+                                                            alt=""
+                                                            style={{ width: 72, height: 72, borderRadius: 12, objectFit: "cover", border: "1px solid rgba(148,163,184,.35)" }}
+                                                        />
+                                                    ) : null}
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        className="input"
+                                                        style={{ marginTop: 8 }}
+                                                        disabled={groupPhotoUploading}
+                                                        onChange={async (e) => {
+                                                            const f = e.target.files?.[0];
+                                                            if (!f) return;
+                                                            try {
+                                                                setGroupPhotoUploading(true);
+                                                                const url = await uploadFileToServer(f);
+                                                                setSettingsForm((p) => ({ ...p, photo_url: url || "" }));
+                                                            } catch (err) {
+                                                                setStatus("Фото жүктеу қатесі: " + (err.message || ""));
+                                                            } finally {
+                                                                setGroupPhotoUploading(false);
+                                                            }
+                                                        }}
+                                                    />
+                                                </div>
+                                                <button className="btn" type="submit">Атын өзгерту/сақтау</button>
+                                            </form>
+
+                                            <form className="groups-inline-settings__add" onSubmit={addMember}>
+                                                <div className="groups-inline-settings__title">Топқа адам қосу</div>
+                                                <select
+                                                    className="input"
+                                                    value={memberForm.role_in_group}
+                                                    onChange={(e) => setMemberForm((p) => ({ ...p, role_in_group: e.target.value }))}
+                                                >
+                                                    <option value="patient">patient</option>
+                                                    <option value="doctor">doctor</option>
+                                                    <option value="volunteer">volunteer</option>
+                                                </select>
+                                                <select
+                                                    className="input"
+                                                    value={memberForm.user_id}
+                                                    onChange={(e) => setMemberForm((p) => ({ ...p, user_id: e.target.value }))}
+                                                    required
+                                                >
+                                                    {candidateUsers.length === 0 ? (
+                                                        <option value="">Қолданушы табылмады</option>
+                                                    ) : (
+                                                        candidateUsers.map((u) => (
+                                                            <option key={u.id} value={u.id}>
+                                                                {u.full_name || "Қолданушы"}
+                                                            </option>
+                                                        ))
+                                                    )}
+                                                </select>
+                                                <button className="btn" type="submit">Қосу</button>
+                                                <div className="groups-members-mini">
+                                                    {(members || []).slice(0, 8).map((m) => (
+                                                        <span key={m.user_id} className="groups-members-mini__item">
+                                                            {m.full_name}
+                                                            {canEditSelected && Number(m.user_id) !== myUserId && (
+                                                                <button
+                                                                    type="button"
+                                                                    className="groups-members-mini__remove"
+                                                                    onClick={() => removeMember(m.user_id)}
+                                                                    title="Топтан шығару"
+                                                                >
+                                                                    x
+                                                                </button>
+                                                            )}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
 
-                            <div className="groups-chat__messages">
-                                {messages.length === 0 ? (
-                                    <p className="muted">Әзірге хабарламалар жоқ.</p>
-                                ) : (
-                                    messages.map((m) => (
-                                        <div
-                                            key={m.id}
-                                            className={`groups-msg ${Number(m.sender_id) === myUserId ? "is-own" : ""}`}
-                                        >
-                                            <div className="groups-msg__meta">
-                                                {m.sender_name || "—"} · {new Date(m.created_at).toLocaleString("kk-KZ")}
+                            {!settingsOpen && (
+                                <div className="groups-chat__messages" ref={groupMessagesScrollRef}>
+                                    {messages.length === 0 ? (
+                                        <p className="muted">Әзірге хабарламалар жоқ.</p>
+                                    ) : (
+                                        messages.map((m, idx) => {
+                                            const isLast = idx === messages.length - 1;
+                                            const isMine = Number(m.sender_id) === myUserId;
+                                            const readers = Array.isArray(m.readers) ? m.readers : [];
+                                            const peerReaders = readers.filter((r) => !r.read_by_me);
+                                            return (
+                                            <div
+                                                key={m.id}
+                                                className={`groups-msg ${Number(m.sender_id) === myUserId ? "is-own" : ""}`}
+                                            >
+                                                <div className="groups-msg__meta">
+                                                    {m.sender_name || "—"} · {new Date(m.created_at).toLocaleString("kk-KZ")}
+                                                </div>
+                                                <div className="groups-msg__body">{m.body}</div>
+                                                {!m.is_system && isLast && isMine && peerReaders.length > 0 ? (
+                                                    <div className="groups-msg__read">
+                                                        Просмотрено:{" "}
+                                                        {peerReaders
+                                                            .slice(0, 4)
+                                                            .map((r) => r.full_name)
+                                                            .filter(Boolean)
+                                                            .join(", ")}
+                                                        {peerReaders.length > 4 ? ` +${peerReaders.length - 4}` : ""}
+                                                    </div>
+                                                ) : null}
                                             </div>
-                                            <div className="groups-msg__body">{m.body}</div>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
+                                            );
+                                        })
+                                    )}
+                                    <div ref={groupMessagesEndRef} style={{ height: 1 }} />
+                                </div>
+                            )}
 
-                            <form onSubmit={sendMessage} className="groups-chat__composer">
-                                <input
-                                    className="input groups-chat__input"
-                                    placeholder="Хабарлама..."
-                                    value={msgText}
-                                    onChange={(e) => setMsgText(e.target.value)}
-                                />
-                                <button className="btn groups-chat__send" type="submit">Жіберу</button>
-                            </form>
+                            {!settingsOpen && (
+                                <form onSubmit={sendMessage} className="groups-chat__composer">
+                                    <input
+                                        className="input groups-chat__input"
+                                        placeholder="Хабарлама..."
+                                        value={msgText}
+                                        onChange={(e) => setMsgText(e.target.value)}
+                                    />
+                                    <button className="btn groups-chat__send" type="submit">Жіберу</button>
+                                </form>
+                            )}
                                 </>
                             )}
                         </>
                     )}
                 </section>
             </div>
+
+            {peerProfileOpen && (
+                <div
+                    className="peer-profile-modal__overlay"
+                    onClick={() => closePeerProfile()}
+                    role="dialog"
+                    aria-modal="true"
+                >
+                    <div
+                        className="peer-profile-modal__card"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                        }}
+                    >
+                        <div className="peer-profile-modal__head">
+                            <div className="peer-profile-modal__title">Профиль</div>
+                            <button
+                                type="button"
+                                className="peer-profile-modal__close"
+                                onClick={() => closePeerProfile()}
+                                aria-label="Close"
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        {peerProfileLoading ? (
+                            <p className="muted">Жүктелуде...</p>
+                        ) : peerProfileError ? (
+                            <p className="form-error">{peerProfileError}</p>
+                        ) : peerProfile ? (
+                            <>
+                                <div className="peer-profile-modal__hero">
+                                    <div className="peer-profile-modal__avatar" aria-hidden="true">
+                                        {peerProfile.photo_url ? (
+                                            <img
+                                                src={normalizePhoto(peerProfile.photo_url)}
+                                                alt=""
+                                                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", borderRadius: "999px" }}
+                                            />
+                                        ) : (
+                                            (peerProfile.full_name || "П").slice(0, 1).toUpperCase()
+                                        )}
+                                    </div>
+                                    <div className="peer-profile-modal__info">
+                                        <div className="peer-profile-modal__name">{peerProfile.full_name || "—"}</div>
+                                        <div className="peer-profile-modal__role">{roleLabel(peerProfile.role)}</div>
+                                        {peerProfile.phone ? (
+                                            <div className="peer-profile-modal__phone">Телефон: {peerProfile.phone}</div>
+                                        ) : null}
+                                    </div>
+                                </div>
+                            </>
+                        ) : null}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

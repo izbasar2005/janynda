@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -218,35 +219,71 @@ func (h *DirectChatHandler) ListMessages(w http.ResponseWriter, r *http.Request)
 		http.Error(w, msg, code)
 		return
 	}
+	peerID := conv.User1ID
+	if peerID == me {
+		peerID = conv.User2ID
+	}
 	var list []model.DirectMessage
 	if err := h.db.Preload("SenderUser").Where("direct_conversation_id = ?", conv.ID).Order("created_at ASC").Find(&list).Error; err != nil {
 		http.Error(w, "DB error", http.StatusInternalServerError)
 		return
 	}
-	out := make([]map[string]any, 0, len(list))
-	for _, m := range list {
-		out = append(out, map[string]any{
-			"id":          m.ID,
-			"sender_id":   m.SenderUserID,
-			"sender_name": m.SenderUser.FullName,
-			"body":        m.Body,
-			"created_at":  m.CreatedAt,
-		})
-	}
-	// mark as seen (last message)
+
+	// mark as seen (last message) for current user and provide read time
+	var lastSeenID uint
+	var lastSeenAt time.Time
 	if len(list) > 0 {
 		lastID := list[len(list)-1].ID
 		var read model.DirectChatRead
 		if err := h.db.Where("user_id = ? AND direct_conversation_id = ?", me, conv.ID).First(&read).Error; err != nil {
-			_ = h.db.Create(&model.DirectChatRead{
+			read = model.DirectChatRead{
 				UserID:               me,
 				DirectConversationID: conv.ID,
 				LastSeenMessageID:    lastID,
-			}).Error
+			}
+			_ = h.db.Create(&read).Error
 		} else if read.LastSeenMessageID < lastID {
 			read.LastSeenMessageID = lastID
 			_ = h.db.Save(&read).Error
 		}
+		lastSeenID = read.LastSeenMessageID
+		lastSeenAt = read.UpdatedAt
+	}
+
+	// peer read state (do NOT update; just read it)
+	var peerLastSeenID uint
+	var peerLastSeenAt time.Time
+	{
+		var pr model.DirectChatRead
+		if err := h.db.Where("user_id = ? AND direct_conversation_id = ?", peerID, conv.ID).First(&pr).Error; err == nil {
+			peerLastSeenID = pr.LastSeenMessageID
+			peerLastSeenAt = pr.UpdatedAt
+		}
+	}
+
+	out := make([]map[string]any, 0, len(list))
+	for _, m := range list {
+		item := map[string]any{
+			"id":           m.ID,
+			"sender_id":   m.SenderUserID,
+			"sender_name": m.SenderUser.FullName,
+			"body":         m.Body,
+			"created_at":  m.CreatedAt,
+			"is_read":      false,
+			"read_at":      nil,
+			// WhatsApp-like receipt: whether the other participant has read this message
+			"is_read_by_peer": false,
+			"read_at_by_peer": nil,
+		}
+		if !lastSeenAt.IsZero() && m.ID <= lastSeenID {
+			item["is_read"] = true
+			item["read_at"] = lastSeenAt
+		}
+		if !peerLastSeenAt.IsZero() && m.ID <= peerLastSeenID {
+			item["is_read_by_peer"] = true
+			item["read_at_by_peer"] = peerLastSeenAt
+		}
+		out = append(out, item)
 	}
 	_ = json.NewEncoder(w).Encode(out)
 }

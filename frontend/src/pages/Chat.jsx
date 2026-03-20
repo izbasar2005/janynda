@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, token } from "../services/api";
 
@@ -19,8 +19,15 @@ export default function Chat() {
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
 
+    const messagesScrollRef = useRef(null);
+    const messagesEndRef = useRef(null);
+    const initialScrollDoneRef = useRef(false);
+    const autoScrollOnceRef = useRef(false);
+
     useEffect(() => {
         if (!token() || !appointmentId) return;
+        initialScrollDoneRef.current = false;
+        autoScrollOnceRef.current = false;
         api(`/api/v1/conversations/by-appointment/${appointmentId}`, { auth: true })
             .then((data) => {
                 setConv(data);
@@ -43,6 +50,23 @@ export default function Chat() {
         return () => clearInterval(t);
     }, [conv?.id]);
 
+    useEffect(() => {
+        if (loading) return;
+        const container = messagesScrollRef.current;
+        const end = messagesEndRef.current;
+        if (!container || !end) return;
+
+        if (!initialScrollDoneRef.current) {
+            end.scrollIntoView({ behavior: "auto", block: "end" });
+            initialScrollDoneRef.current = true;
+            return;
+        }
+
+        if (!autoScrollOnceRef.current) return;
+        end.scrollIntoView({ behavior: "smooth", block: "end" });
+        autoScrollOnceRef.current = false;
+    }, [messages.length, loading, conv?.id]);
+
     async function send(e) {
         e.preventDefault();
         const text = (body || "").trim();
@@ -55,6 +79,7 @@ export default function Chat() {
                 body: { body: text },
             });
             setBody("");
+            autoScrollOnceRef.current = true;
             const data = await api(`/api/v1/conversations/${conv.id}/messages`, { auth: true });
             setMessages(Array.isArray(data) ? data : []);
         } catch (err) {
@@ -95,7 +120,7 @@ export default function Chat() {
             </div>
 
             <div className="card chat-card">
-                <div className="chat-messages">
+                <div className="chat-messages" ref={messagesScrollRef}>
                     {messages.map((m, idx) => {
                         const hasLaterVideoLink = m.video_link && messages.slice(idx + 1).some((msg) => msg.video_link);
                         return (
@@ -124,6 +149,7 @@ export default function Chat() {
                             <span className="chat-msg__time muted">{fmtTime(m.created_at)}</span>
                         </div>
                     ); })}
+                    <div ref={messagesEndRef} style={{ height: 1 }} />
                 </div>
 
                 <form className="chat-form" onSubmit={send}>

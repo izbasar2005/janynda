@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -212,6 +213,7 @@ func (h *GroupHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Name          string `json:"name"`
 		Description   string `json:"description"`
 		DiagnosisType string `json:"diagnosis_type"`
+		PhotoURL      string `json:"photo_url"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "JSON қате", http.StatusBadRequest)
@@ -231,6 +233,7 @@ func (h *GroupHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Name:          req.Name,
 		Description:   strings.TrimSpace(req.Description),
 		DiagnosisType: strings.TrimSpace(req.DiagnosisType),
+		PhotoURL:      strings.TrimSpace(req.PhotoURL),
 		CreatedBy:     userID,
 	}
 	if err := h.db.Create(&g).Error; err != nil {
@@ -250,7 +253,7 @@ func (h *GroupHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 // /api/v1/groups/:id (PUT)
-// /api/v1/groups/:id/members (GET, POST)
+// /api/v1/groups/:id/members (GET, POST, DELETE)
 // /api/v1/groups/:id/messages (GET, POST)
 func (h *GroupHandler) HandleWithID(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/api/v1/groups/")
@@ -283,6 +286,16 @@ func (h *GroupHandler) HandleWithID(w http.ResponseWriter, r *http.Request) {
 		}
 		if r.Method == http.MethodPost {
 			h.AddMember(w, r, uint(groupID))
+			return
+		}
+		// /api/v1/groups/:id/members/:userId (DELETE)
+		if r.Method == http.MethodDelete && len(parts) >= 3 {
+			targetUserID, err2 := strconv.ParseUint(parts[2], 10, 32)
+			if err2 != nil || targetUserID == 0 {
+				http.Error(w, "Invalid user id", http.StatusBadRequest)
+				return
+			}
+			h.RemoveMember(w, r, uint(groupID), uint(targetUserID))
 			return
 		}
 	case "messages":
@@ -321,6 +334,7 @@ func (h *GroupHandler) Update(w http.ResponseWriter, r *http.Request, groupID ui
 		Name          string `json:"name"`
 		Description   string `json:"description"`
 		DiagnosisType string `json:"diagnosis_type"`
+		PhotoURL      string `json:"photo_url"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "JSON қате", http.StatusBadRequest)
@@ -340,6 +354,9 @@ func (h *GroupHandler) Update(w http.ResponseWriter, r *http.Request, groupID ui
 	g.Name = name
 	g.Description = strings.TrimSpace(req.Description)
 	g.DiagnosisType = strings.TrimSpace(req.DiagnosisType)
+	if strings.TrimSpace(req.PhotoURL) != "" {
+		g.PhotoURL = strings.TrimSpace(req.PhotoURL)
+	}
 	if err := h.db.Save(&g).Error; err != nil {
 		http.Error(w, "DB error", http.StatusInternalServerError)
 		return
@@ -473,6 +490,51 @@ func (h *GroupHandler) AddMember(w http.ResponseWriter, r *http.Request, groupID
 	_ = json.NewEncoder(w).Encode(member)
 }
 
+// /api/v1/groups/:id/members/:userId (DELETE)
+// топтан member-ді шығару (kick/remove)
+func (h *GroupHandler) RemoveMember(w http.ResponseWriter, r *http.Request, groupID uint, targetUserID uint) {
+	w.Header().Set("Content-Type", "application/json")
+	callerID, _ := r.Context().Value(middleware.CtxUserID).(uint)
+	role, _ := r.Context().Value(middleware.CtxRole).(string)
+	if callerID == 0 || !canManageGroups(role) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+	if targetUserID == 0 {
+		http.Error(w, "Invalid user id", http.StatusBadRequest)
+		return
+	}
+
+	// who can manage by role over this specific group
+	var g model.Group
+	if err := h.db.First(&g, groupID).Error; err != nil {
+		http.Error(w, "Group not found", http.StatusNotFound)
+		return
+	}
+	if !canManageGroupByRole(role, callerID, g) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+	if targetUserID == callerID {
+		http.Error(w, "Өзіңізді шығара алмайсыз", http.StatusForbidden)
+		return
+	}
+	if !h.isGroupMember(groupID, targetUserID) {
+		http.Error(w, "Member not found", http.StatusNotFound)
+		return
+	}
+
+	if err := h.db.Where("group_id = ? AND user_id = ?", groupID, targetUserID).Delete(&model.GroupMember{}).Error; err != nil {
+		http.Error(w, "DB error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"ok": true,
+	})
+}
+
 func (h *GroupHandler) isGroupMember(groupID, userID uint) bool {
 	var c int64
 	_ = h.db.Model(&model.GroupMember{}).Where("group_id = ? AND user_id = ?", groupID, userID).Count(&c).Error
@@ -497,32 +559,93 @@ func (h *GroupHandler) ListMessages(w http.ResponseWriter, r *http.Request, grou
 		return
 	}
 
-	out := make([]map[string]any, 0, len(list))
-	for _, m := range list {
-		out = append(out, map[string]any{
-			"id":         m.ID,
-			"group_id":   m.GroupID,
-			"sender_id":  m.SenderID,
-			"sender_name": m.SenderUser.FullName,
-			"body":       m.Body,
-			"is_system":  m.IsSystem,
-			"created_at": m.CreatedAt,
-		})
-	}
 	// mark as seen
+	var lastSeenID uint
+	var lastSeenAt time.Time
 	if len(list) > 0 {
 		lastID := list[len(list)-1].ID
 		var read model.GroupChatRead
 		if err := h.db.Where("user_id = ? AND group_id = ?", userID, groupID).First(&read).Error; err != nil {
-			_ = h.db.Create(&model.GroupChatRead{
+			read = model.GroupChatRead{
 				UserID:        userID,
 				GroupID:       groupID,
 				LastMessageID: lastID,
-			}).Error
+			}
+			_ = h.db.Create(&read).Error
 		} else if read.LastMessageID < lastID {
 			read.LastMessageID = lastID
 			_ = h.db.Save(&read).Error
 		}
+		lastSeenID = read.LastMessageID
+		lastSeenAt = read.UpdatedAt
+	}
+
+		// Readers for each message:
+	// If a user has last_message_id >= message.ID, then that user has read that message.
+	// We also include updated_at as "read_at".
+	var groupReads []model.GroupChatRead
+	_ = h.db.Where("group_id = ?", groupID).Find(&groupReads).Error
+	readUserIDs := make([]uint, 0, len(groupReads))
+	seenUID := make(map[uint]struct{}, len(groupReads))
+	for _, gr := range groupReads {
+		if gr.UserID == 0 {
+			continue
+		}
+		if _, ok := seenUID[gr.UserID]; ok {
+			continue
+		}
+		seenUID[gr.UserID] = struct{}{}
+		readUserIDs = append(readUserIDs, gr.UserID)
+	}
+	userNameByID := make(map[uint]string, len(readUserIDs))
+	if len(readUserIDs) > 0 {
+		var users []model.User
+		if err := h.db.Where("id IN ?", readUserIDs).Find(&users).Error; err == nil {
+			for _, u := range users {
+				userNameByID[u.ID] = u.FullName
+			}
+		}
+	}
+
+	out := make([]map[string]any, 0, len(list))
+	for _, m := range list {
+		item := map[string]any{
+			"id":           m.ID,
+			"group_id":     m.GroupID,
+			"sender_id":    m.SenderID,
+			"sender_name":  m.SenderUser.FullName,
+			"body":         m.Body,
+			"is_system":    m.IsSystem,
+			"created_at":   m.CreatedAt,
+			"is_read":      false,
+			"read_at":      nil,
+		}
+		if !lastSeenAt.IsZero() && m.ID <= lastSeenID {
+			item["is_read"] = true
+			item["read_at"] = lastSeenAt
+		}
+
+		// Who read this message (names + read time).
+		readers := make([]map[string]any, 0)
+		for _, gr := range groupReads {
+			if gr.LastMessageID >= m.ID && gr.UserID != 0 {
+				if full := userNameByID[gr.UserID]; full != "" {
+					readers = append(readers, map[string]any{
+						"user_id":    gr.UserID,
+						"full_name":  full,
+						"read_at":    gr.UpdatedAt,
+						"read_by_me": gr.UserID == userID,
+					})
+				}
+			}
+		}
+		if len(readers) > 0 {
+			item["readers"] = readers
+		} else {
+			item["readers"] = []map[string]any{}
+		}
+
+		out = append(out, item)
 	}
 	_ = json.NewEncoder(w).Encode(out)
 }

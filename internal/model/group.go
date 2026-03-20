@@ -8,6 +8,7 @@ type Group struct {
 	Name          string    `gorm:"type:varchar(180);not null" json:"name"`
 	Description   string    `gorm:"type:text" json:"description"`
 	DiagnosisType string    `gorm:"type:varchar(120)" json:"diagnosis_type"`
+	PhotoURL      string    `gorm:"type:varchar(500);not null;default:''" json:"photo_url"`
 	CreatedBy     uint      `gorm:"not null;index" json:"created_by"`
 	CreatedAt     time.Time `json:"created_at"`
 }
