@@ -65,6 +65,7 @@ func main() {
 	router := server.NewRouter(db)
 
 	go scheduler.RunNotificationWorker(db)
+	go scheduler.RunDiaryAiRetryWorker(db)
 
 	fmt.Println("Server: http://localhost:" + port)
 	http.ListenAndServe(":"+port, router)

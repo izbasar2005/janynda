@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { api } from "../services/api";
+import { api, token } from "../services/api";
 
 const MOOD_OPTIONS = [
     { value: 1, label: "Өте ауыр", emoji: "😢" },
@@ -91,6 +91,28 @@ export default function Diary() {
         return showAllEntries ? list : list.slice(0, 5);
     }, [entries, showAllEntries]);
 
+    const hasAiRetryable = useMemo(() => {
+        const list = Array.isArray(entries) ? entries : [];
+        return list.some((e) => e?.ai_status === "pending" || e?.ai_status === "error");
+    }, [entries]);
+
+    // Poll diary list only while there are AI assessments pending/error.
+    // This allows the UI to reflect the "after 24h retry" updates without manual refresh.
+    useEffect(() => {
+        if (!token()) return;
+        if (!hasAiRetryable) return;
+
+        const id = setInterval(() => {
+            api("/api/v1/diary", { auth: true })
+                .then((list) => {
+                    setEntries(Array.isArray(list) ? list : []);
+                })
+                .catch(() => {});
+        }, 60 * 1000);
+
+        return () => clearInterval(id);
+    }, [hasAiRetryable]);
+
     async function handleSubmit(e) {
         e.preventDefault();
         setError("");
@@ -99,6 +121,17 @@ export default function Diary() {
             return;
         }
         setSaving(true);
+
+        // Optimistic UI: show "waiting" icon next to the new entry.
+        const localId = "local-" + Date.now();
+        const optimisticEntry = {
+            id: localId,
+            mood,
+            text,
+            created_at: new Date().toISOString(),
+            ai_status: "pending",
+        };
+        setEntries((prev) => [optimisticEntry, ...prev]);
         try {
             const entry = await api("/api/v1/diary", {
                 method: "POST",
@@ -106,7 +139,10 @@ export default function Diary() {
                 body: { mood, text },
             });
             setText("");
-            setEntries((prev) => [entry, ...prev]);
+
+            // Replace optimistic entry with the real one (including Gemini assessment).
+            setEntries((prev) => prev.map((x) => (x.id === localId ? entry : x)));
+
             // summary-ды шамамен жаңарту
             setSummary((prev) => {
                 const now = entry.mood;
@@ -129,9 +165,40 @@ export default function Diary() {
             });
         } catch (e) {
             setError(e.message || "Жазбаны сақтау қатесі");
+            // Keep the optimistic entry visible, but mark it as error.
+            setEntries((prev) =>
+                prev.map((x) =>
+                    x.id === localId
+                        ? {
+                            ...x,
+                            ai_status: "error",
+                            ai_error: e.message || "Gemini/сохранение ошибка",
+                        }
+                        : x
+                )
+            );
         } finally {
             setSaving(false);
         }
+    }
+
+    function aiBadge(e) {
+        const status = e.ai_status;
+        if (status === "pending") return <span title="AI оценка: ожидает">⏳</span>;
+        if (status === "error") return <span title="AI оценка: ошибка">⚠️</span>;
+        if (typeof e.ai_score === "number" && e.ai_zone) {
+            const zone = String(e.ai_zone).toLowerCase();
+            const color = zone === "red" ? "#c62828" : zone === "yellow" ? "#f9a825" : "#2e7d32";
+            return (
+                <span
+                    title={`AI: ${e.ai_zone}, score=${e.ai_score}`}
+                    style={{ marginLeft: 10, padding: "2px 8px", borderRadius: 999, background: color, color: "white", fontSize: 12 }}
+                >
+                    {e.ai_score}
+                </span>
+            );
+        }
+        return null;
     }
 
     function applyPrompt(p) {
@@ -253,6 +320,7 @@ export default function Diary() {
                                                         <span aria-hidden="true">{opt.emoji}</span> {opt.label}
                                                     </span>
                                                 )}
+                                                {aiBadge(e)}
                                             </div>
                                             {e.text && <p className="diary-list__text">{e.text}</p>}
                                         </li>
