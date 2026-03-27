@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api, token } from "../services/api";
+import { wsClient } from "../services/ws";
 
 function fmtTime(d) {
     if (!d) return "";
@@ -45,6 +46,8 @@ export default function DirectChat() {
 
     useEffect(() => {
         if (!chatId || !token()) return;
+        setLoading(true);
+        setMessages([]);
         api(`/api/v1/direct-chats/${chatId}/messages`, { auth: true })
             .then((data) => setMessages(Array.isArray(data) ? data : []))
             .finally(() => setLoading(false));
@@ -52,13 +55,58 @@ export default function DirectChat() {
 
     useEffect(() => {
         if (!chatId || !token()) return;
-        const t = setInterval(() => {
-            api(`/api/v1/direct-chats/${chatId}/messages`, { auth: true })
-                .then((data) => setMessages(Array.isArray(data) ? data : []))
-                .catch(() => {});
-        }, 4000);
-        return () => clearInterval(t);
-    }, [chatId]);
+        const cid = Number(chatId);
+        if (!cid) return;
+
+        wsClient.subscribe("direct", cid);
+        const off = wsClient.on((evt) => {
+            if (!evt || evt.channel !== "direct" || Number(evt.id) !== cid) return;
+            if (evt.type === "message:new" && evt.payload) {
+                setMessages((prev) => {
+                    const next = Array.isArray(prev) ? [...prev] : [];
+                    const m = evt.payload;
+                    // normalize payload to existing message shape
+                    next.push({
+                        id: m.id,
+                        sender_id: m.sender_id,
+                        sender_name: m.sender_name,
+                        body: m.body,
+                        created_at: m.created_at,
+                        is_read_by_peer: false,
+                        read_at_by_peer: null,
+                    });
+                    return next;
+                });
+                // If I'm inside this chat and a peer sent a message, mark as read immediately.
+                if (Number(evt.payload?.sender_id || 0) && Number(evt.payload?.sender_id || 0) !== me) {
+                    api(`/api/v1/direct-chats/${cid}/read`, {
+                        method: "POST",
+                        auth: true,
+                        body: { last_message_id: Number(evt.payload?.id || 0) },
+                    }).catch(() => {});
+                }
+            }
+            if (evt.type === "message:read" && evt.payload) {
+                const { reader_user_id, last_message_id, read_at } = evt.payload || {};
+                // Only peer read matters for receipts; if I read, receipts don't change.
+                if (Number(reader_user_id) === me) return;
+                const lastID = Number(last_message_id || 0);
+                if (!lastID) return;
+                setMessages((prev) =>
+                    (Array.isArray(prev) ? prev : []).map((m) => {
+                        const mid = Number(m.id || 0);
+                        if (!mid || mid > lastID) return m;
+                        // mark as read by peer
+                        return { ...m, is_read_by_peer: true, read_at_by_peer: read_at || m.read_at_by_peer || new Date().toISOString() };
+                    })
+                );
+            }
+        });
+        return () => {
+            off();
+            wsClient.unsubscribe("direct", cid);
+        };
+    }, [chatId, me]);
 
     useEffect(() => {
         if (loading) return;
@@ -67,7 +115,10 @@ export default function DirectChat() {
         if (!container || !end) return;
 
         if (!initialScrollDoneRef.current) {
-            end.scrollIntoView({ behavior: "auto", block: "end" });
+            requestAnimationFrame(() => {
+                end.scrollIntoView({ behavior: "auto", block: "end" });
+                container.scrollTop = container.scrollHeight;
+            });
             initialScrollDoneRef.current = true;
             return;
         }

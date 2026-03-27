@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, token } from "../services/api";
+import { wsClient } from "../services/ws";
 
 function fmtTime(d) {
     if (!d) return "";
@@ -26,6 +27,8 @@ export default function Chat() {
 
     useEffect(() => {
         if (!token() || !appointmentId) return;
+        setLoading(true);
+        setMessages([]);
         initialScrollDoneRef.current = false;
         autoScrollOnceRef.current = false;
         api(`/api/v1/conversations/by-appointment/${appointmentId}`, { auth: true })
@@ -43,11 +46,31 @@ export default function Chat() {
 
     useEffect(() => {
         if (!conv?.id) return;
-        const t = setInterval(() => {
-            api(`/api/v1/conversations/${conv.id}/messages`, { auth: true })
-                .then((data) => setMessages(Array.isArray(data) ? data : []));
-        }, 5000);
-        return () => clearInterval(t);
+        const cid = Number(conv.id);
+        wsClient.subscribe("conversation", cid);
+        const off = wsClient.on((evt) => {
+            if (!evt || evt.channel !== "conversation" || Number(evt.id) !== cid) return;
+            if (evt.type === "message:new" && evt.payload) {
+                setMessages((prev) => {
+                    const next = Array.isArray(prev) ? [...prev] : [];
+                    const m = evt.payload;
+                    next.push({
+                        id: m.id,
+                        sender_id: m.sender_id,
+                        sender_name: m.sender_name,
+                        body: m.body,
+                        video_link: m.video_link,
+                        is_system: m.is_system,
+                        created_at: m.created_at,
+                    });
+                    return next;
+                });
+            }
+        });
+        return () => {
+            off();
+            wsClient.unsubscribe("conversation", cid);
+        };
     }, [conv?.id]);
 
     useEffect(() => {
@@ -57,7 +80,10 @@ export default function Chat() {
         if (!container || !end) return;
 
         if (!initialScrollDoneRef.current) {
-            end.scrollIntoView({ behavior: "auto", block: "end" });
+            requestAnimationFrame(() => {
+                end.scrollIntoView({ behavior: "auto", block: "end" });
+                container.scrollTop = container.scrollHeight;
+            });
             initialScrollDoneRef.current = true;
             return;
         }
@@ -80,8 +106,6 @@ export default function Chat() {
             });
             setBody("");
             autoScrollOnceRef.current = true;
-            const data = await api(`/api/v1/conversations/${conv.id}/messages`, { auth: true });
-            setMessages(Array.isArray(data) ? data : []);
         } catch (err) {
             alert(err.message || "Қате");
         } finally {

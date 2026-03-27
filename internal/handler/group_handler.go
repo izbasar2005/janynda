@@ -11,14 +11,16 @@ import (
 
 	"janymda/internal/middleware"
 	"janymda/internal/model"
+	"janymda/internal/realtime"
 )
 
 type GroupHandler struct {
-	db *gorm.DB
+	db  *gorm.DB
+	hub *realtime.Hub
 }
 
-func NewGroupHandler(db *gorm.DB) *GroupHandler {
-	return &GroupHandler{db: db}
+func NewGroupHandler(db *gorm.DB, hub *realtime.Hub) *GroupHandler {
+	return &GroupHandler{db: db, hub: hub}
 }
 
 func canManageGroups(role string) bool {
@@ -307,8 +309,68 @@ func (h *GroupHandler) HandleWithID(w http.ResponseWriter, r *http.Request) {
 			h.SendMessage(w, r, uint(groupID))
 			return
 		}
+	case "read":
+		if r.Method == http.MethodPost {
+			h.MarkRead(w, r, uint(groupID))
+			return
+		}
 	}
 	http.Error(w, "Not found", http.StatusNotFound)
+}
+
+// POST /api/v1/groups/:id/read
+// body: { "last_message_id": 123 } (optional; if missing -> latest)
+func (h *GroupHandler) MarkRead(w http.ResponseWriter, r *http.Request, groupID uint) {
+	w.Header().Set("Content-Type", "application/json")
+	userID, _ := r.Context().Value(middleware.CtxUserID).(uint)
+	if userID == 0 {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if !h.isGroupMember(groupID, userID) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+	var req struct {
+		LastMessageID uint `json:"last_message_id"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	lastID := req.LastMessageID
+	if lastID == 0 {
+		_ = h.db.Model(&model.GroupMessage{}).
+			Select("COALESCE(MAX(id),0)").
+			Where("group_id = ?", groupID).
+			Scan(&lastID).Error
+	}
+	if lastID == 0 {
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
+		return
+	}
+	var read model.GroupChatRead
+	if err := h.db.Where("user_id = ? AND group_id = ?", userID, groupID).First(&read).Error; err != nil {
+		read = model.GroupChatRead{
+			UserID:        userID,
+			GroupID:       groupID,
+			LastMessageID: lastID,
+		}
+		_ = h.db.Create(&read).Error
+	} else if read.LastMessageID < lastID {
+		read.LastMessageID = lastID
+		_ = h.db.Save(&read).Error
+	}
+	if h.hub != nil {
+		h.hub.Broadcast(realtime.RoomKey("group", groupID), map[string]any{
+			"type":    "message:read",
+			"channel": "group",
+			"id":      groupID,
+			"payload": map[string]any{
+				"reader_user_id":  userID,
+				"last_message_id": lastID,
+				"read_at":         read.UpdatedAt,
+			},
+		})
+	}
+	_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
 }
 
 func (h *GroupHandler) Update(w http.ResponseWriter, r *http.Request, groupID uint) {
@@ -562,6 +624,9 @@ func (h *GroupHandler) ListMessages(w http.ResponseWriter, r *http.Request, grou
 	// mark as seen
 	var lastSeenID uint
 	var lastSeenAt time.Time
+	changedRead := false
+	var changedLastID uint
+	var changedAt time.Time
 	if len(list) > 0 {
 		lastID := list[len(list)-1].ID
 		var read model.GroupChatRead
@@ -571,13 +636,38 @@ func (h *GroupHandler) ListMessages(w http.ResponseWriter, r *http.Request, grou
 				GroupID:       groupID,
 				LastMessageID: lastID,
 			}
-			_ = h.db.Create(&read).Error
+			if err2 := h.db.Create(&read).Error; err2 == nil {
+				changedRead = true
+				changedLastID = lastID
+				changedAt = read.UpdatedAt
+			}
 		} else if read.LastMessageID < lastID {
+			changedRead = true
 			read.LastMessageID = lastID
-			_ = h.db.Save(&read).Error
+			if err2 := h.db.Save(&read).Error; err2 == nil {
+				changedLastID = lastID
+				changedAt = read.UpdatedAt
+			}
 		}
 		lastSeenID = read.LastMessageID
 		lastSeenAt = read.UpdatedAt
+	}
+
+	// broadcast read progress so senders can update receipts
+	if changedRead && h.hub != nil && changedLastID > 0 {
+		if changedAt.IsZero() {
+			changedAt = time.Now()
+		}
+		h.hub.Broadcast(realtime.RoomKey("group", groupID), map[string]any{
+			"type":    "message:read",
+			"channel": "group",
+			"id":      groupID,
+			"payload": map[string]any{
+				"reader_user_id":  userID,
+				"last_message_id": changedLastID,
+				"read_at":         changedAt,
+			},
+		})
 	}
 
 		// Readers for each message:
@@ -687,6 +777,29 @@ func (h *GroupHandler) SendMessage(w http.ResponseWriter, r *http.Request, group
 	if err := h.db.Create(&msg).Error; err != nil {
 		http.Error(w, "DB error", http.StatusInternalServerError)
 		return
+	}
+
+	// broadcast
+	if h.hub != nil {
+		senderName := ""
+		var u model.User
+		if err := h.db.First(&u, userID).Error; err == nil {
+			senderName = u.FullName
+		}
+		h.hub.Broadcast(realtime.RoomKey("group", groupID), map[string]any{
+			"type":    "message:new",
+			"channel": "group",
+			"id":      groupID,
+			"payload": map[string]any{
+				"id":          msg.ID,
+				"group_id":    msg.GroupID,
+				"sender_id":   msg.SenderID,
+				"sender_name": senderName,
+				"body":        msg.Body,
+				"is_system":   msg.IsSystem,
+				"created_at":  msg.CreatedAt,
+			},
+		})
 	}
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(msg)

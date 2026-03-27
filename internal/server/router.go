@@ -11,6 +11,7 @@ import (
 
 	"janymda/internal/handler"
 	"janymda/internal/middleware"
+	"janymda/internal/realtime"
 )
 
 func NewRouter(db *gorm.DB) http.Handler {
@@ -140,21 +141,26 @@ func NewRouter(db *gorm.DB) http.Handler {
 	)
 
 	// Groups / group chat (JWT)
-	gh := handler.NewGroupHandler(db)
+	hub := realtime.NewHub()
+	gh := handler.NewGroupHandler(db, hub)
 	mux.Handle("/api/v1/groups", middleware.AuthJWT(http.HandlerFunc(gh.HandleRoot)))
 	mux.Handle("/api/v1/groups/my", middleware.AuthJWT(http.HandlerFunc(gh.ListMy)))
 	mux.Handle("/api/v1/groups/candidates", middleware.AuthJWT(http.HandlerFunc(gh.ListCandidates)))
 	mux.Handle("/api/v1/groups/", middleware.AuthJWT(http.HandlerFunc(gh.HandleWithID)))
 
+	// WebSocket realtime (JWT via query token or Authorization)
+	wsH := handler.NewWSHandler(db, hub)
+	mux.HandleFunc("/api/v1/ws", wsH.ServeWS)
+
 	// Conversations / chat (JWT)
-	convH := handler.NewConversationHandler(db)
+	convH := handler.NewConversationHandler(db, hub)
 	mux.HandleFunc("/api/v1/conversations/by-appointment/", func(w http.ResponseWriter, r *http.Request) {
 		middleware.AuthJWT(http.HandlerFunc(convH.GetByAppointment)).ServeHTTP(w, r)
 	})
 	mux.Handle("/api/v1/conversations/", middleware.AuthJWT(http.HandlerFunc(convH.HandleWithID)))
 
 	// Direct chats between group participants (JWT)
-	directH := handler.NewDirectChatHandler(db)
+	directH := handler.NewDirectChatHandler(db, hub)
 	mux.Handle("/api/v1/direct-chats", middleware.AuthJWT(http.HandlerFunc(directH.HandleRoot)))
 	mux.Handle("/api/v1/direct-chats/start", middleware.AuthJWT(http.HandlerFunc(directH.Start)))
 	mux.Handle("/api/v1/direct-chats/", middleware.AuthJWT(http.HandlerFunc(directH.HandleWithID)))
@@ -299,9 +305,13 @@ func NewRouter(db *gorm.DB) http.Handler {
 
 	// ---------------- GLOBAL MIDDLEWARE ----------------
 
-	var h http.Handler = mux
-	h = middleware.Logger(h)
-	h = middleware.Recover(h)
-
-	return h
+	chain := middleware.Recover(middleware.Logger(mux))
+	// WebSocket requires http.Hijacker; bypass middleware wrappers just in case.
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/api/v1/ws") {
+			mux.ServeHTTP(w, r)
+			return
+		}
+		chain.ServeHTTP(w, r)
+	})
 }

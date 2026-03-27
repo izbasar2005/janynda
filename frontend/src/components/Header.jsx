@@ -155,9 +155,11 @@ export default function Header() {
                 {/* Right: language + auth */}
                 <div className="app-header__right">
                     {/* Diary icon link */}
-                    <Link to="/diary" className="app-header__diary-link" title="Күнделікке өту" aria-label="Күнделікке өту">
-                        <span className="app-header__diary-emoji" aria-hidden="true">📓</span>
-                    </Link>
+                    {t && (
+                        <Link to="/diary" className="app-header__diary-link" title="Күнделікке өту" aria-label="Күнделікке өту">
+                            <span className="app-header__diary-emoji" aria-hidden="true">📓</span>
+                        </Link>
+                    )}
 
                     {t && (
                         <span className="app-header__notif-wrap">

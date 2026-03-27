@@ -10,7 +10,7 @@ export default defineConfig({
     port: 5173,
     watch: { usePolling: true, interval: 300 },
     proxy: {
-      "/api": { target, changeOrigin: true },
+      "/api": { target, changeOrigin: true, ws: true },
 
       // 👇 мынаны қос
       "/static": { target, changeOrigin: true },

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, token } from "../services/api";
+import { wsClient } from "../services/ws";
 
 function parseJwt(t) {
     try {
@@ -30,6 +31,9 @@ export default function Groups() {
     const [directText, setDirectText] = useState("");
     const [unreadByChat, setUnreadByChat] = useState({}); // { [chatId]: number }
     const [toastText, setToastText] = useState("");
+    const lastNotifiedUnreadRef = useRef({}); // { [chatId]: number } to avoid repeated toasts
+    const wsGroupSubsRef = useRef(new Set());
+    const wsDirectSubsRef = useRef(new Set());
     const [members, setMembers] = useState([]);
     const [msgText, setMsgText] = useState("");
     const [status, setStatus] = useState("");
@@ -64,6 +68,20 @@ export default function Groups() {
     const [peerProfile, setPeerProfile] = useState(null);
 
     const peerAvatarReqIdRef = useRef(0);
+
+    function scrollToBottom(container, end, behavior = "auto") {
+        if (!container || !end) return;
+        // Run after paint to avoid "jump to top" on first render.
+        requestAnimationFrame(() => {
+            try {
+                end.scrollIntoView({ behavior, block: "end" });
+                // Some browsers/layouts need an explicit scrollTop set.
+                container.scrollTop = container.scrollHeight;
+            } catch {
+                // ignore
+            }
+        });
+    }
 
     useEffect(() => {
         selectedGroupIdRef.current = selectedGroupId;
@@ -204,17 +222,6 @@ export default function Groups() {
             // ignore storage write errors
         }
     }
-    function markDirectSeen(chatID, messageID) {
-        const cid = Number(chatID);
-        const mid = Number(messageID || 0);
-        if (!cid || !mid) return;
-        const prev = Number(seenDirectRef.current[cid] || 0);
-        if (mid <= prev) return;
-        const next = { ...seenDirectRef.current, [cid]: mid };
-        seenDirectRef.current = next;
-        writeSeenDirectMap(next);
-        setUnreadByChat((p) => ({ ...p, [cid]: false }));
-    }
     const canEditSelected = Boolean(
         selectedGroup && (
             role === "admin" ||
@@ -235,23 +242,155 @@ export default function Groups() {
 
     useEffect(() => {
         if (!t) return;
-        const timer = setInterval(() => {
-            // Groups list unread_count (GroupChatRead) серверде есептеледі,
-            // сондықтан біз оны мезгіл-мезгіл қайта жүктеп тұрамыз.
-            loadMyGroups();
-        }, 5000);
-        return () => clearInterval(timer);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [t]);
+        // WebSocket realtime listeners (no polling)
+        const off = wsClient.on((evt) => {
+            if (!evt || !evt.type) return;
 
-    useEffect(() => {
-        if (!t) return;
-        const timer = setInterval(() => {
-            loadDirectChats();
-        }, 5000);
-        return () => clearInterval(timer);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [t, myUserId]);
+            // Group message events
+            if (evt.channel === "group") {
+                const gid = Number(evt.id || 0);
+                if (!gid) return;
+                if (evt.type === "message:new" && evt.payload) {
+                    const p = evt.payload;
+                    const senderId = Number(p.sender_id || 0);
+                    // If currently viewing this group (and not in direct chat), append; otherwise bump unread in list.
+                    if (!activeDirect?.id && Number(selectedGroupIdRef.current) === gid) {
+                        // mark read immediately if I'm currently in this group chat and message is from someone else
+                        if (senderId && senderId !== myUserId) {
+                            api(`/api/v1/groups/${gid}/read`, {
+                                method: "POST",
+                                auth: true,
+                                body: { last_message_id: Number(p.id || 0) },
+                            }).catch(() => {});
+                        }
+                        setMessages((prev) => {
+                            const next = Array.isArray(prev) ? [...prev] : [];
+                            next.push({
+                                id: p.id,
+                                group_id: gid,
+                                sender_id: senderId,
+                                sender_name: p.sender_name,
+                                body: p.body,
+                                is_system: Boolean(p.is_system),
+                                created_at: p.created_at,
+                                readers: [],
+                            });
+                            return next;
+                        });
+                        groupAutoScrollOnceRef.current = true;
+                        setMyGroups((prev) => (prev || []).map((g) => (
+                            Number(g.id) === gid
+                                ? { ...g, last_message: p.body || g.last_message || "", unread_count: 0 }
+                                : g
+                        )));
+                    } else {
+                        setMyGroups((prev) => (prev || []).map((g) => (
+                            Number(g.id) === gid
+                                ? {
+                                    ...g,
+                                    last_message: p.body || g.last_message || "",
+                                    unread_count: Number(g.unread_count || 0) + (senderId && senderId !== myUserId ? 1 : 0),
+                                }
+                                : g
+                        )));
+                    }
+                }
+                if (evt.type === "message:read" && evt.payload) {
+                    const { reader_user_id, last_message_id, read_at } = evt.payload || {};
+                    const rid = Number(reader_user_id || 0);
+                    const lastId = Number(last_message_id || 0);
+                    if (!rid || !lastId) return;
+                    // Update readers list in current messages if group is open.
+                    if (!activeDirect?.id && Number(selectedGroupIdRef.current) === gid) {
+                        const name = (members || []).find((m) => Number(m.user_id) === rid)?.full_name || "";
+                        setMessages((prev) => (Array.isArray(prev) ? prev : []).map((m) => {
+                            const mid = Number(m.id || 0);
+                            if (!mid || mid > lastId) return m;
+                            const cur = Array.isArray(m.readers) ? m.readers : [];
+                            const exists = cur.some((x) => Number(x.user_id) === rid);
+                            const nextReaders = exists ? cur : [...cur, { user_id: rid, full_name: name, read_at, read_by_me: rid === myUserId }];
+                            return { ...m, readers: nextReaders };
+                        }));
+                    }
+                }
+            }
+
+            // Direct chat message events
+            if (evt.channel === "direct") {
+                const cid = Number(evt.id || 0);
+                if (!cid) return;
+                if (evt.type === "message:new" && evt.payload) {
+                    const p = evt.payload;
+                    const senderId = Number(p.sender_id || 0);
+                    const isActive = Number(activeDirect?.id || 0) === cid;
+
+                    if (isActive) {
+                        // mark read immediately if I'm currently in this chat and message is from peer
+                        if (senderId && senderId !== myUserId) {
+                            api(`/api/v1/direct-chats/${cid}/read`, {
+                                method: "POST",
+                                auth: true,
+                                body: { last_message_id: Number(p.id || 0) },
+                            }).catch(() => {});
+                        }
+                        setDirectMessages((prev) => {
+                            const next = Array.isArray(prev) ? [...prev] : [];
+                            next.push({
+                                id: p.id,
+                                sender_id: senderId,
+                                sender_name: p.sender_name,
+                                body: p.body,
+                                created_at: p.created_at,
+                                is_read_by_peer: false,
+                                read_at_by_peer: null,
+                            });
+                            return next;
+                        });
+                        directAutoScrollOnceRef.current = true;
+                        setUnreadByChat((u) => ({ ...u, [cid]: 0 }));
+                        lastNotifiedUnreadRef.current = { ...lastNotifiedUnreadRef.current, [cid]: 0 };
+                    } else {
+                        // update list + unread
+                        setDirectChats((prev) => (prev || []).map((c) => (
+                            Number(c.id) === cid
+                                ? { ...c, last_message: p.body || c.last_message || "", last_at: p.created_at || c.last_at }
+                                : c
+                        )));
+                        setUnreadByChat((u) => {
+                            const prevCnt = Number(u[cid] || 0);
+                            const nextCnt = prevCnt + (senderId && senderId !== myUserId ? 1 : 0);
+                            const prevNotified = Number(lastNotifiedUnreadRef.current[cid] || 0);
+                            if (nextCnt > prevNotified) {
+                                setToastText(`${p.sender_name || "Қатысушы"}: ${nextCnt} жаңа хабарлама`);
+                                lastNotifiedUnreadRef.current = { ...lastNotifiedUnreadRef.current, [cid]: nextCnt };
+                            }
+                            return { ...u, [cid]: nextCnt };
+                        });
+                    }
+                }
+                if (evt.type === "message:read" && evt.payload) {
+                    const { reader_user_id, last_message_id, read_at } = evt.payload || {};
+                    const rid = Number(reader_user_id || 0);
+                    const lastId = Number(last_message_id || 0);
+                    if (!rid || !lastId) return;
+                    // peer read receipts for active direct chat
+                    if (Number(activeDirect?.id || 0) === cid && rid !== myUserId) {
+                        setDirectMessages((prev) =>
+                            (Array.isArray(prev) ? prev : []).map((m) => {
+                                const mid = Number(m.id || 0);
+                                if (!mid || mid > lastId) return m;
+                                if (Number(m.sender_id) === myUserId) {
+                                    return { ...m, is_read_by_peer: true, read_at_by_peer: read_at || m.read_at_by_peer || new Date().toISOString() };
+                                }
+                                return m;
+                            })
+                        );
+                    }
+                }
+            }
+        });
+        return () => off();
+    }, [t, myUserId, activeDirect?.id, members]);
 
     useEffect(() => {
         if (!toastText) return;
@@ -273,6 +412,9 @@ export default function Groups() {
             return;
         }
         setActiveDirect(null);
+        setMessages([]);
+        initialGroupScrollDoneRef.current = false;
+        groupAutoScrollOnceRef.current = false;
         loadMessages(selectedGroupId);
         loadMembers(selectedGroupId);
         setGroupInfoOpen(false);
@@ -296,12 +438,12 @@ export default function Groups() {
         if (!container || !end) return;
 
         if (!initialGroupScrollDoneRef.current) {
-            end.scrollIntoView({ behavior: "auto", block: "end" });
+            scrollToBottom(container, end, "auto");
             initialGroupScrollDoneRef.current = true;
             return;
         }
         if (!groupAutoScrollOnceRef.current) return;
-        end.scrollIntoView({ behavior: "smooth", block: "end" });
+        scrollToBottom(container, end, "smooth");
         groupAutoScrollOnceRef.current = false;
     }, [messages.length, selectedGroupId, activeDirect?.id]);
 
@@ -313,22 +455,16 @@ export default function Groups() {
         if (!container || !end) return;
 
         if (!initialDirectScrollDoneRef.current) {
-            end.scrollIntoView({ behavior: "auto", block: "end" });
+            scrollToBottom(container, end, "auto");
             initialDirectScrollDoneRef.current = true;
             return;
         }
         if (!directAutoScrollOnceRef.current) return;
-        end.scrollIntoView({ behavior: "smooth", block: "end" });
+        scrollToBottom(container, end, "smooth");
         directAutoScrollOnceRef.current = false;
     }, [directMessages.length, activeDirect?.id]);
 
-    useEffect(() => {
-        if (!activeDirect?.id) return;
-        const timer = setInterval(() => {
-            loadDirectMessages(activeDirect.id);
-        }, 4000);
-        return () => clearInterval(timer);
-    }, [activeDirect?.id]);
+    // No direct-messages polling; WS updates after initial REST load.
 
     useEffect(() => {
         if (!canManage) return;
@@ -347,6 +483,15 @@ export default function Groups() {
             const data = await api("/api/v1/groups/my", { auth: true });
             const arr = Array.isArray(data) ? data : [];
             setMyGroups(arr);
+            // subscribe to groups for realtime
+            for (const g of arr) {
+                const gid = Number(g.id || 0);
+                if (!gid) continue;
+                if (!wsGroupSubsRef.current.has(gid)) {
+                    wsGroupSubsRef.current.add(gid);
+                    wsClient.subscribe("group", gid);
+                }
+            }
             // Only auto-select the first group ONCE ever.
             // Polling must not reset user's current selection.
             if (!didAutoSelectOnceRef.current && arr.length > 0 && selectedGroupIdRef.current === 0) {
@@ -417,19 +562,36 @@ export default function Groups() {
             });
             setUnreadByChat((prevUnread) => {
                 const nextUnread = { ...prevUnread };
-                let newToast = "";
                 for (const c of arr) {
                     const cid = Number(c.id);
                     const isActive = Number(activeDirect?.id || 0) === cid;
                     const cnt = Number(c.unread_count || 0);
                     nextUnread[cid] = isActive ? 0 : cnt;
-                    if (!isActive && cnt > 0) {
-                        newToast = `${c.peer_name || "Қатысушы"}: ${cnt} жаңа хабарлама`;
+
+                    // Show toast only when unread count increases (new messages),
+                    // not on every poll or when switching groups.
+                    const prevNotified = Number(lastNotifiedUnreadRef.current[cid] || 0);
+                    if (!isActive && cnt > prevNotified) {
+                        setToastText(`${c.peer_name || "Қатысушы"}: ${cnt} жаңа хабарлама`);
+                        lastNotifiedUnreadRef.current = { ...lastNotifiedUnreadRef.current, [cid]: cnt };
+                    }
+                    // reset when cleared
+                    if (cnt === 0 && prevNotified !== 0) {
+                        lastNotifiedUnreadRef.current = { ...lastNotifiedUnreadRef.current, [cid]: 0 };
                     }
                 }
-                if (newToast) setToastText(newToast);
                 return nextUnread;
             });
+
+            // subscribe to direct conversations for realtime
+            for (const c of arr) {
+                const cid = Number(c.id || 0);
+                if (!cid) continue;
+                if (!wsDirectSubsRef.current.has(cid)) {
+                    wsDirectSubsRef.current.add(cid);
+                    wsClient.subscribe("direct", cid);
+                }
+            }
         } catch (e) {
             // Ескі серверде endpoint болмауы мүмкін (Not found) — UI-да артық қате көрсетпейміз.
             if (!String(e.message || "").toLowerCase().includes("not found")) {
@@ -447,8 +609,16 @@ export default function Groups() {
             const data = await api(`/api/v1/direct-chats/${chatID}/messages?ts=${Date.now()}`, { auth: true });
             const arr = Array.isArray(data) ? data : [];
             setDirectMessages(arr);
+            requestAnimationFrame(() => {
+                const container = directMessagesScrollRef.current;
+                const end = directMessagesEndRef.current;
+                if (!container || !end) return;
+                scrollToBottom(container, end, "auto");
+                initialDirectScrollDoneRef.current = true;
+            });
             // backend ListMessages already marks as seen
             setUnreadByChat((p) => ({ ...p, [Number(chatID)]: 0 }));
+            lastNotifiedUnreadRef.current = { ...lastNotifiedUnreadRef.current, [Number(chatID)]: 0 };
             if (arr.length > 0) {
                 const last = arr[arr.length - 1];
                 const cid = Number(chatID);
@@ -475,6 +645,13 @@ export default function Groups() {
             const data = await api(`/api/v1/groups/${groupId}/messages?ts=${Date.now()}`, { auth: true });
             const arr = Array.isArray(data) ? data : [];
             setMessages(arr);
+            requestAnimationFrame(() => {
+                const container = groupMessagesScrollRef.current;
+                const end = groupMessagesEndRef.current;
+                if (!container || !end) return;
+                scrollToBottom(container, end, "auto");
+                initialGroupScrollDoneRef.current = true;
+            });
             if (arr.length > 0) {
                 const last = arr[arr.length - 1];
                 const gid = Number(groupId);
@@ -656,6 +833,9 @@ export default function Groups() {
                 photo_url: "",
             };
             setActiveDirect(next);
+            setDirectMessages([]);
+            initialDirectScrollDoneRef.current = false;
+            directAutoScrollOnceRef.current = false;
             // Load peer avatar (doctor photo) for the header.
             const reqID = ++peerAvatarReqIdRef.current;
             api(`/api/v1/users/${peerID}`, { auth: true })
@@ -937,6 +1117,9 @@ export default function Groups() {
                                     key={c.id}
                                     className={`groups-list__item ${activeDirect?.id === c.id ? "is-active" : ""}`}
                                     onClick={() => {
+                                        setDirectMessages([]);
+                                        initialDirectScrollDoneRef.current = false;
+                                        directAutoScrollOnceRef.current = false;
                                         setActiveDirect(c);
                                         setGroupInfoOpen(false);
                                         setSettingsOpen(false);

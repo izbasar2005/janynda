@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
+import { token } from "./services/api";
 
 import Home from "./pages/Home.jsx";
 import Doctors from "./pages/Doctors.jsx";
@@ -38,7 +39,7 @@ export default function App() {
                         <Route path="/register" element={<Register />} />
 
                         <Route path="/profile" element={<Profile />} />
-                        <Route path="/diary" element={<Diary />} />
+                        <Route path="/diary" element={token() ? <Diary /> : <Navigate to="/login" replace />} />
                         <Route path="/book/:doctorId" element={<Book />} />
                         <Route path="/notifications" element={<Notifications />} />
                         <Route path="/chat/:appointmentId" element={<Chat />} />

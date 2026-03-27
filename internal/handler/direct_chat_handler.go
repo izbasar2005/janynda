@@ -6,19 +6,22 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"net/url"
 
 	"gorm.io/gorm"
 
 	"janymda/internal/middleware"
 	"janymda/internal/model"
+	"janymda/internal/realtime"
 )
 
 type DirectChatHandler struct {
-	db *gorm.DB
+	db  *gorm.DB
+	hub *realtime.Hub
 }
 
-func NewDirectChatHandler(db *gorm.DB) *DirectChatHandler {
-	return &DirectChatHandler{db: db}
+func NewDirectChatHandler(db *gorm.DB, hub *realtime.Hub) *DirectChatHandler {
+	return &DirectChatHandler{db: db, hub: hub}
 }
 
 // /api/v1/direct-chats (GET)
@@ -187,6 +190,12 @@ func (h *DirectChatHandler) HandleWithID(w http.ResponseWriter, r *http.Request)
 			return
 		}
 	}
+	if strings.HasSuffix(r.URL.Path, "/read") {
+		if r.Method == http.MethodPost {
+			h.MarkRead(w, r)
+			return
+		}
+	}
 	http.Error(w, "Not found", http.StatusNotFound)
 }
 
@@ -232,6 +241,9 @@ func (h *DirectChatHandler) ListMessages(w http.ResponseWriter, r *http.Request)
 	// mark as seen (last message) for current user and provide read time
 	var lastSeenID uint
 	var lastSeenAt time.Time
+	changedRead := false
+	var changedLastID uint
+	var changedAt time.Time
 	if len(list) > 0 {
 		lastID := list[len(list)-1].ID
 		var read model.DirectChatRead
@@ -241,13 +253,38 @@ func (h *DirectChatHandler) ListMessages(w http.ResponseWriter, r *http.Request)
 				DirectConversationID: conv.ID,
 				LastSeenMessageID:    lastID,
 			}
-			_ = h.db.Create(&read).Error
+			if err2 := h.db.Create(&read).Error; err2 == nil {
+				changedRead = true
+				changedLastID = lastID
+				changedAt = read.UpdatedAt
+			}
 		} else if read.LastSeenMessageID < lastID {
+			changedRead = true
 			read.LastSeenMessageID = lastID
-			_ = h.db.Save(&read).Error
+			if err2 := h.db.Save(&read).Error; err2 == nil {
+				changedLastID = lastID
+				changedAt = read.UpdatedAt
+			}
 		}
 		lastSeenID = read.LastSeenMessageID
 		lastSeenAt = read.UpdatedAt
+	}
+
+	// broadcast read progress
+	if changedRead && h.hub != nil && changedLastID > 0 {
+		if changedAt.IsZero() {
+			changedAt = time.Now()
+		}
+		h.hub.Broadcast(realtime.RoomKey("direct", conv.ID), map[string]any{
+			"type":    "message:read",
+			"channel": "direct",
+			"id":      conv.ID,
+			"payload": map[string]any{
+				"reader_user_id":  me,
+				"last_message_id": changedLastID,
+				"read_at":         changedAt,
+			},
+		})
 	}
 
 	// peer read state (do NOT update; just read it)
@@ -320,6 +357,90 @@ func (h *DirectChatHandler) SendMessage(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "DB error", http.StatusInternalServerError)
 		return
 	}
+
+	// broadcast
+	if h.hub != nil {
+		senderName := ""
+		var u model.User
+		if err := h.db.First(&u, me).Error; err == nil {
+			senderName = u.FullName
+		}
+		h.hub.Broadcast(realtime.RoomKey("direct", conv.ID), map[string]any{
+			"type":    "message:new",
+			"channel": "direct",
+			"id":      conv.ID,
+			"payload": map[string]any{
+				"id":          msgModel.ID,
+				"direct_id":   msgModel.DirectConversationID,
+				"sender_id":   msgModel.SenderUserID,
+				"sender_name": senderName,
+				"body":        msgModel.Body,
+				"created_at":  msgModel.CreatedAt,
+			},
+		})
+	}
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(msgModel)
+}
+
+// POST /api/v1/direct-chats/:id/read
+// body: { "last_message_id": 123 } (optional; if missing -> latest)
+func (h *DirectChatHandler) MarkRead(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	// reuse parser by faking suffix trim
+	// getConvAndCheck trims /messages; here we trim /read first
+	tmp := *r
+	tmp.URL = new(url.URL)
+	*tmp.URL = *r.URL
+	tmp.URL.Path = strings.TrimSuffix(r.URL.Path, "/read") + "/messages"
+
+	conv, me, code, msg := h.getConvAndCheck(&tmp)
+	if code != 0 {
+		http.Error(w, msg, code)
+		return
+	}
+
+	var req struct {
+		LastMessageID uint `json:"last_message_id"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+
+	lastID := req.LastMessageID
+	if lastID == 0 {
+		_ = h.db.Model(&model.DirectMessage{}).
+			Select("COALESCE(MAX(id),0)").
+			Where("direct_conversation_id = ?", conv.ID).
+			Scan(&lastID).Error
+	}
+	if lastID == 0 {
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
+		return
+	}
+
+	var read model.DirectChatRead
+	if err := h.db.Where("user_id = ? AND direct_conversation_id = ?", me, conv.ID).First(&read).Error; err != nil {
+		read = model.DirectChatRead{
+			UserID:               me,
+			DirectConversationID: conv.ID,
+			LastSeenMessageID:    lastID,
+		}
+		_ = h.db.Create(&read).Error
+	} else if read.LastSeenMessageID < lastID {
+		read.LastSeenMessageID = lastID
+		_ = h.db.Save(&read).Error
+	}
+
+	if h.hub != nil {
+		h.hub.Broadcast(realtime.RoomKey("direct", conv.ID), map[string]any{
+			"type":    "message:read",
+			"channel": "direct",
+			"id":      conv.ID,
+			"payload": map[string]any{
+				"reader_user_id":  me,
+				"last_message_id": lastID,
+				"read_at":         read.UpdatedAt,
+			},
+		})
+	}
+	_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
 }

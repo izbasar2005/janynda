@@ -10,14 +10,16 @@ import (
 
 	"janymda/internal/middleware"
 	"janymda/internal/model"
+	"janymda/internal/realtime"
 )
 
 type ConversationHandler struct {
-	db *gorm.DB
+	db  *gorm.DB
+	hub *realtime.Hub
 }
 
-func NewConversationHandler(db *gorm.DB) *ConversationHandler {
-	return &ConversationHandler{db: db}
+func NewConversationHandler(db *gorm.DB, hub *realtime.Hub) *ConversationHandler {
+	return &ConversationHandler{db: db, hub: hub}
 }
 
 // HandleWithID — /api/v1/conversations/:id/messages (GET list, POST send)
@@ -182,6 +184,29 @@ func (h *ConversationHandler) SendMessage(w http.ResponseWriter, r *http.Request
 	if err := h.db.Create(&msg).Error; err != nil {
 		http.Error(w, "DB error", http.StatusInternalServerError)
 		return
+	}
+
+	// broadcast
+	if h.hub != nil {
+		senderName := ""
+		var u model.User
+		if err := h.db.First(&u, userID).Error; err == nil {
+			senderName = u.FullName
+		}
+		h.hub.Broadcast(realtime.RoomKey("conversation", conv.ID), map[string]any{
+			"type":    "message:new",
+			"channel": "conversation",
+			"id":      conv.ID,
+			"payload": map[string]any{
+				"id":          msg.ID,
+				"sender_id":   msg.SenderUserID,
+				"sender_name": senderName,
+				"body":        msg.Body,
+				"video_link":  msg.VideoLink,
+				"is_system":   msg.IsSystem,
+				"created_at":  msg.CreatedAt,
+			},
+		})
 	}
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(msg)
