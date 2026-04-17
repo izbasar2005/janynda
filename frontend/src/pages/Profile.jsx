@@ -76,6 +76,7 @@ export default function Profile() {
     const [dashboardStats, setDashboardStats] = useState(null);
     const [msg, setMsg] = useState("");
     const [cancellingId, setCancellingId] = useState(null);
+    const [showAllApps, setShowAllApps] = useState(false);
 
     function fetchAppointments() {
         if (!token()) return;
@@ -144,6 +145,9 @@ export default function Profile() {
         };
         return [...apps].sort((a, b) => getTime(b) - getTime(a));
     }, [apps]);
+
+    const hasMoreApps = sortedApps.length > 5;
+    const visibleApps = showAllApps ? sortedApps : sortedApps.slice(0, 5);
 
     const infoRows = [];
     if (me) {
@@ -265,50 +269,64 @@ export default function Profile() {
                                     <Link to="/doctors" className="btn profile-empty__cta">Дәрігерлерге өту</Link>
                                 </div>
                             ) : (
-                                <ul className="profile-appointments">
-                                    {sortedApps.map((a) => {
-                                        const startAt = a.start_at ?? a.startAt ?? a.StartAt;
-                                        const status = a.status ?? a.Status ?? "—";
-                                        const doctorName = (a.doctor?.full_name || a.doctor?.FullName) ?? "—";
-                                        const patientName = (a.patient?.full_name || a.patient?.FullName) ?? "—";
-                                        const { date, time, full } = fmtStartAt(startAt);
-                                        const isPast = isPastAppointment(startAt);
-                                        const who = me?.role === "doctor" ? patientName : doctorName;
-                                        const whoLabel = me?.role === "doctor" ? "Пациент" : "Дәрігер";
-                                        const canCancel = me?.role === "patient" && !isPast && canCancelByPatient(startAt) && status !== "canceled" && status !== "cancelled";
+                                <>
+                                    <ul className="profile-appointments">
+                                        {visibleApps.map((a) => {
+                                            const startAt = a.start_at ?? a.startAt ?? a.StartAt;
+                                            const status = a.status ?? a.Status ?? "—";
+                                            const doctorName = (a.doctor?.full_name || a.doctor?.FullName) ?? "—";
+                                            const patientName = (a.patient?.full_name || a.patient?.FullName) ?? "—";
+                                            const { date, time, full } = fmtStartAt(startAt);
+                                            const isPast = isPastAppointment(startAt);
+                                            const who = me?.role === "doctor" ? patientName : doctorName;
+                                            const whoLabel = me?.role === "doctor" ? "Пациент" : "Дәрігер";
+                                            const canCancel = me?.role === "patient" && !isPast && canCancelByPatient(startAt) && status !== "canceled" && status !== "cancelled";
 
-                                        return (
-                                            <li
-                                                key={a.id}
-                                                className={`profile-appointment ${isPast ? "profile-appointment--past" : ""}`}
+                                            return (
+                                                <li
+                                                    key={a.id}
+                                                    className={`profile-appointment ${isPast ? "profile-appointment--past" : ""}`}
+                                                    title={full}
+                                                >
+                                                    <div className="profile-appointment__main">
+                                                        <div className="profile-appointment__date-block">
+                                                            <span className="profile-appointment__date">{date}</span>
+                                                            {time && <span className="profile-appointment__time">{time}</span>}
+                                                        </div>
+                                                        <div className="profile-appointment__details">
+                                                            <p className="profile-appointment__label">{whoLabel}</p>
+                                                            <p className="profile-appointment__name">{who}</p>
+                                                        </div>
+                                                        <span className={`profile-appointment__status profile-appointment__status--${isPast ? "past" : (status || "").toLowerCase()}`}>
+                                                            {statusLabel(status, isPast)}
+                                                        </span>
+                                                    </div>
+                                                    {canCancel && (
+                                                        <button
+                                                            type="button"
+                                                            className="btn profile-appointment__cancel"
+                                                            onClick={() => cancelAppointment(a.id)}
+                                                            disabled={cancellingId === a.id}
+                                                        >
+                                                            {cancellingId === a.id ? "..." : "Отмена"}
+                                                        </button>
+                                                    )}
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+                                    {hasMoreApps && (
+                                        <div className="profile-appointments__more">
+                                            <button
+                                                type="button"
+                                                className="btn"
+                                                onClick={() => setShowAllApps((v) => !v)}
                                             >
-                                                <div className="profile-appointment__main">
-                                                    <div className="profile-appointment__date-block">
-                                                        <span className="profile-appointment__date">{date}</span>
-                                                        {time && <span className="profile-appointment__time">{time}</span>}
-                                                    </div>
-                                                    <div className="profile-appointment__details">
-                                                        <p className="profile-appointment__label">{whoLabel}</p>
-                                                        <p className="profile-appointment__name">{who}</p>
-                                                    </div>
-                                                    <span className={`profile-appointment__status profile-appointment__status--${isPast ? "past" : (status || "").toLowerCase()}`}>
-                                                        {statusLabel(status, isPast)}
-                                                    </span>
-                                                </div>
-                                                {canCancel && (
-                                                    <button
-                                                        type="button"
-                                                        className="btn profile-appointment__cancel"
-                                                        onClick={() => cancelAppointment(a.id)}
-                                                        disabled={cancellingId === a.id}
-                                                    >
-                                                        {cancellingId === a.id ? "..." : "Отмена"}
-                                                    </button>
-                                                )}
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
+                                                {showAllApps ? "Жасыру" : "Еще"}
+                                            </button>
+                                        </div>
+                                    )}
+                                </>
                             )}
                                 </>
                             )}
