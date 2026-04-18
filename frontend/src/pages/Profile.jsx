@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { api, token } from "../services/api";
+import { appointmentStatusLabel } from "../utils/appointmentStatus";
 
 function fmtStartAt(s) {
     if (!s) return { date: "—", time: "", full: "—" };
@@ -56,16 +57,6 @@ function genderLabel(g) {
     if (v === "male" || v === "m" || v === "ер") return "Ер адам";
     if (v === "female" || v === "f" || v === "әйел") return "Әйел адам";
     return g;
-}
-
-function statusLabel(s, isPast = false) {
-    const v = (s || "").toLowerCase();
-    if (v === "canceled" || v === "cancelled") return "Бас тартылды";
-    if (isPast) return "Өтті";
-    if (v === "pending") return "Күтуде";
-    if (v === "approved") return "Расталды";
-    if (v === "done") return "Аяқталды";
-    return s || "—";
 }
 
 export default function Profile() {
@@ -148,6 +139,15 @@ export default function Profile() {
 
     const hasMoreApps = sortedApps.length > 5;
     const visibleApps = showAllApps ? sortedApps : sortedApps.slice(0, 5);
+
+    /** Соңғы жазылуда (уақыт бойынша) диагноз немесе дәрігер жазбасы толтырылған жазылу */
+    const latestAppointmentWithMed = useMemo(() => {
+        if (me?.role !== "patient") return null;
+        for (const a of sortedApps) {
+            if (a.diagnosis || a.clinical_notes) return a;
+        }
+        return null;
+    }, [sortedApps, me?.role]);
 
     const infoRows = [];
     if (me) {
@@ -253,6 +253,23 @@ export default function Profile() {
                                 <>
                             <h3 className="profile-card__title">Жазылуларым</h3>
 
+                            {me?.role === "patient" && latestAppointmentWithMed ? (
+                                <div className="profile-latest-med">
+                                    {latestAppointmentWithMed.diagnosis ? (
+                                        <div className="profile-latest-med__block">
+                                            <div className="profile-latest-med__h">Диагноз</div>
+                                            <div className="profile-latest-med__body">{latestAppointmentWithMed.diagnosis}</div>
+                                        </div>
+                                    ) : null}
+                                    {latestAppointmentWithMed.clinical_notes ? (
+                                        <div className="profile-latest-med__block">
+                                            <div className="profile-latest-med__h">Дәрігер жазбасы</div>
+                                            <div className="profile-latest-med__body">{latestAppointmentWithMed.clinical_notes}</div>
+                                        </div>
+                                    ) : null}
+                                </div>
+                            ) : null}
+
                             {isAdmin ? (
                                 <div className="profile-empty">
                                     <span className="profile-empty__icon" aria-hidden="true">👤</span>
@@ -281,6 +298,16 @@ export default function Profile() {
                                             const who = me?.role === "doctor" ? patientName : doctorName;
                                             const whoLabel = me?.role === "doctor" ? "Пациент" : "Дәрігер";
                                             const canCancel = me?.role === "patient" && !isPast && canCancelByPatient(startAt) && status !== "canceled" && status !== "cancelled";
+                                            const latestMedId =
+                                                latestAppointmentWithMed?.id ?? latestAppointmentWithMed?.Id;
+                                            const isLatestMedRow =
+                                                me?.role === "patient" &&
+                                                latestMedId != null &&
+                                                Number(a.id) === Number(latestMedId);
+                                            const showCompactMed =
+                                                me?.role === "patient" &&
+                                                (a.diagnosis || a.clinical_notes) &&
+                                                !isLatestMedRow;
 
                                             return (
                                                 <li
@@ -296,9 +323,29 @@ export default function Profile() {
                                                         <div className="profile-appointment__details">
                                                             <p className="profile-appointment__label">{whoLabel}</p>
                                                             <p className="profile-appointment__name">{who}</p>
+                                                            {showCompactMed ? (
+                                                                <div className="profile-appointment__med">
+                                                                    {a.diagnosis ? (
+                                                                        <p className="profile-appointment__med-line">
+                                                                            <span className="profile-appointment__med-k">
+                                                                                Диагноз:
+                                                                            </span>{" "}
+                                                                            {a.diagnosis}
+                                                                        </p>
+                                                                    ) : null}
+                                                                    {a.clinical_notes ? (
+                                                                        <p className="profile-appointment__med-line">
+                                                                            <span className="profile-appointment__med-k">
+                                                                                Дәрігер жазбасы:
+                                                                            </span>{" "}
+                                                                            {a.clinical_notes}
+                                                                        </p>
+                                                                    ) : null}
+                                                                </div>
+                                                            ) : null}
                                                         </div>
                                                         <span className={`profile-appointment__status profile-appointment__status--${isPast ? "past" : (status || "").toLowerCase()}`}>
-                                                            {statusLabel(status, isPast)}
+                                                            {appointmentStatusLabel(status, { isPast })}
                                                         </span>
                                                     </div>
                                                     {canCancel && (

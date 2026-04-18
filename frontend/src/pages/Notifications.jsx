@@ -11,6 +11,48 @@ function fmtDate(d) {
     }
 }
 
+function notificationTypeLabel(type) {
+    switch (type) {
+        case "15min_reminder":
+            return "⏰ 15 мин қалды";
+        case "5min_choice":
+            return "📋 5 мин — таңдау";
+        case "doctor_incomplete_1h":
+            return "📝 Жазылуды аяқтаңыз";
+        case "appointment_done":
+            return "✅ Қабылдау аяқталды";
+        case "role_change":
+            return "👤 Аккаунт";
+        default:
+            return "📬 Хабарлама";
+    }
+}
+
+function notificationBodyText(n) {
+    switch (n.type) {
+        case "15min_reminder":
+            return `Сіздің жазылымыңыз бар: ${n.doctor_name || "Дәрігер"} — ${fmtDate(n.start_at)}. Ұмытпаңыз.`;
+        case "5min_choice":
+            return n.patient_choice !== undefined
+                ? "Кездесу жақындады. Пациенттің таңдауы төменде."
+                : "Кездесу жақындады. Қалай сөйлескіңіз келеді?";
+        case "doctor_incomplete_1h":
+            return (
+                n.message ||
+                "Толтырылмаған жазылымыңыз бар: «Қабылдау аяқталды» күйін қойып, диагноз/жазбаны тексеріңіз."
+            );
+        case "appointment_done":
+            return (
+                n.message ||
+                "Қабылдау аяқталды. Диагноз бен дәрігер жазбасын «Менің профилім» → жазылулардан қараңыз."
+            );
+        case "role_change":
+            return n.message || "Аккаунт рөлі жаңартылды.";
+        default:
+            return n.message || "Қосымша мәлімет көрсетілмеген.";
+    }
+}
+
 export default function Notifications() {
     const nav = useNavigate();
     const [list, setList] = useState([]);
@@ -67,7 +109,7 @@ export default function Notifications() {
             <div className="page-header">
                 <h2 className="page-header__title">Хабарламалар</h2>
                 <p className="muted page-header__subtitle">
-                    Жазылу туралы еске салулар және кездесу тәсілін таңдау.
+                    Жазылу туралы еске салулар, кездесу тәсілін таңдау және дәрігерге жазба ескертулері.
                 </p>
             </div>
 
@@ -78,26 +120,27 @@ export default function Notifications() {
             ) : (
                 <ul className="notif-list">
                     {list.map((n) => (
-                        <li key={n.id} className={`card notif-card ${n.read_at ? "notif-card--read" : ""}`}>
+                        <li
+                            key={n.id}
+                            className={`card notif-card ${n.read_at ? "notif-card--read" : ""} ${
+                                n.type === "appointment_done" ? "notif-card--appointment-done" : ""
+                            }`}
+                        >
                             <div className="notif-card__head">
-                                <span className="notif-card__type">
-                                    {n.type === "15min_reminder"
-                                        ? "⏰ 15 мин қалды"
-                                        : n.type === "5min_choice"
-                                        ? "📋 5 мин — таңдау"
-                                        : "ℹ️ Рөл өзгерісі"}
-                                </span>
+                                <span className="notif-card__type">{notificationTypeLabel(n.type)}</span>
                                 <span className="muted notif-card__date">{fmtDate(n.created_at)}</span>
                             </div>
-                            <p className="notif-card__text">
-                                {n.type === "15min_reminder"
-                                    ? `Сіздің жазылымыңыз бар: ${n.doctor_name || "Дәрігер"} — ${fmtDate(n.start_at)}. Ұмытпаңыз.`
-                                    : n.type === "5min_choice"
-                                    ? n.patient_choice !== undefined
-                                        ? "Кездесу жақындады. Пациенттің таңдауы төменде."
-                                        : "Кездесу жақындады. Қалай сөйлескіңіз келеді?"
-                                    : n.message || "Сіздің рөліңіз өзгертілді."}
-                            </p>
+                            <p className="notif-card__text">{notificationBodyText(n)}</p>
+                            {n.type === "appointment_done" ? (
+                                <Link className="btn notif-card__action-btn" to="/profile">
+                                    Жазылуларға өту
+                                </Link>
+                            ) : null}
+                            {n.type === "doctor_incomplete_1h" && n.patient_id ? (
+                                <Link className="btn notif-card__action-btn" to={`/doctor/patients/${n.patient_id}`}>
+                                    Жазылуға өту
+                                </Link>
+                            ) : null}
                             {n.type === "5min_choice" && n.patient_choice !== undefined && n.patient_choice !== null && (
                                 <>
                                 <p className="notif-card__patient-choice">

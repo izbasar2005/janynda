@@ -114,6 +114,11 @@ export default function Header() {
                             Менің деректерім
                         </Link>
                     )}
+                    {t && role === "doctor" && (
+                        <Link className={`app-nav__link ${active("/doctor")}`} to="/doctor">
+                            Дәрігер кабинеті
+                        </Link>
+                    )}
                     {t && (
                         <Link className={`app-nav__link ${active("/groups")}`} to="/groups">
                             Топтар

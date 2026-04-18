@@ -86,6 +86,7 @@ func (h *NotificationHandler) List(w http.ResponseWriter, r *http.Request) {
 			"start_at":        ap.StartAt,
 			"doctor_name":     doctorName,
 			"patient_name":    patientName,
+			"patient_id":      ap.PatientID,
 		}
 		// Дәрігер үшін: 5мин ескертуде әрқашан patient_choice беру (дәрігерге таңдау батырмасы көрсетілмесін)
 		if n.Type == model.NotificationType5Min && ap.ID != 0 && ap.DoctorUserID == userID {

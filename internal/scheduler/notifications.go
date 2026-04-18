@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"log"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -58,6 +59,46 @@ func RunNotificationWorker(db *gorm.DB) {
 						}
 					}
 				}
+			}
+		}
+
+		// Дәрігер: кездесу уақыты басталғаннан 1 сағат өтті, әлі done емес — бір рет ескерту
+		// Тек соңғы 90 күн (тарихи «ұмытылған» жазбаларға жүздеген хабарлама жібермеу үшін)
+		cutoff1h := now.Add(-1 * time.Hour)
+		recentStart := now.Add(-90 * 24 * time.Hour)
+		var overdue []model.Appointment
+		if err := db.Where("status IN ?", []string{model.StatusApproved, model.StatusPending}).
+			Where("start_at <= ? AND start_at >= ?", cutoff1h, recentStart).
+			Find(&overdue).Error; err != nil {
+			log.Printf("[notifications] overdue list err: %v", err)
+			continue
+		}
+		for _, ap := range overdue {
+			var exists int64
+			if err := db.Model(&model.Notification{}).
+				Where("user_id = ? AND appointment_id = ? AND type = ?", ap.DoctorUserID, ap.ID, model.NotificationTypeDoctorIncomplete1h).
+				Count(&exists).Error; err != nil {
+				log.Printf("[notifications] doctor 1h exists err: %v", err)
+				continue
+			}
+			if exists > 0 {
+				continue
+			}
+			var p model.User
+			_ = db.First(&p, ap.PatientID).Error
+			pname := strings.TrimSpace(p.FullName)
+			if pname == "" {
+				pname = "Пациент"
+			}
+			msg := "Толтырылмаған жазылымыңыз бар: " + pname + " — «Қабылдау аяқталды» күйін қойып, диагноз/жазбаны тексеріңіз."
+			n := model.Notification{
+				UserID:        ap.DoctorUserID,
+				AppointmentID: ap.ID,
+				Type:          model.NotificationTypeDoctorIncomplete1h,
+				Message:       msg,
+			}
+			if err := db.Create(&n).Error; err != nil {
+				log.Printf("[notifications] create doctor_incomplete_1h err: %v", err)
 			}
 		}
 	}

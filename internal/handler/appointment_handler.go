@@ -99,12 +99,12 @@ func (h *AppointmentHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Сол пациенттің осы дәрігерде, осы уақытта отмена жасалған жазылуы бар болса — оны қайта «Күтуде» етіп жаңартамыз (жаңа қатар қоспаймыз)
+	// Сол пациенттің осы дәрігерде, осы уақытта отмена жасалған жазылуы бар болса — қайта бос слотқа жазғанда бірден бекітілген күйге қоямыз
 	var existing model.Appointment
 	if err := h.db.Where("patient_id = ? AND doctor_user_id = ? AND start_at = ? AND status = ?",
 		patientID, req.DoctorUserID, startAt, model.StatusCanceled,
 	).First(&existing).Error; err == nil {
-		existing.Status = model.StatusPending
+		existing.Status = model.StatusApproved
 		existing.Note = req.Note
 		if err := h.db.Save(&existing).Error; err != nil {
 			http.Error(w, "DB error", http.StatusInternalServerError)
@@ -120,7 +120,8 @@ func (h *AppointmentHandler) Create(w http.ResponseWriter, r *http.Request) {
 		DoctorUserID: req.DoctorUserID,
 		StartAt:      startAt,
 		Note:         req.Note,
-		Status:       model.StatusPending,
+		// Бос слот тексерілген соң дәрігердің бөлек «келісу» қадамы жоқ — жазылу бірден бекітілген болып саналады
+		Status: model.StatusApproved,
 	}
 
 	if err := h.db.Create(&ap).Error; err != nil {
@@ -134,8 +135,8 @@ func (h *AppointmentHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 // GET /api/v1/appointments/my
-// patient -> өзінікі (patient_id)  (барлығы көрінеді: pending + canceled)
-// doctor  -> өзінікі (doctor_user_id) (тек pending көрсетеміз)
+// patient -> өзінікі (patient_id)
+// doctor  -> өзінікі (doctor_user_id), барлық күйлер
 func (h *AppointmentHandler) My(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if r.Method != http.MethodGet {
@@ -284,4 +285,126 @@ func (h *AppointmentHandler) Cancel(w http.ResponseWriter, r *http.Request) {
 		"id":      ap.ID,
 		"status":  ap.Status,
 	})
+}
+
+// HandleWithID — PATCH .../appointments/{id}/cancel (пациент) немесе PATCH .../appointments/{id} (дәрігер)
+func (h *AppointmentHandler) HandleWithID(w http.ResponseWriter, r *http.Request) {
+	path := strings.TrimPrefix(r.URL.Path, "/api/v1/appointments/")
+	path = strings.Trim(path, "/")
+	if path == "" {
+		http.NotFound(w, r)
+		return
+	}
+
+	if strings.HasSuffix(path, "/cancel") {
+		if r.Method != http.MethodPatch {
+			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		h.Cancel(w, r)
+		return
+	}
+
+	if r.Method == http.MethodPatch {
+		h.DoctorPatch(w, r, path)
+		return
+	}
+
+	http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+}
+
+type doctorPatchAppointmentRequest struct {
+	Diagnosis     *string `json:"diagnosis"`
+	ClinicalNotes *string `json:"clinical_notes"`
+	Status        *string `json:"status"`
+}
+
+// DoctorPatch — PATCH /api/v1/appointments/{id} (тек дәрігер, өз жазылуы)
+func (h *AppointmentHandler) DoctorPatch(w http.ResponseWriter, r *http.Request, idPath string) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if strings.Contains(idPath, "/") {
+		http.NotFound(w, r)
+		return
+	}
+
+	role, _ := r.Context().Value(middleware.CtxRole).(string)
+	if role != "doctor" {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	doctorID, _ := r.Context().Value(middleware.CtxUserID).(uint)
+	if doctorID == 0 {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	id64, err := strconv.ParseUint(idPath, 10, 32)
+	if err != nil || id64 == 0 {
+		http.Error(w, "Invalid appointment id", http.StatusBadRequest)
+		return
+	}
+
+	var ap model.Appointment
+	if err := h.db.First(&ap, uint(id64)).Error; err != nil {
+		http.Error(w, "Appointment not found", http.StatusNotFound)
+		return
+	}
+
+	// Тек өзіне жазылған жазылу: басқа дәрігердің пациентіне медициналық жазба қосуға болмайды
+	if ap.DoctorUserID != doctorID {
+		http.Error(w, "Тек өзіңізге жазылған пациенттің жазылуын ғана өзгерте аласыз", http.StatusForbidden)
+		return
+	}
+	if ap.PatientID == 0 {
+		http.Error(w, "Invalid appointment", http.StatusBadRequest)
+		return
+	}
+
+	var patient model.User
+	if err := h.db.First(&patient, ap.PatientID).Error; err != nil {
+		http.Error(w, "Patient not found", http.StatusNotFound)
+		return
+	}
+	if patient.Role != "patient" {
+		http.Error(w, "Бұл жазылуға медициналық жазба қосуға болмайды", http.StatusForbidden)
+		return
+	}
+
+	var req doctorPatchAppointmentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "JSON қате", http.StatusBadRequest)
+		return
+	}
+
+	if req.Diagnosis != nil {
+		ap.Diagnosis = strings.TrimSpace(*req.Diagnosis)
+	}
+	if req.ClinicalNotes != nil {
+		ap.ClinicalNotes = strings.TrimSpace(*req.ClinicalNotes)
+	}
+	// Бас тартылған жазылудың күйін дәрігер қайта өзгерте алмайды; диагноз/жазба қосуға болады
+	if ap.Status != model.StatusCanceled && req.Status != nil {
+		st := strings.ToLower(strings.TrimSpace(*req.Status))
+		switch st {
+		case model.StatusApproved, model.StatusDone:
+			ap.Status = st
+		default:
+			http.Error(w, "status тек approved немесе done болуы керек", http.StatusBadRequest)
+			return
+		}
+	}
+
+	if err := h.db.Save(&ap).Error; err != nil {
+		http.Error(w, "DB error", http.StatusInternalServerError)
+		return
+	}
+
+	if err := h.db.Preload("Patient").First(&ap, ap.ID).Error; err != nil {
+		http.Error(w, "DB error", http.StatusInternalServerError)
+		return
+	}
+
+	_ = json.NewEncoder(w).Encode(ap)
 }

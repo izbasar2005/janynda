@@ -22,6 +22,8 @@ import DirectChat from "./pages/DirectChat.jsx";
 import Groups from "./pages/Groups.jsx";
 import NewsList from "./pages/NewsList.jsx";
 import NewsDetail from "./pages/NewsDetail.jsx";
+import DoctorCabinet from "./pages/DoctorCabinet.jsx";
+import DoctorPatient from "./pages/DoctorPatient.jsx";
 
 export default function App() {
     return (
@@ -39,6 +41,8 @@ export default function App() {
                         <Route path="/register" element={<Register />} />
 
                         <Route path="/profile" element={<Profile />} />
+                        <Route path="/doctor" element={<DoctorCabinet />} />
+                        <Route path="/doctor/patients/:userId" element={<DoctorPatient />} />
                         <Route path="/diary" element={token() ? <Diary /> : <Navigate to="/login" replace />} />
                         <Route path="/book/:doctorId" element={<Book />} />
                         <Route path="/notifications" element={<Notifications />} />

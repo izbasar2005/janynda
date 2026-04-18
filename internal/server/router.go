@@ -75,9 +75,9 @@ func NewRouter(db *gorm.DB) http.Handler {
 		middleware.AuthJWT(http.HandlerFunc(aph.My)),
 	)
 
-	// Cancel (соңында / болуы керек)
+	// PATCH .../appointments/{id}/cancel | PATCH .../appointments/{id}
 	mux.Handle("/api/v1/appointments/",
-		middleware.AuthJWT(http.HandlerFunc(aph.Cancel)),
+		middleware.AuthJWT(http.HandlerFunc(aph.HandleWithID)),
 	)
 
 	// Reviews (JWT, patient: create)

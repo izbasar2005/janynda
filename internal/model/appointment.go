@@ -11,7 +11,12 @@ type Appointment struct {
 	DoctorUserID uint      `gorm:"not null;index" json:"doctor_user_id"`
 	StartAt      time.Time `gorm:"not null;index" json:"start_at"`
 
-	Note      string    `gorm:"type:text" json:"note"`
+	Note      string `gorm:"type:text" json:"note"` // пациенттің жазылу кезіндегі ескертуі
+
+	// Дәрігер толтырады (пациент профилінде көрінеді)
+	Diagnosis      string `gorm:"type:text" json:"diagnosis"`
+	ClinicalNotes  string `gorm:"type:text" json:"clinical_notes"`
+
 	Status    string    `gorm:"type:varchar(20);not null;default:'pending'" json:"status"`
 	CreatedAt time.Time `json:"created_at"`
 

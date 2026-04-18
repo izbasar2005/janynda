@@ -56,6 +56,34 @@ func (h *UserDBHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	// Password json tag is "-"
 	u.Password = ""
 
+	viewerRole, _ := r.Context().Value(middleware.CtxRole).(string)
+
+	// Дәрігер тек өзіне жазылған пациенттің кең профилін көре алады
+	if strings.EqualFold(viewerRole, "doctor") && strings.EqualFold(u.Role, "patient") {
+		var relCount int64
+		if err := h.db.Model(&model.Appointment{}).
+			Where("doctor_user_id = ? AND patient_id = ?", uid, u.ID).
+			Count(&relCount).Error; err != nil || relCount == 0 {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"id":          u.ID,
+			"full_name":   u.FullName,
+			"role":        u.Role,
+			"phone":       u.Phone,
+			"gender":      u.Gender,
+			"iin":         u.IIN,
+			"first_name":  u.FirstName,
+			"last_name":   u.LastName,
+			"patronymic":  u.Patronymic,
+			"created_at":  u.CreatedAt,
+			"photo_url":   "",
+			"patient_ext": true,
+		})
+		return
+	}
+
 	photoURL := ""
 	if strings.EqualFold(u.Role, "doctor") {
 		var d model.Doctor

@@ -2219,6 +2219,269 @@ h3{
     font-weight: 600;
     color: var(--text);
 }
+.profile-appointment__med{
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--border);
+    max-width: 100%;
+}
+.profile-appointment__med-line{
+    margin: 4px 0 0;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--text);
+}
+.profile-appointment__med-k{
+    color: var(--muted);
+    font-weight: 600;
+}
+/* Профиль: тек соңғы толтырылған жазылудың диагнозы мен жазбасы */
+.profile-latest-med{
+    margin: 0 0 20px;
+    padding: 20px 22px;
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(18, 191, 174, 0.45);
+    background: linear-gradient(135deg, #ecfdf5 0%, #f0fdfa 40%, #e8f4fc 100%);
+    box-shadow: var(--shadow);
+}
+.profile-latest-med__block + .profile-latest-med__block{
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px dashed rgba(148, 163, 184, 0.55);
+}
+.profile-latest-med__h{
+    margin: 0 0 10px;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--primary2);
+}
+.profile-latest-med__body{
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.45;
+    color: var(--text);
+    word-break: break-word;
+}
+
+/* =========================
+   DOCTOR CABINET
+========================= */
+.doctor-cabinet .page-header{
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+.doctor-cabinet__section{
+    margin-bottom: 20px;
+}
+.doctor-cabinet__h3{
+    margin: 0 0 14px;
+    font-size: 16px;
+    font-weight: 700;
+}
+.doctor-cabinet__empty{
+    margin: 0;
+    font-size: 14px;
+}
+.doctor-cabinet__patient-list{
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.doctor-cabinet__patient-row{
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: #fff;
+}
+.doctor-cabinet__patient-name{
+    margin: 0 0 4px;
+    font-weight: 700;
+    font-size: 15px;
+}
+.doctor-cabinet__patient-meta{
+    margin: 0;
+    font-size: 13px;
+}
+.doctor-cabinet__table-wrap{
+    overflow-x: auto;
+}
+.doctor-cabinet__table{
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+.doctor-cabinet__table th,
+.doctor-cabinet__table td{
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+}
+.doctor-cabinet__table th{
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.doctor-cabinet__link{
+    color: var(--primary2);
+    font-weight: 600;
+    text-decoration: none;
+}
+.doctor-cabinet__link:hover{
+    text-decoration: underline;
+}
+.doctor-cabinet__pill{
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    background: rgba(18,191,174,.15);
+    color: var(--primary2);
+}
+.doctor-cabinet__pill--canceled,
+.doctor-cabinet__pill--cancelled{
+    background: rgba(239,68,68,.12);
+    color: #b91c1c;
+}
+.doctor-cabinet__pill--done{
+    background: rgba(100,116,139,.2);
+    color: #475569;
+}
+.doctor-patient__back{
+    margin: 0 0 8px;
+}
+.doctor-patient__apps{
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.doctor-patient__app-card{
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: #fafbfc;
+}
+.doctor-patient__app-head{
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+.doctor-patient__app-date{
+    font-weight: 700;
+    font-size: 14px;
+}
+.doctor-patient__note{
+    font-size: 13px;
+    margin: 0 0 12px;
+    color: var(--text);
+}
+.doctor-patient__textarea{
+    width: 100%;
+    resize: vertical;
+    margin-bottom: 12px;
+    font-family: inherit;
+}
+.doctor-patient__actions{
+    margin-top: 12px;
+}
+.doctor-patient__flow-hint{
+    margin: 0 0 16px;
+    font-size: 13px;
+    line-height: 1.5;
+    max-width: 52rem;
+}
+.doctor-patient__status-hint{
+    margin: 6px 0 0;
+    font-size: 12px;
+    line-height: 1.45;
+    max-width: 40rem;
+}
+/* Дәрігер: Сақтау басқанда экранның үстінен */
+.doctor-save-toast{
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 200;
+    display: flex;
+    justify-content: center;
+    padding: 10px 12px;
+    pointer-events: none;
+    animation: doctor-save-toast-in 0.28s ease-out;
+}
+@keyframes doctor-save-toast-in{
+    from{
+        opacity: 0;
+        transform: translateY(-12px);
+    }
+    to{
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+.doctor-save-toast__box{
+    pointer-events: auto;
+    max-width: 640px;
+    width: 100%;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 18px;
+    border-radius: 14px;
+    border: 2px solid rgba(18, 191, 174, 0.65);
+    background: linear-gradient(135deg, #ecfdf5 0%, #e0f2fe 100%);
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.15);
+}
+.doctor-save-toast__icon{
+    font-size: 22px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.doctor-save-toast__main{
+    flex: 1;
+    min-width: 0;
+}
+.doctor-save-toast__title{
+    margin: 0;
+    font-size: 16px;
+    font-weight: 800;
+    color: #0f766e;
+    line-height: 1.3;
+}
+.doctor-save-toast__close{
+    flex-shrink: 0;
+    border: none;
+    background: rgba(15, 23, 42, 0.06);
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    color: #334155;
+}
+.doctor-save-toast__close:hover{
+    background: rgba(15, 23, 42, 0.1);
+}
 
 /* =========================
    DIARY PAGE
@@ -4651,6 +4914,20 @@ h3{
     background:linear-gradient(135deg, #f9fafb 0%, #e5e7eb 40%, #e5f0f6 100%);
     border-color:rgba(148,163,184,.4);
     box-shadow:0 10px 20px rgba(15,23,42,.05);
+}
+/* Қабылдау аяқталды хабарламасы (ескі appointment_done жазбалары) */
+.notif-card--appointment-done{
+    border:2px solid rgba(18,191,174,.55);
+    background:linear-gradient(135deg, #ecfdf5 0%, #f0fdfa 42%, #e8f4fc 100%);
+    box-shadow:0 16px 36px rgba(18,191,174,.18);
+}
+.notif-card--appointment-done.notif-card--read{
+    border-color:rgba(18,191,174,.3);
+    box-shadow:0 10px 24px rgba(15,23,42,.07);
+}
+.notif-card--appointment-done::before{
+    width:6px;
+    background:linear-gradient(180deg, #12bfae, #0d9488);
 }
 .notif-card__head{
     display:flex;
