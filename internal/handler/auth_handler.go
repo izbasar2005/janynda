@@ -137,7 +137,15 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := auth.GenerateToken(u.ID, u.Role)
+	var isTherapist bool
+	if strings.EqualFold(u.Role, "doctor") {
+		var doc model.Doctor
+		if err := h.db.Where("user_id = ? AND is_therapist = true", u.ID).First(&doc).Error; err == nil {
+			isTherapist = true
+		}
+	}
+
+	token, err := auth.GenerateToken(u.ID, u.Role, isTherapist)
 	if err != nil {
 		http.Error(w, "Token error", http.StatusInternalServerError)
 		return

@@ -23,11 +23,18 @@ func NewAppointmentHandler(db *gorm.DB) *AppointmentHandler {
 
 type CreateAppointmentRequest struct {
 	DoctorUserID uint   `json:"doctor_user_id"`
+	PatientID    uint   `json:"patient_id"`
 	StartAt      string `json:"start_at"` // RFC3339: "2026-03-01T10:00:00+05:00"
 	Note         string `json:"note"`
 }
 
-// POST /api/v1/appointments (patient only)
+func (h *AppointmentHandler) isTherapist(userID uint) bool {
+	var c int64
+	h.db.Model(&model.Doctor{}).Where("user_id = ? AND is_therapist = true", userID).Count(&c)
+	return c > 0
+}
+
+// POST /api/v1/appointments (patient or therapist doctor)
 func (h *AppointmentHandler) Create(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if r.Method != http.MethodPost {
@@ -36,14 +43,15 @@ func (h *AppointmentHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	role, _ := r.Context().Value(middleware.CtxRole).(string)
-	if role != "patient" {
-		http.Error(w, "Forbidden", http.StatusForbidden)
+	callerID, _ := r.Context().Value(middleware.CtxUserID).(uint)
+	if callerID == 0 {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	patientID, _ := r.Context().Value(middleware.CtxUserID).(uint)
-	if patientID == 0 {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	isTherapistCaller := strings.EqualFold(role, "doctor") && h.isTherapist(callerID)
+	if role != "patient" && !isTherapistCaller {
+		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
 
@@ -54,6 +62,17 @@ func (h *AppointmentHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	req.Note = strings.TrimSpace(req.Note)
+
+	var patientID uint
+	if isTherapistCaller {
+		if req.PatientID == 0 {
+			http.Error(w, "Терапевт үшін patient_id міндетті", http.StatusBadRequest)
+			return
+		}
+		patientID = req.PatientID
+	} else {
+		patientID = callerID
+	}
 
 	if req.DoctorUserID == 0 || req.StartAt == "" {
 		http.Error(w, "doctor_user_id және start_at міндетті", http.StatusBadRequest)
@@ -380,11 +399,13 @@ func (h *AppointmentHandler) DoctorPatch(w http.ResponseWriter, r *http.Request,
 
 	if req.Diagnosis != nil {
 		ap.Diagnosis = strings.TrimSpace(*req.Diagnosis)
+		if ap.Diagnosis != "" {
+			h.db.Model(&model.User{}).Where("id = ?", ap.PatientID).Update("diagnosis", ap.Diagnosis)
+		}
 	}
 	if req.ClinicalNotes != nil {
 		ap.ClinicalNotes = strings.TrimSpace(*req.ClinicalNotes)
 	}
-	// Бас тартылған жазылудың күйін дәрігер қайта өзгерте алмайды; диагноз/жазба қосуға болады
 	if ap.Status != model.StatusCanceled && req.Status != nil {
 		st := strings.ToLower(strings.TrimSpace(*req.Status))
 		switch st {

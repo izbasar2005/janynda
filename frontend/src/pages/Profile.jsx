@@ -64,6 +64,7 @@ export default function Profile() {
     const location = useLocation();
     const [me, setMe] = useState(null);
     const [apps, setApps] = useState([]);
+    const [referrals, setReferrals] = useState([]);
     const [dashboardStats, setDashboardStats] = useState(null);
     const [msg, setMsg] = useState("");
     const [cancellingId, setCancellingId] = useState(null);
@@ -98,6 +99,9 @@ export default function Profile() {
                     return;
                 }
                 fetchAppointments();
+                api("/api/v1/referrals/my", { auth: true })
+                    .then((d) => setReferrals(Array.isArray(d) ? d : []))
+                    .catch(() => setReferrals([]));
             })
             .catch((e) => setMsg("Қате: " + e.message));
     }, [nav]);
@@ -152,13 +156,14 @@ export default function Profile() {
     const infoRows = [];
     if (me) {
         if (displayName) infoRows.push({ label: "Аты-жөні", value: displayName });
-        infoRows.push({ label: "Рөлі", value: me.role === "doctor" ? "Дәрігер" : me.role === "admin" ? "Админ" : me.role === "super_admin" ? "Сүпер админ" : "Пациент" });
+        infoRows.push({ label: "Рөлі", value: me.role === "doctor" ? "Дәрігер" : me.role === "psychologist" ? "Психолог" : me.role === "admin" ? "Админ" : me.role === "super_admin" ? "Сүпер админ" : me.role === "volunteer" ? "Волонтёр" : "Пациент" });
         if (me.phone) infoRows.push({ label: "Телефон", value: me.phone });
         if (me.iin) infoRows.push({ label: "ЖСН", value: me.iin });
         if (me.first_name) infoRows.push({ label: "Аты", value: me.first_name });
         if (me.last_name) infoRows.push({ label: "Тегі", value: me.last_name });
         if (me.patronymic) infoRows.push({ label: "Әкесінің аты", value: me.patronymic });
         if (me.gender) infoRows.push({ label: "Жынысы", value: genderLabel(me.gender) });
+        if (me.diagnosis) infoRows.push({ label: "Диагноз", value: me.diagnosis });
         if (me.created_at) infoRows.push({ label: "Тіркелген", value: fmtDate(me.created_at) });
     }
 
@@ -189,7 +194,7 @@ export default function Profile() {
                         <div className="profile-hero__info">
                             <h1 className="profile-hero__name">{displayName}</h1>
                             <span className={`profile-hero__role profile-hero__role--${me.role || "patient"}`}>
-                                {me.role === "doctor" ? "Дәрігер" : me.role === "admin" ? "Админ" : me.role === "super_admin" ? "Сүпер админ" : "Пациент"}
+                                {me.role === "doctor" ? "Дәрігер" : me.role === "psychologist" ? "Психолог" : me.role === "admin" ? "Админ" : me.role === "super_admin" ? "Сүпер админ" : me.role === "volunteer" ? "Волонтёр" : "Пациент"}
                             </span>
                         </div>
                     </div>
@@ -379,6 +384,41 @@ export default function Profile() {
                             )}
                         </section>
                     </div>
+
+                    {referrals.length > 0 && (
+                        <section className="profile-card" style={{ marginTop: 20 }}>
+                            <h3 className="profile-card__title">Бағыттар (направления)</h3>
+                            <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 12 }}>
+                                {referrals.map((ref) => {
+                                    const statusColors = { pending: "#f39c12", booked: "#2980b9", completed: "#27ae60", canceled: "#95a5a6" };
+                                    const statusLabels = { pending: "Күтуде", booked: "Жазылды", completed: "Аяқталды", canceled: "Бас тартылды" };
+                                    return (
+                                        <li key={ref.id} style={{ background: "#f8f9fa", borderRadius: 10, padding: "14px 18px", borderLeft: `4px solid ${statusColors[ref.status] || "#ccc"}` }}>
+                                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                                                <div>
+                                                    <strong>{ref.to_specialty}</strong>
+                                                    {ref.to_doctor?.full_name && <span style={{ color: "#666", marginLeft: 8 }}>— {ref.to_doctor.full_name}</span>}
+                                                </div>
+                                                <span style={{ fontSize: 13, fontWeight: 600, color: statusColors[ref.status] || "#999" }}>
+                                                    {statusLabels[ref.status] || ref.status}
+                                                </span>
+                                            </div>
+                                            {ref.diagnosis && <p style={{ margin: "6px 0 0", fontSize: 14, color: "#444" }}>Диагноз: {ref.diagnosis}</p>}
+                                            {ref.notes && <p style={{ margin: "4px 0 0", fontSize: 13, color: "#777" }}>{ref.notes}</p>}
+                                            {ref.booked_appointment?.start_at && (
+                                                <p style={{ margin: "6px 0 0", fontSize: 13, color: "#2980b9" }}>
+                                                    Жазылу: {fmtStartAt(ref.booked_appointment.start_at).full}
+                                                </p>
+                                            )}
+                                            {ref.from_doctor?.full_name && (
+                                                <p style={{ margin: "4px 0 0", fontSize: 12, color: "#999" }}>Терапевт: {ref.from_doctor.full_name}</p>
+                                            )}
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        </section>
+                    )}
                 </>
             )}
         </div>

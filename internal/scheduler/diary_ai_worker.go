@@ -12,6 +12,7 @@ import (
 
 	"janymda/internal/ai"
 	"janymda/internal/model"
+	"janymda/internal/scoring"
 )
 
 func truncateErr(msg string, maxLen int) string {
@@ -104,6 +105,10 @@ func RunDiaryAiRetryWorker(db *gorm.DB) {
 				if err2 := db.Save(&e).Error; err2 != nil {
 					log.Printf("[diary_ai_retry] save success err: %v", err2)
 				}
+				if zone == "yellow" || zone == "red" {
+					createPsychCaseFromRetry(db, e, score, zone)
+				}
+				scoring.RecalcPatientScore(db, e.UserID)
 				continue
 			}
 
@@ -151,4 +156,23 @@ func parseInt(s string) (int, error) {
 type strconvErr string
 
 func (e strconvErr) Error() string { return string(e) }
+
+func createPsychCaseFromRetry(db *gorm.DB, entry model.DiaryEntry, score int, zone string) {
+	entryID := entry.ID
+	pc := model.PsychCase{
+		PatientID:    entry.UserID,
+		DiaryEntryID: &entryID,
+		SourceType:   "diary",
+		Zone:         zone,
+		Status:       "open",
+		AiScore:      score,
+		AiZone:       zone,
+	}
+	if zone == "yellow" {
+		pc.AnonymousText = entry.Text
+	}
+	if err := db.Create(&pc).Error; err != nil {
+		log.Printf("[diary_ai_retry] failed to create psych case for diary=%d: %v", entry.ID, err)
+	}
+}
 

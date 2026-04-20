@@ -28,6 +28,7 @@ services:
       DB_PASSWORD: postgres
       DB_NAME: janymda
       JWT_SECRET: "janymda_super_secret_123"
+      AUTO_SEED: "true"
       # Claude (Anthropic) API key for diary psychological assessment.
       # IMPORTANT: do not hardcode secrets in git. Provide via environment variable:
       #   set ANTHROPIC_API_KEY=... before running docker compose.

@@ -19,6 +19,7 @@ export default function Groups() {
     const myUserId = Number(payload?.user_id || payload?.id || 0);
     const directChatsStorageKey = `groups_direct_chats_${myUserId || "guest"}`;
     const seenDirectStorageKey = `groups_direct_seen_${myUserId || "guest"}`; // legacy fallback
+    const isTherapist = !!payload?.is_therapist;
     const canManage = role === "doctor" || role === "admin" || role === "super_admin";
 
     const [myGroups, setMyGroups] = useState([]);
@@ -226,6 +227,7 @@ export default function Groups() {
         selectedGroup && (
             role === "admin" ||
             role === "super_admin" ||
+            isTherapist ||
             (role === "doctor" && Number(selectedGroup.created_by) === myUserId)
         )
     );
@@ -1075,6 +1077,7 @@ export default function Groups() {
                                     className={`groups-list__item ${selectedGroupId === g.id ? "is-active" : ""}`}
                                     onClick={() => {
                                         didAutoSelectOnceRef.current = true;
+                                        setActiveDirect(null);
                                         setSelectedGroupId(g.id);
                                     }}
                                 >
@@ -1448,12 +1451,18 @@ export default function Groups() {
                                             return (
                                             <div
                                                 key={m.id}
-                                                className={`groups-msg ${Number(m.sender_id) === myUserId ? "is-own" : ""}`}
+                                                className={`groups-msg ${m.is_system ? "is-system" : Number(m.sender_id) === myUserId ? "is-own" : ""}`}
                                             >
+                                                {m.is_system ? (
+                                                    <div className="groups-msg__system">{m.body}</div>
+                                                ) : (
+                                                <>
                                                 <div className="groups-msg__meta">
                                                     {m.sender_name || "—"} · {new Date(m.created_at).toLocaleString("kk-KZ")}
                                                 </div>
                                                 <div className="groups-msg__body">{m.body}</div>
+                                                </>
+                                                )}
                                                 {!m.is_system && isLast && isMine && peerReaders.length > 0 ? (
                                                     <div className="groups-msg__read">
                                                         Просмотрено:{" "}

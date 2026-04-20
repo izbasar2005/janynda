@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -39,6 +40,12 @@ func canManageGroupByRole(role string, callerID uint, g model.Group) bool {
 	return false
 }
 
+func isTherapistDoctor(db *gorm.DB, userID uint) bool {
+	var c int64
+	db.Model(&model.Doctor{}).Where("user_id = ? AND is_therapist = true", userID).Count(&c)
+	return c > 0
+}
+
 // /api/v1/groups (GET, POST)
 func (h *GroupHandler) HandleRoot(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
@@ -63,8 +70,8 @@ func (h *GroupHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var groups []model.Group
-	if strings.EqualFold(role, "doctor") {
-		// Doctor: өзі құрған немесе өзі member (doctor role)
+	if strings.EqualFold(role, "doctor") && !isTherapistDoctor(h.db, userID) {
+		// Regular doctor: өзі құрған немесе өзі member
 		if err := h.db.Raw(`
 			SELECT DISTINCT g.*
 			FROM groups g
@@ -76,7 +83,7 @@ func (h *GroupHandler) List(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
-		// Admin/Super: бәрін көреді
+		// Admin/Super/Therapist: бәрін көреді
 		if err := h.db.Order("created_at DESC").Find(&groups).Error; err != nil {
 			http.Error(w, "DB error", http.StatusInternalServerError)
 			return
@@ -106,7 +113,32 @@ func (h *GroupHandler) ListMy(w http.ResponseWriter, r *http.Request) {
 		UnreadCount   int64  `json:"unread_count"`
 	}
 	var groups []row
-	if err := h.db.Raw(`
+
+	therapist := isTherapistDoctor(h.db, userID)
+	if therapist {
+		// Терапевт видит все группы в системе.
+		if err := h.db.Raw(`
+			SELECT
+				g.*,
+				COALESCE((
+					SELECT id FROM group_messages
+					WHERE group_id = g.id
+					ORDER BY created_at DESC, id DESC
+					LIMIT 1
+				), 0) AS last_message_id,
+				COALESCE((
+					SELECT body FROM group_messages
+					WHERE group_id = g.id
+					ORDER BY created_at DESC, id DESC
+					LIMIT 1
+				), '') AS last_message
+			FROM groups g
+			ORDER BY g.created_at DESC
+		`).Scan(&groups).Error; err != nil {
+			http.Error(w, "DB error", http.StatusInternalServerError)
+			return
+		}
+	} else if err := h.db.Raw(`
 		SELECT
 			g.*,
 			COALESCE((
@@ -166,8 +198,8 @@ func (h *GroupHandler) ListCandidates(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var users []model.User
-	if role == "doctor" && targetRole == "patient" {
-		// doctor тек өз appointment пациенттерін көреді
+	if role == "doctor" && targetRole == "patient" && !isTherapistDoctor(h.db, userID) {
+		// Regular doctor тек өз appointment пациенттерін көреді
 		if err := h.db.Raw(`
 			SELECT DISTINCT u.*
 			FROM users u
@@ -387,7 +419,7 @@ func (h *GroupHandler) Update(w http.ResponseWriter, r *http.Request, groupID ui
 		http.Error(w, "Group not found", http.StatusNotFound)
 		return
 	}
-	if !canManageGroupByRole(role, userID, g) {
+	if !canManageGroupByRole(role, userID, g) && !isTherapistDoctor(h.db, userID) {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
@@ -473,8 +505,10 @@ func (h *GroupHandler) AddMember(w http.ResponseWriter, r *http.Request, groupID
 		return
 	}
 
-	// Doctor тек өзі құрған топқа қоса алады; admin/super кез келген топқа.
-	if !canManageGroupByRole(role, userID, g) {
+	therapist := isTherapistDoctor(h.db, userID)
+
+	// Doctor тек өзі құрған топқа қоса алады; therapist/admin/super кез келген топқа.
+	if !canManageGroupByRole(role, userID, g) && !therapist {
 		http.Error(w, "Бұл топқа member қосуға рұқсат жоқ", http.StatusForbidden)
 		return
 	}
@@ -508,8 +542,9 @@ func (h *GroupHandler) AddMember(w http.ResponseWriter, r *http.Request, groupID
 		return
 	}
 
-	// Қатаң шектеу: doctor тек өзіне тіркелген пациенттерді ғана қоса алады.
-	if strings.EqualFold(role, "doctor") {
+	// Regular doctor тек өзіне тіркелген пациенттерді ғана қоса алады.
+	// Therapist doctor кез келген пациентті қоса алады.
+	if strings.EqualFold(role, "doctor") && !therapist {
 		if req.RoleInGroup != "patient" || !strings.EqualFold(u.Role, "patient") {
 			http.Error(w, "Doctor тек patient рөліндегі қолданушыны қоса алады", http.StatusForbidden)
 			return
@@ -548,6 +583,23 @@ func (h *GroupHandler) AddMember(w http.ResponseWriter, r *http.Request, groupID
 		http.Error(w, "DB error", http.StatusInternalServerError)
 		return
 	}
+
+	// System message about new member joining.
+	sysBody := fmt.Sprintf("👤 %s топқа қосылды", u.FullName)
+	sysMsg := model.GroupMessage{
+		GroupID:  groupID,
+		SenderID: userID,
+		Body:     sysBody,
+		IsSystem: true,
+	}
+	if err := h.db.Create(&sysMsg).Error; err == nil && h.hub != nil {
+		h.db.Preload("SenderUser").First(&sysMsg, sysMsg.ID)
+		h.hub.Broadcast(realtime.RoomKey("group", groupID), map[string]any{
+			"type":    "message:new",
+			"message": sysMsg,
+		})
+	}
+
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(member)
 }
@@ -567,13 +619,12 @@ func (h *GroupHandler) RemoveMember(w http.ResponseWriter, r *http.Request, grou
 		return
 	}
 
-	// who can manage by role over this specific group
 	var g model.Group
 	if err := h.db.First(&g, groupID).Error; err != nil {
 		http.Error(w, "Group not found", http.StatusNotFound)
 		return
 	}
-	if !canManageGroupByRole(role, callerID, g) {
+	if !canManageGroupByRole(role, callerID, g) && !isTherapistDoctor(h.db, callerID) {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
@@ -586,9 +637,32 @@ func (h *GroupHandler) RemoveMember(w http.ResponseWriter, r *http.Request, grou
 		return
 	}
 
+	// Get the user's name before deleting.
+	var target model.User
+	h.db.Select("id", "full_name").First(&target, targetUserID)
+
 	if err := h.db.Where("group_id = ? AND user_id = ?", groupID, targetUserID).Delete(&model.GroupMember{}).Error; err != nil {
 		http.Error(w, "DB error", http.StatusInternalServerError)
 		return
+	}
+
+	// System message about member leaving.
+	name := target.FullName
+	if name == "" {
+		name = fmt.Sprintf("ID:%d", targetUserID)
+	}
+	sysMsg := model.GroupMessage{
+		GroupID:  groupID,
+		SenderID: callerID,
+		Body:     fmt.Sprintf("👤 %s топтан шығарылды", name),
+		IsSystem: true,
+	}
+	if err := h.db.Create(&sysMsg).Error; err == nil && h.hub != nil {
+		h.db.Preload("SenderUser").First(&sysMsg, sysMsg.ID)
+		h.hub.Broadcast(realtime.RoomKey("group", groupID), map[string]any{
+			"type":    "message:new",
+			"message": sysMsg,
+		})
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -600,7 +674,10 @@ func (h *GroupHandler) RemoveMember(w http.ResponseWriter, r *http.Request, grou
 func (h *GroupHandler) isGroupMember(groupID, userID uint) bool {
 	var c int64
 	_ = h.db.Model(&model.GroupMember{}).Where("group_id = ? AND user_id = ?", groupID, userID).Count(&c).Error
-	return c > 0
+	if c > 0 {
+		return true
+	}
+	return isTherapistDoctor(h.db, userID)
 }
 
 func (h *GroupHandler) ListMessages(w http.ResponseWriter, r *http.Request, groupID uint) {
@@ -615,8 +692,27 @@ func (h *GroupHandler) ListMessages(w http.ResponseWriter, r *http.Request, grou
 		return
 	}
 
+	q := h.db.Preload("SenderUser").Where("group_id = ?", groupID).Order("created_at ASC")
+
+	if lim := r.URL.Query().Get("limit"); lim != "" {
+		if n, err := strconv.Atoi(lim); err == nil && n > 0 {
+			q = q.Limit(n)
+		}
+	}
+	if off := r.URL.Query().Get("offset"); off != "" {
+		if n, err := strconv.Atoi(off); err == nil && n > 0 {
+			q = q.Offset(n)
+		}
+	}
+	// before_id for loading older messages
+	if bid := r.URL.Query().Get("before_id"); bid != "" {
+		if n, err := strconv.Atoi(bid); err == nil && n > 0 {
+			q = q.Where("id < ?", n)
+		}
+	}
+
 	var list []model.GroupMessage
-	if err := h.db.Preload("SenderUser").Where("group_id = ?", groupID).Order("created_at ASC").Find(&list).Error; err != nil {
+	if err := q.Find(&list).Error; err != nil {
 		http.Error(w, "DB error", http.StatusInternalServerError)
 		return
 	}

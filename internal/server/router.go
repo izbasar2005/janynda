@@ -165,6 +165,62 @@ func NewRouter(db *gorm.DB) http.Handler {
 	mux.Handle("/api/v1/direct-chats/start", middleware.AuthJWT(http.HandlerFunc(directH.Start)))
 	mux.Handle("/api/v1/direct-chats/", middleware.AuthJWT(http.HandlerFunc(directH.HandleWithID)))
 
+	// Referrals (JWT)
+	refH := handler.NewReferralHandler(db)
+	mux.Handle("/api/v1/referrals",
+		middleware.AuthJWT(http.HandlerFunc(refH.Create)),
+	)
+	mux.Handle("/api/v1/referrals/my",
+		middleware.AuthJWT(http.HandlerFunc(refH.ListMy)),
+	)
+	mux.Handle("/api/v1/referrals/",
+		middleware.AuthJWT(http.HandlerFunc(refH.GetByID)),
+	)
+
+	// Patient AI scores (psychologist, admin, super_admin)
+	psh := handler.NewPatientScoreHandler(db)
+	mux.Handle("/api/v1/psych/patients",
+		middleware.AuthJWT(
+			middleware.PsychologistOrAdmin(http.HandlerFunc(psh.ListPatients)),
+		),
+	)
+	mux.Handle("/api/v1/patients/",
+		middleware.AuthJWT(
+			middleware.PsychologistOrAdmin(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if strings.HasSuffix(r.URL.Path, "/ai-score") {
+					psh.GetPatientScore(w, r)
+					return
+				}
+				http.NotFound(w, r)
+			})),
+		),
+	)
+
+	// Psychologist cases (psychologist, admin, super_admin)
+	pch := handler.NewPsychCaseHandler(db)
+	mux.Handle("/api/v1/psych/cases",
+		middleware.AuthJWT(
+			middleware.PsychologistOrAdmin(http.HandlerFunc(pch.List)),
+		),
+	)
+	mux.Handle("/api/v1/psych/cases/", middleware.AuthJWT(
+		middleware.PsychologistOrAdmin(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.HasSuffix(r.URL.Path, "/diary") {
+				pch.CaseDiary(w, r)
+				return
+			}
+			if strings.HasSuffix(r.URL.Path, "/assign") && r.Method == http.MethodPost {
+				pch.Assign(w, r)
+				return
+			}
+			if r.Method == http.MethodPatch {
+				pch.Review(w, r)
+				return
+			}
+			pch.GetByID(w, r)
+		})),
+	))
+
 	// GET /api/v1/appointments/all (super_admin only — барлық жазылулар тек супер админге)
 	mux.Handle("/api/v1/appointments/all",
 		middleware.AuthJWT(
@@ -233,6 +289,19 @@ func NewRouter(db *gorm.DB) http.Handler {
 		})))
 		h.ServeHTTP(w, r)
 	})
+
+	// Admin AI scores & psych cases (admin + super_admin)
+	aiAdmH := handler.NewAdminAiHandler(db)
+	mux.Handle("/api/v1/admin/ai-scores",
+		middleware.AuthJWT(
+			middleware.AdminOrSuperAdmin(http.HandlerFunc(aiAdmH.AllScores)),
+		),
+	)
+	mux.Handle("/api/v1/admin/psych-cases",
+		middleware.AuthJWT(
+			middleware.AdminOrSuperAdmin(http.HandlerFunc(aiAdmH.AllCases)),
+		),
+	)
 
 	// Admin Dashboard (super_admin only) — әр эндпоинт жеке тіркелген
 	dashH := handler.NewAdminDashboardHandler(db)

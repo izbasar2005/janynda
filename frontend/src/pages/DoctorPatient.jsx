@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { Link, Navigate, useParams, useNavigate } from "react-router-dom";
 import { api, token } from "../services/api";
 import {
     appointmentStatusLabelDoctor,
@@ -37,8 +37,11 @@ function genderLabel(g) {
 
 export default function DoctorPatient() {
     const { userId } = useParams();
+    const nav = useNavigate();
     const t = token();
-    const role = t ? parseJwt(t)?.role : null;
+    const payload = t ? parseJwt(t) : null;
+    const role = payload?.role || null;
+    const isTherapist = !!payload?.is_therapist;
     const pid = Number(userId);
 
     const [patient, setPatient] = useState(null);
@@ -47,6 +50,16 @@ export default function DoctorPatient() {
     const [forms, setForms] = useState({});
     const [saveToast, setSaveToast] = useState(null);
     const saveToastTimer = useRef(null);
+
+    const [refOpen, setRefOpen] = useState(false);
+    const [doctors, setDoctors] = useState([]);
+    const [groups, setGroups] = useState([]);
+    const [refForm, setRefForm] = useState({ to_specialty: "", to_doctor_id: "", start_at: "", diagnosis: "", notes: "", appointment_id: "" });
+    const [refMsg, setRefMsg] = useState("");
+    const [refLoading, setRefLoading] = useState(false);
+    const [groupAddOpen, setGroupAddOpen] = useState(false);
+    const [selectedGroupId, setSelectedGroupId] = useState("");
+    const [groupMsg, setGroupMsg] = useState("");
 
     useEffect(() => {
         return () => {
@@ -99,6 +112,52 @@ export default function DoctorPatient() {
         }
         setForms(next);
     }, [myApps]);
+
+    useEffect(() => {
+        if (!isTherapist) return;
+        api("/api/v1/doctors", {}).then((d) => setDoctors(Array.isArray(d) ? d : [])).catch(() => {});
+        api("/api/v1/groups/my", { auth: true }).then((d) => setGroups(Array.isArray(d) ? d : [])).catch(() => {});
+    }, [isTherapist]);
+
+    async function submitReferral(e) {
+        e.preventDefault();
+        setRefMsg("");
+        setRefLoading(true);
+        try {
+            const body = {
+                patient_id: pid,
+                to_specialty: refForm.to_specialty,
+                diagnosis: refForm.diagnosis,
+                notes: refForm.notes,
+            };
+            if (refForm.to_doctor_id) body.to_doctor_id = Number(refForm.to_doctor_id);
+            if (refForm.start_at) body.start_at = refForm.start_at + ":00+05:00";
+            if (refForm.appointment_id) body.appointment_id = Number(refForm.appointment_id);
+            await api("/api/v1/referrals", { method: "POST", auth: true, body });
+            setRefMsg("Бағыт сәтті жасалды!");
+            setRefOpen(false);
+            setRefForm({ to_specialty: "", to_doctor_id: "", start_at: "", diagnosis: "", notes: "", appointment_id: "" });
+        } catch (err) {
+            setRefMsg("Қате: " + (err.message || ""));
+        } finally {
+            setRefLoading(false);
+        }
+    }
+
+    async function addToGroup() {
+        if (!selectedGroupId) return;
+        setGroupMsg("");
+        try {
+            await api(`/api/v1/groups/${selectedGroupId}/members`, {
+                method: "POST", auth: true,
+                body: { user_id: pid, role_in_group: "patient" },
+            });
+            setGroupMsg("Пациент топқа қосылды!");
+            setGroupAddOpen(false);
+        } catch (err) {
+            setGroupMsg("Қате: " + (err.message || ""));
+        }
+    }
 
     function isCanceledStatus(s) {
         const v = (s || "").toLowerCase();
@@ -226,6 +285,78 @@ export default function DoctorPatient() {
                             )}
                         </dl>
                     </section>
+
+                    {isTherapist && (
+                        <section className="card doctor-cabinet__section">
+                            <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
+                                <h3 className="doctor-cabinet__h3" style={{ margin: 0 }}>Терапевт әрекеттері</h3>
+                                <button className="btn" type="button" onClick={() => { setRefOpen((v) => !v); setGroupAddOpen(false); }}>
+                                    {refOpen ? "Жабу" : "Бағыт беру"}
+                                </button>
+                                <button className="btn ghost" type="button" onClick={() => { setGroupAddOpen((v) => !v); setRefOpen(false); }}>
+                                    {groupAddOpen ? "Жабу" : "Топқа қосу"}
+                                </button>
+                            </div>
+
+                            {refMsg && <p style={{ color: refMsg.startsWith("Қате") ? "#c0392b" : "#27ae60", margin: "6px 0" }}>{refMsg}</p>}
+                            {groupMsg && <p style={{ color: groupMsg.startsWith("Қате") ? "#c0392b" : "#27ae60", margin: "6px 0" }}>{groupMsg}</p>}
+
+                            {refOpen && (
+                                <form onSubmit={submitReferral} style={{ display: "grid", gap: 10, maxWidth: 480, marginTop: 8 }}>
+                                    <label className="form-label">Маман түрі *</label>
+                                    <input className="input" required placeholder="мыс. Онколог, Кардиолог..."
+                                        value={refForm.to_specialty} onChange={(e) => setRefForm((p) => ({ ...p, to_specialty: e.target.value }))} />
+
+                                    <label className="form-label">Диагноз</label>
+                                    <input className="input" placeholder="Диагнозды жазыңыз"
+                                        value={refForm.diagnosis} onChange={(e) => setRefForm((p) => ({ ...p, diagnosis: e.target.value }))} />
+
+                                    <label className="form-label">Ескертпе</label>
+                                    <textarea className="input" rows={2} placeholder="Қосымша ақпарат"
+                                        value={refForm.notes} onChange={(e) => setRefForm((p) => ({ ...p, notes: e.target.value }))} />
+
+                                    <label className="form-label">Маман дәрігер (таңдау)</label>
+                                    <select className="input" value={refForm.to_doctor_id} onChange={(e) => setRefForm((p) => ({ ...p, to_doctor_id: e.target.value }))}>
+                                        <option value="">— Кейін пациент өзі жазылсын —</option>
+                                        {doctors.map((d) => (
+                                            <option key={d.id} value={d.user_id}>{d.user?.full_name || d.full_name || `Doctor #${d.id}`} — {d.specialty}</option>
+                                        ))}
+                                    </select>
+
+                                    {refForm.to_doctor_id && (
+                                        <>
+                                            <label className="form-label">Жазылу уақыты</label>
+                                            <input className="input" type="datetime-local"
+                                                value={refForm.start_at} onChange={(e) => setRefForm((p) => ({ ...p, start_at: e.target.value }))} />
+                                        </>
+                                    )}
+
+                                    <label className="form-label">Қай қабылдаудан (таңдау)</label>
+                                    <select className="input" value={refForm.appointment_id} onChange={(e) => setRefForm((p) => ({ ...p, appointment_id: e.target.value }))}>
+                                        <option value="">— Жоқ —</option>
+                                        {myApps.map((a) => (
+                                            <option key={a.id} value={a.id}>{fmtStartAt(a.start_at)} — {appointmentStatusLabelDoctor(a.status)}</option>
+                                        ))}
+                                    </select>
+
+                                    <button className="btn" type="submit" disabled={refLoading}>{refLoading ? "..." : "Бағыт жасау"}</button>
+                                </form>
+                            )}
+
+                            {groupAddOpen && (
+                                <div style={{ display: "grid", gap: 10, maxWidth: 400, marginTop: 8 }}>
+                                    <label className="form-label">Топты таңдаңыз</label>
+                                    <select className="input" value={selectedGroupId} onChange={(e) => setSelectedGroupId(e.target.value)}>
+                                        <option value="">— Таңдау —</option>
+                                        {groups.map((g) => (
+                                            <option key={g.id} value={g.id}>{g.name} {g.diagnosis_type ? `(${g.diagnosis_type})` : ""}</option>
+                                        ))}
+                                    </select>
+                                    <button className="btn" type="button" onClick={addToGroup} disabled={!selectedGroupId}>Топқа қосу</button>
+                                </div>
+                            )}
+                        </section>
+                    )}
 
                     <section className="card doctor-cabinet__section">
                         <h3 className="doctor-cabinet__h3">Жазылулар және медициналық жазба</h3>

@@ -75,20 +75,22 @@ export default function AdminUsers() {
         ? [
             { value: "patient", label: "patient" },
             { value: "doctor", label: "doctor" },
+            { value: "psychologist", label: "psychologist" },
             { value: "volunteer", label: "volunteer" },
             { value: "admin", label: "admin" },
             { value: "super_admin", label: "super_admin" },
         ]
         : [
-            // Қарапайым admin patient/doctor/volunteer рөлдерін қоя алады
             { value: "patient", label: "patient" },
             { value: "doctor", label: "doctor" },
+            { value: "psychologist", label: "psychologist" },
             { value: "volunteer", label: "volunteer" },
         ];
 
     // Топтар тек сақталған role бойынша бөлінеді (select өзгергенде бірден орнын ауыстырмау үшін).
     const effectiveRole = (u) => (u.role || (myRole === "super_admin" ? "admin" : "patient")).toLowerCase();
     const doctorUsers = list.filter((u) => effectiveRole(u) === "doctor");
+    const psychologistUsers = list.filter((u) => effectiveRole(u) === "psychologist");
     const patientUsers = list.filter((u) => effectiveRole(u) === "patient");
     const volunteerUsers = list.filter((u) => effectiveRole(u) === "volunteer");
     const adminUsers = list.filter((u) => effectiveRole(u) === "admin");
@@ -127,8 +129,8 @@ export default function AdminUsers() {
                     </h2>
                     <p className="muted page-header__subtitle">
                         {myRole === "super_admin"
-                            ? "Тек дәрігерлер мен админдер. Рөлді patient / doctor / admin / super_admin қоюға болады. Супер админдер тізімде көрінбейді."
-                            : "Пациент, волонтер және дәрігерлер. Рөл: patient / doctor / volunteer / admin өзгерту (super_admin қойылмайды)."}
+                            ? "Тек дәрігерлер, психологтар мен админдер. Рөлді patient / doctor / psychologist / admin / super_admin қоюға болады."
+                            : "Пациент, волонтер, психолог және дәрігерлер. Рөл: patient / doctor / psychologist / volunteer / admin өзгерту."}
                     </p>
                 </div>
             </div>
@@ -190,9 +192,9 @@ export default function AdminUsers() {
                 </div>
             </div>
 
-            {myRole !== "super_admin" && (
-                <div className="admin-users-column" style={{ marginTop: 16 }}>
-                    <h3 className="admin-users-column__title">Волонтерлар</h3>
+            <div className="admin-users-layout" style={{ marginTop: 16 }}>
+                <div className="admin-users-column">
+                    <h3 className="admin-users-column__title">Психологтар</h3>
                     <div className="table-wrap admin-users-tablewrap">
                         <table className="table admin-users-table" style={{ minWidth: 480 }}>
                             <thead>
@@ -205,16 +207,42 @@ export default function AdminUsers() {
                             </tr>
                             </thead>
                             <tbody>
-                            {volunteerUsers.length > 0 ? renderRows(volunteerUsers) : (
+                            {psychologistUsers.length > 0 ? renderRows(psychologistUsers) : (
                                 <tr>
-                                    <td colSpan={5} className="muted">Волонтерлар жоқ.</td>
+                                    <td colSpan={5} className="muted">Психологтар жоқ.</td>
                                 </tr>
                             )}
                             </tbody>
                         </table>
                     </div>
                 </div>
-            )}
+
+                {myRole !== "super_admin" && (
+                    <div className="admin-users-column">
+                        <h3 className="admin-users-column__title">Волонтерлар</h3>
+                        <div className="table-wrap admin-users-tablewrap">
+                            <table className="table admin-users-table" style={{ minWidth: 480 }}>
+                                <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Аты-жөні</th>
+                                    <th>Телефон</th>
+                                    <th>Role</th>
+                                    <th>Сақтау</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {volunteerUsers.length > 0 ? renderRows(volunteerUsers) : (
+                                    <tr>
+                                        <td colSpan={5} className="muted">Волонтерлар жоқ.</td>
+                                    </tr>
+                                )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

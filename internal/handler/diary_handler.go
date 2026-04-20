@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"janymda/internal/ai"
 	"janymda/internal/middleware"
 	"janymda/internal/model"
+	"janymda/internal/scoring"
 )
 
 // DiaryHandler — күнделік жазбалары (пациенттің жеке жазбалары).
@@ -107,6 +109,11 @@ func (h *DiaryHandler) Create(w http.ResponseWriter, r *http.Request) {
 			entry.AiRetryAt = nil
 
 			_ = h.db.Save(&entry).Error
+
+			if zone == "yellow" || zone == "red" {
+				createPsychCase(h.db, entry, score, zone)
+			}
+			scoring.RecalcPatientScore(h.db, userID)
 		} else {
 			status := "error"
 			entry.AiStatus = &status
@@ -123,8 +130,10 @@ func (h *DiaryHandler) Create(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	role, _ := r.Context().Value(middleware.CtxRole).(string)
+	resp := stripAiForRole(entry, role)
 	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(entry)
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 func lastErrMessage(err error) string {
@@ -170,7 +179,68 @@ func (h *DiaryHandler) ListMy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = json.NewEncoder(w).Encode(entries)
+	role, _ := r.Context().Value(middleware.CtxRole).(string)
+	result := make([]map[string]any, 0, len(entries))
+	for _, e := range entries {
+		result = append(result, stripAiForRole(e, role))
+	}
+	_ = json.NewEncoder(w).Encode(result)
+}
+
+// stripAiForRole returns diary entry as map, stripping AI fields for non-privileged roles.
+// Only psychologist, admin, super_admin can see AI data.
+func stripAiForRole(e model.DiaryEntry, role string) map[string]any {
+	m := map[string]any{
+		"id":         e.ID,
+		"user_id":    e.UserID,
+		"mood":       e.Mood,
+		"text":       e.Text,
+		"created_at": e.CreatedAt,
+	}
+	r := strings.ToLower(strings.TrimSpace(role))
+	if r == "psychologist" || r == "admin" || r == "super_admin" {
+		if e.AiStatus != nil {
+			m["ai_status"] = *e.AiStatus
+		}
+		if e.AiScore != nil {
+			m["ai_score"] = *e.AiScore
+		}
+		if e.AiZone != nil {
+			m["ai_zone"] = *e.AiZone
+		}
+		if e.AiKeySignals != nil {
+			m["ai_key_signals"] = *e.AiKeySignals
+		}
+		if e.AiReasoning != nil {
+			m["ai_reasoning"] = *e.AiReasoning
+		}
+		if e.AiUrgent != nil {
+			m["ai_urgent"] = *e.AiUrgent
+		}
+		if e.AiAssessedAt != nil {
+			m["ai_assessed_at"] = *e.AiAssessedAt
+		}
+	}
+	return m
+}
+
+func createPsychCase(db *gorm.DB, entry model.DiaryEntry, score int, zone string) {
+	entryID := entry.ID
+	pc := model.PsychCase{
+		PatientID:    entry.UserID,
+		DiaryEntryID: &entryID,
+		SourceType:   "diary",
+		Zone:         zone,
+		Status:       "open",
+		AiScore:      score,
+		AiZone:       zone,
+	}
+	if zone == "yellow" {
+		pc.AnonymousText = entry.Text
+	}
+	if err := db.Create(&pc).Error; err != nil {
+		log.Printf("[WARN] failed to create psych case for diary=%d: %v", entry.ID, err)
+	}
 }
 
 // GET /api/v1/diary/summary — соңғы 30 күн бойынша шағын статистика (көңіл-күй орташа, тренд).

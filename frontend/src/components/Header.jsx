@@ -2,6 +2,44 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
 import { api } from "../services/api";
 
+function IconChat({ className }) {
+    return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+                d="M7.5 19.5c-1.8 0-3-1.2-3-3v-7.2c0-1.8 1.2-3 3-3h9c1.8 0 3 1.2 3 3v7.2c0 1.8-1.2 3-3 3H12l-3.9 2.3c-.4.2-.6 0-.6-.4V19.5Z"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinejoin="round"
+            />
+            <path
+                d="M8.2 11.3h7.6M8.2 14.2h5.2"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+            />
+        </svg>
+    );
+}
+
+function IconBell({ className }) {
+    return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+                d="M12 3.5c-3.4 0-6 2.6-6 6v3.2c0 .8-.3 1.6-.9 2.2l-1 1.1c-.3.3-.1.8.3.8h15.2c.4 0 .6-.5.3-.8l-1-1.1c-.6-.6-.9-1.4-.9-2.2V9.5c0-3.4-2.6-6-6-6Z"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinejoin="round"
+            />
+            <path
+                d="M9.6 19a2.4 2.4 0 0 0 4.8 0"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+            />
+        </svg>
+    );
+}
+
 function parseJwt(t) {
     try {
         const base = t.split(".")[1];
@@ -30,7 +68,9 @@ export default function Header() {
     const [unreadCount, setUnreadCount] = useState(0);
     const [hidden, setHidden] = useState(false);
     const [scrolled, setScrolled] = useState(false);
+    const [profileOpen, setProfileOpen] = useState(false);
     const lastScrollY = useRef(0);
+    const profileRef = useRef(null);
 
     useEffect(() => {
         if (!t) {
@@ -86,6 +126,24 @@ export default function Header() {
         nav("/login");
     };
 
+    // Close profile menu on outside click / Esc
+    useEffect(() => {
+        if (!profileOpen) return;
+        const onDown = (e) => {
+            if (!profileRef.current) return;
+            if (!profileRef.current.contains(e.target)) setProfileOpen(false);
+        };
+        const onKey = (e) => {
+            if (e.key === "Escape") setProfileOpen(false);
+        };
+        document.addEventListener("mousedown", onDown);
+        document.addEventListener("keydown", onKey);
+        return () => {
+            document.removeEventListener("mousedown", onDown);
+            document.removeEventListener("keydown", onKey);
+        };
+    }, [profileOpen]);
+
     return (
         <header className={`app-header ${hidden ? "app-header--hidden" : ""} ${scrolled ? "app-header--solid" : "app-header--overlay"}`}>
             <div className="app-header__inner">
@@ -101,22 +159,26 @@ export default function Header() {
                         Басты бет
                     </Link>
 
-                    {/* "Запись" — super_admin үшін көрсетілмейді */}
-                    {role !== "super_admin" && (
+                    {t && (role === "patient" || role === "volunteer") && (
                         <Link className={`app-nav__link ${active("/doctors")}`} to="/doctors">
                             Дәрігерге жазылу
                         </Link>
                     )}
 
-                    {/* Профиль беті */}
-                    {t && (
-                        <Link className={`app-nav__link ${active("/profile")}`} to="/profile">
-                            Менің деректерім
+                    {t && (role === "patient" || role === "volunteer") && (
+                        <Link className={`app-nav__link ${active("/diary")}`} to="/diary">
+                            Күнделік
                         </Link>
                     )}
+
                     {t && role === "doctor" && (
                         <Link className={`app-nav__link ${active("/doctor")}`} to="/doctor">
                             Дәрігер кабинеті
+                        </Link>
+                    )}
+                    {t && role === "psychologist" && (
+                        <Link className={`app-nav__link ${active("/psych")}`} to="/psych">
+                            Психолог кабинеті
                         </Link>
                     )}
                     {t && (
@@ -144,6 +206,9 @@ export default function Header() {
                             <Link className={`app-nav__link ${active("/admin/dashboard")}`} to="/admin/dashboard">
                                 Dashboard
                             </Link>
+                            <Link className={`app-nav__link ${active("/psych")}`} to="/psych">
+                                Кейстер
+                            </Link>
                             <Link className={`app-nav__link ${active("/admin/doctors-stats")}`} to="/admin/doctors-stats">
                                 Дәрігерлер
                             </Link>
@@ -159,17 +224,10 @@ export default function Header() {
 
                 {/* Right: language + auth */}
                 <div className="app-header__right">
-                    {/* Diary icon link */}
-                    {t && (
-                        <Link to="/diary" className="app-header__diary-link" title="Күнделікке өту" aria-label="Күнделікке өту">
-                            <span className="app-header__diary-emoji" aria-hidden="true">📓</span>
-                        </Link>
-                    )}
-
                     {t && (
                         <span className="app-header__notif-wrap">
                             <Link to="/notifications" className="app-header__notif" title="Ескертулер" aria-label="Ескертулер">
-                                {initialsFromToken(t)}
+                                <IconBell className="app-header__icon" />
                             </Link>
                             {showNotifBadge && <span className="app-header__notif-badge" aria-hidden="true" />}
                         </span>
@@ -185,14 +243,42 @@ export default function Header() {
                             </Link>
                         </div>
                     ) : (
-                        <div className="app-user">
-                            <a
-                                className="app-user__logout"
-                                href="#"
-                                onClick={(e) => (e.preventDefault(), logout())}
+                        <div className="app-user" ref={profileRef}>
+                            <button
+                                type="button"
+                                className="app-user__avatar"
+                                title="Профиль"
+                                aria-label="Профиль"
+                                aria-haspopup="menu"
+                                aria-expanded={profileOpen ? "true" : "false"}
+                                onClick={() => setProfileOpen((v) => !v)}
                             >
-                                Выйти
-                            </a>
+                                {initialsFromToken(t)}
+                            </button>
+
+                            {profileOpen && (
+                                <div className="app-user__menu" role="menu" aria-label="Профиль мәзірі">
+                                    <Link
+                                        to="/profile"
+                                        className="app-user__menuitem"
+                                        role="menuitem"
+                                        onClick={() => setProfileOpen(false)}
+                                    >
+                                        Менің деректерім
+                                    </Link>
+                                    <button
+                                        type="button"
+                                        className="app-user__menuitem app-user__menuitem--danger"
+                                        role="menuitem"
+                                        onClick={() => {
+                                            setProfileOpen(false);
+                                            logout();
+                                        }}
+                                    >
+                                        Шығу
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

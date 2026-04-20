@@ -9,9 +9,10 @@ type Doctor struct {
 	Experience int    `gorm:"not null" json:"experience"`
 	Price      int    `gorm:"not null" json:"price"`
 
-	PhotoURL  string `gorm:"not null;default:''" json:"photo_url"` // 🆕
-	Education string `gorm:"not null;default:''" json:"education"` // 🆕
-	Languages string `gorm:"not null;default:''" json:"languages"` // 🆕
+	PhotoURL    string `gorm:"not null;default:''" json:"photo_url"`
+	Education   string `gorm:"not null;default:''" json:"education"`
+	Languages   string `gorm:"not null;default:''" json:"languages"`
+	IsTherapist bool   `gorm:"default:false" json:"is_therapist"`
 
 	CreatedAt time.Time `json:"created_at"`
 

@@ -36,12 +36,12 @@ func (h *AdminUsersHandler) List(w http.ResponseWriter, r *http.Request) {
 	var users []model.User
 	switch role {
 	case "super_admin":
-		if err := h.db.Where("role IN ?", []string{"doctor", "admin"}).Order("id asc").Find(&users).Error; err != nil {
+		if err := h.db.Where("role IN ?", []string{"doctor", "psychologist", "admin"}).Order("id asc").Find(&users).Error; err != nil {
 			http.Error(w, "DB error", http.StatusInternalServerError)
 			return
 		}
 	case "admin":
-		if err := h.db.Where("role IN ?", []string{"patient", "doctor", "volunteer"}).Order("id asc").Find(&users).Error; err != nil {
+		if err := h.db.Where("role IN ?", []string{"patient", "doctor", "psychologist", "volunteer"}).Order("id asc").Find(&users).Error; err != nil {
 			http.Error(w, "DB error", http.StatusInternalServerError)
 			return
 		}
@@ -100,16 +100,13 @@ func (h *AdminUsersHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// allowed roles per caller
+	validRoles := map[string]bool{"patient": true, "doctor": true, "psychologist": true, "volunteer": true, "admin": true}
 	if callerRole == "super_admin" {
-		if req.Role != "patient" && req.Role != "doctor" && req.Role != "volunteer" && req.Role != "admin" && req.Role != "super_admin" {
-			http.Error(w, "role қате", http.StatusBadRequest)
-			return
-		}
-	} else {
-		if req.Role != "patient" && req.Role != "doctor" && req.Role != "volunteer" && req.Role != "admin" {
-			http.Error(w, "role қате", http.StatusBadRequest)
-			return
-		}
+		validRoles["super_admin"] = true
+	}
+	if !validRoles[req.Role] {
+		http.Error(w, "role қате", http.StatusBadRequest)
+		return
 	}
 
 	var u model.User
@@ -122,11 +119,10 @@ func (h *AdminUsersHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// super_admin can change only doctor or admin (супер админдер тізімде жоқ, өзгертуге болмайды)
 	if callerRole == "super_admin" {
 		ur := strings.ToLower(strings.TrimSpace(u.Role))
-		if ur != "doctor" && ur != "admin" {
-			http.Error(w, "super_admin can only change role of doctor or admin", http.StatusForbidden)
+		if ur != "doctor" && ur != "psychologist" && ur != "admin" {
+			http.Error(w, "super_admin can only change role of doctor, psychologist or admin", http.StatusForbidden)
 			return
 		}
 	}
