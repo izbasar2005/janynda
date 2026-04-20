@@ -11,6 +11,8 @@ type User struct {
 
 	Role string `gorm:"type:varchar(20);not null;default:'patient'" json:"role"`
 
+	AvatarURL string `gorm:"type:text" json:"avatar_url,omitempty"`
+
 	// ✅ ЖАҢА ӨРІСТЕР (бәрі optional)
 	IIN        string `gorm:"type:varchar(20)" json:"iin"`
 	FirstName  string `gorm:"type:varchar(80)" json:"first_name"`

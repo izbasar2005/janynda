@@ -28,6 +28,8 @@ export default function Book() {
     const [slotsLoading, setSlotsLoading] = useState(false);
     const [msg, setMsg] = useState("");
 
+    const todayStr = new Date().toISOString().slice(0, 10);
+
     useEffect(() => {
         if (!token()) {
             nav("/login");
@@ -128,6 +130,7 @@ export default function Book() {
                                 type="date"
                                 className="input book-date-input"
                                 value={date}
+                                min={todayStr}
                                 onChange={(e) => setDate(e.target.value)}
                             />
                         </div>

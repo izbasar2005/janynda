@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { api, token } from "../services/api";
 import { appointmentStatusLabel } from "../utils/appointmentStatus";
@@ -70,6 +70,42 @@ export default function Profile() {
     const [cancellingId, setCancellingId] = useState(null);
     const [showAllApps, setShowAllApps] = useState(false);
 
+    const [topAlert, setTopAlert] = useState(null); // { type: "success" | "error", text: string }
+    const topAlertTimer = useRef(null);
+
+    const [editOpen, setEditOpen] = useState(false);
+    const [editSaving, setEditSaving] = useState(false);
+    const [editMsg, setEditMsg] = useState("");
+    const [editForm, setEditForm] = useState({
+        full_name: "",
+        phone: "",
+        avatar_url: "",
+        iin: "",
+        first_name: "",
+        last_name: "",
+        patronymic: "",
+        gender: "",
+    });
+
+    const [avatarUploading, setAvatarUploading] = useState(false);
+
+    const [pwdOpen, setPwdOpen] = useState(false);
+    const [pwdSaving, setPwdSaving] = useState(false);
+    const [pwdMsg, setPwdMsg] = useState("");
+    const [pwdForm, setPwdForm] = useState({ old_password: "", new_password: "", confirm: "" });
+    const [pwdShow, setPwdShow] = useState({ old: false, next: false, confirm: false });
+
+    function showTopAlert(type, text) {
+        setTopAlert({ type, text });
+        try {
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        } catch {
+            window.scrollTo(0, 0);
+        }
+        if (topAlertTimer.current) window.clearTimeout(topAlertTimer.current);
+        topAlertTimer.current = window.setTimeout(() => setTopAlert(null), 3500);
+    }
+
     function fetchAppointments() {
         if (!token()) return;
         api("/api/v1/appointments/my", { auth: true })
@@ -84,9 +120,21 @@ export default function Profile() {
             return;
         }
         setMsg("");
+        setEditMsg("");
+        setPwdMsg("");
         api("/api/v1/me", { auth: true })
             .then((u) => {
                 setMe(u);
+                setEditForm({
+                    full_name: u?.full_name ?? "",
+                    phone: u?.phone ?? "",
+                    avatar_url: u?.avatar_url ?? "",
+                    iin: u?.iin ?? "",
+                    first_name: u?.first_name ?? "",
+                    last_name: u?.last_name ?? "",
+                    patronymic: u?.patronymic ?? "",
+                    gender: u?.gender ?? "",
+                });
                 if (u?.role === "admin") {
                     setApps([]);
                     return;
@@ -125,6 +173,90 @@ export default function Profile() {
             setMsg(e.message || "Қате");
         } finally {
             setCancellingId(null);
+        }
+    }
+
+    async function saveProfile() {
+        setEditSaving(true);
+        setEditMsg("");
+        try {
+            const payload = {
+                full_name: editForm.full_name,
+                phone: editForm.phone,
+                avatar_url: editForm.avatar_url,
+                iin: editForm.iin,
+                first_name: editForm.first_name,
+                last_name: editForm.last_name,
+                patronymic: editForm.patronymic,
+                gender: editForm.gender,
+            };
+            const u = await api("/api/v1/me", { method: "PATCH", auth: true, body: payload });
+            setMe(u);
+            showTopAlert("success", "Деректер сәтті сақталды");
+            setEditOpen(false);
+        } catch (e) {
+            setEditMsg(e.message || "Қате");
+            showTopAlert("error", e.message || "Қате");
+        } finally {
+            setEditSaving(false);
+        }
+    }
+
+    async function uploadAvatar(file) {
+        if (!file) return;
+        setAvatarUploading(true);
+        setEditMsg("");
+        try {
+            const fd = new FormData();
+            fd.append("file", file);
+            const res = await fetch("/api/v1/upload", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token()}` },
+                body: fd,
+            });
+            const text = await res.text();
+            if (!res.ok) throw new Error(text || `HTTP ${res.status}`);
+            const data = JSON.parse(text);
+            setEditForm((p) => ({ ...p, avatar_url: data?.url || "" }));
+            showTopAlert("success", "Аватар жүктелді");
+        } catch (e) {
+            setEditMsg(e.message || "Қате");
+            showTopAlert("error", e.message || "Қате");
+        } finally {
+            setAvatarUploading(false);
+        }
+    }
+
+    async function changePassword() {
+        setPwdSaving(true);
+        setPwdMsg("");
+        try {
+            if (!pwdForm.old_password || !pwdForm.new_password) {
+                setPwdMsg("Ескі және жаңа парольді толтырыңыз");
+                return;
+            }
+            if (pwdForm.new_password.length < 6) {
+                setPwdMsg("Жаңа пароль кемінде 6 таңба болуы керек");
+                return;
+            }
+            if (pwdForm.new_password !== pwdForm.confirm) {
+                setPwdMsg("Қайта енгізілген пароль сәйкес емес");
+                return;
+            }
+            await api("/api/v1/me/password", {
+                method: "PATCH",
+                auth: true,
+                body: { old_password: pwdForm.old_password, new_password: pwdForm.new_password },
+            });
+            showTopAlert("success", "Пароль сәтті өзгертілді");
+            setPwdForm({ old_password: "", new_password: "", confirm: "" });
+            setPwdShow({ old: false, next: false, confirm: false });
+            setPwdOpen(false);
+        } catch (e) {
+            setPwdMsg(e.message || "Қате");
+            showTopAlert("error", e.message || "Қате");
+        } finally {
+            setPwdSaving(false);
         }
     }
 
@@ -169,6 +301,37 @@ export default function Profile() {
 
     return (
         <div className="page profile-page">
+            {topAlert && (
+                <div className="doctor-save-toast" role="alert" aria-live="polite">
+                    <div className="doctor-save-toast__box">
+                        <span className="doctor-save-toast__icon" aria-hidden="true">
+                            {topAlert.type === "success" ? "✓" : "⚠"}
+                        </span>
+                        <div className="doctor-save-toast__main">
+                            <p
+                                className="doctor-save-toast__title"
+                                style={topAlert.type === "error" ? { color: "#b91c1c" } : undefined}
+                            >
+                                {topAlert.text}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            className="doctor-save-toast__close"
+                            aria-label="Жабу"
+                            onClick={() => {
+                                if (topAlertTimer.current) {
+                                    clearTimeout(topAlertTimer.current);
+                                    topAlertTimer.current = null;
+                                }
+                                setTopAlert(null);
+                            }}
+                        >
+                            ×
+                        </button>
+                    </div>
+                </div>
+            )}
             <div className="page-header">
                 <div>
                     <h2 className="page-header__title">Менің профилім</h2>
@@ -189,7 +352,15 @@ export default function Profile() {
                     {/* Hero: аватар + аты + рөл */}
                     <div className="profile-hero">
                         <div className="profile-hero__avatar" aria-hidden="true">
-                            {getInitials(displayName)}
+                            {me?.avatar_url ? (
+                                <img
+                                    src={me.avatar_url}
+                                    alt=""
+                                    style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "inherit", display: "block" }}
+                                />
+                            ) : (
+                                getInitials(displayName)
+                            )}
                         </div>
                         <div className="profile-hero__info">
                             <h1 className="profile-hero__name">{displayName}</h1>
@@ -218,6 +389,252 @@ export default function Profile() {
                                     </div>
                                 )}
                             </dl>
+
+                            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
+                                <button type="button" className="btn" onClick={() => { setEditOpen((v) => !v); setPwdOpen(false); }}>
+                                    Деректерді өзгерту
+                                </button>
+                                <button type="button" className="btn" onClick={() => { setPwdOpen((v) => !v); setEditOpen(false); }}>
+                                    Пароль өзгерту
+                                </button>
+                            </div>
+
+                            {editOpen && (
+                                <div style={{ marginTop: 14 }}>
+                                    <div className="form-row">
+                                        <label className="form-label">Аватар</label>
+                                        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                                            <div
+                                                aria-hidden="true"
+                                                style={{
+                                                    width: 52,
+                                                    height: 52,
+                                                    borderRadius: 999,
+                                                    background: "rgba(15,23,42,.06)",
+                                                    border: "1px solid rgba(15,23,42,.08)",
+                                                    overflow: "hidden",
+                                                    display: "grid",
+                                                    placeItems: "center",
+                                                    color: "#0f172a",
+                                                    fontWeight: 800,
+                                                }}
+                                            >
+                                                {editForm.avatar_url ? (
+                                                    <img src={editForm.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                                ) : (
+                                                    getInitials(displayName)
+                                                )}
+                                            </div>
+                                            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                                                <input
+                                                    type="file"
+                                                    accept="image/png,image/jpeg,image/webp"
+                                                    onChange={(e) => uploadAvatar(e.target.files?.[0])}
+                                                    disabled={avatarUploading || editSaving}
+                                                />
+                                                {editForm.avatar_url && (
+                                                    <button
+                                                        type="button"
+                                                        className="btn ghost"
+                                                        onClick={() => setEditForm((p) => ({ ...p, avatar_url: "" }))}
+                                                        disabled={avatarUploading || editSaving}
+                                                    >
+                                                        Өшіру
+                                                    </button>
+                                                )}
+                                                {avatarUploading && <span className="muted">Жүктелуде...</span>}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="form-row">
+                                        <label className="form-label">Аты-жөні</label>
+                                        <input
+                                            className="input"
+                                            value={editForm.full_name}
+                                            onChange={(e) => setEditForm((p) => ({ ...p, full_name: e.target.value }))}
+                                            placeholder="Мысалы: Асанов Асқар"
+                                        />
+                                    </div>
+                                    <div className="form-row">
+                                        <label className="form-label">Телефон</label>
+                                        <input
+                                            className="input"
+                                            value={editForm.phone}
+                                            onChange={(e) => setEditForm((p) => ({ ...p, phone: e.target.value }))}
+                                            placeholder="+7..."
+                                        />
+                                    </div>
+                                    <div className="form-row">
+                                        <label className="form-label">ЖСН</label>
+                                        <input
+                                            className="input"
+                                            value={editForm.iin}
+                                            onChange={(e) => setEditForm((p) => ({ ...p, iin: e.target.value }))}
+                                        />
+                                    </div>
+                                    <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
+                                        <div className="form-row">
+                                            <label className="form-label">Аты</label>
+                                            <input
+                                                className="input"
+                                                value={editForm.first_name}
+                                                onChange={(e) => setEditForm((p) => ({ ...p, first_name: e.target.value }))}
+                                            />
+                                        </div>
+                                        <div className="form-row">
+                                            <label className="form-label">Тегі</label>
+                                            <input
+                                                className="input"
+                                                value={editForm.last_name}
+                                                onChange={(e) => setEditForm((p) => ({ ...p, last_name: e.target.value }))}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="form-row">
+                                        <label className="form-label">Әкесінің аты</label>
+                                        <input
+                                            className="input"
+                                            value={editForm.patronymic}
+                                            onChange={(e) => setEditForm((p) => ({ ...p, patronymic: e.target.value }))}
+                                        />
+                                    </div>
+                                    <div className="form-row">
+                                        <label className="form-label">Жынысы</label>
+                                        <select
+                                            className="input"
+                                            value={editForm.gender}
+                                            onChange={(e) => setEditForm((p) => ({ ...p, gender: e.target.value }))}
+                                        >
+                                            <option value="">—</option>
+                                            <option value="male">Ер адам</option>
+                                            <option value="female">Әйел адам</option>
+                                        </select>
+                                    </div>
+                                    <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+                                        <button type="button" className="btn" onClick={saveProfile} disabled={editSaving}>
+                                            {editSaving ? "Сақталуда..." : "Сақтау"}
+                                        </button>
+                                        <button type="button" className="btn" onClick={() => setEditOpen(false)} disabled={editSaving}>
+                                            Жабу
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {pwdOpen && (
+                                <div style={{ marginTop: 14 }}>
+                                    <div className="form-row">
+                                        <label className="form-label">Ескі пароль</label>
+                                        <div style={{ position: "relative" }}>
+                                            <input
+                                                className="input"
+                                                type={pwdShow.old ? "text" : "password"}
+                                                value={pwdForm.old_password}
+                                                onChange={(e) => setPwdForm((p) => ({ ...p, old_password: e.target.value }))}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setPwdShow((s) => ({ ...s, old: !s.old }))}
+                                                aria-label={pwdShow.old ? "Парольді жасыру" : "Парольді көрсету"}
+                                                style={{
+                                                    position: "absolute",
+                                                    right: 8,
+                                                    top: "50%",
+                                                    transform: "translateY(-50%)",
+                                                    padding: 6,
+                                                    height: 34,
+                                                    width: 34,
+                                                    display: "grid",
+                                                    placeItems: "center",
+                                                    lineHeight: "22px",
+                                                    background: "transparent",
+                                                    border: "none",
+                                                    color: "#111",
+                                                    cursor: "pointer",
+                                                }}
+                                            >
+                                                👁
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="form-row">
+                                        <label className="form-label">Жаңа пароль</label>
+                                        <div style={{ position: "relative" }}>
+                                            <input
+                                                className="input"
+                                                type={pwdShow.next ? "text" : "password"}
+                                                value={pwdForm.new_password}
+                                                onChange={(e) => setPwdForm((p) => ({ ...p, new_password: e.target.value }))}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setPwdShow((s) => ({ ...s, next: !s.next }))}
+                                                aria-label={pwdShow.next ? "Парольді жасыру" : "Парольді көрсету"}
+                                                style={{
+                                                    position: "absolute",
+                                                    right: 8,
+                                                    top: "50%",
+                                                    transform: "translateY(-50%)",
+                                                    padding: 6,
+                                                    height: 34,
+                                                    width: 34,
+                                                    display: "grid",
+                                                    placeItems: "center",
+                                                    lineHeight: "22px",
+                                                    background: "transparent",
+                                                    border: "none",
+                                                    color: "#111",
+                                                    cursor: "pointer",
+                                                }}
+                                            >
+                                                👁
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="form-row">
+                                        <label className="form-label">Қайталау</label>
+                                        <div style={{ position: "relative" }}>
+                                            <input
+                                                className="input"
+                                                type={pwdShow.confirm ? "text" : "password"}
+                                                value={pwdForm.confirm}
+                                                onChange={(e) => setPwdForm((p) => ({ ...p, confirm: e.target.value }))}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setPwdShow((s) => ({ ...s, confirm: !s.confirm }))}
+                                                aria-label={pwdShow.confirm ? "Парольді жасыру" : "Парольді көрсету"}
+                                                style={{
+                                                    position: "absolute",
+                                                    right: 8,
+                                                    top: "50%",
+                                                    transform: "translateY(-50%)",
+                                                    padding: 6,
+                                                    height: 34,
+                                                    width: 34,
+                                                    display: "grid",
+                                                    placeItems: "center",
+                                                    lineHeight: "22px",
+                                                    background: "transparent",
+                                                    border: "none",
+                                                    color: "#111",
+                                                    cursor: "pointer",
+                                                }}
+                                            >
+                                                👁
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+                                        <button type="button" className="btn" onClick={changePassword} disabled={pwdSaving}>
+                                            {pwdSaving ? "..." : "Өзгерту"}
+                                        </button>
+                                        <button type="button" className="btn" onClick={() => setPwdOpen(false)} disabled={pwdSaving}>
+                                            Жабу
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </section>
 
                         {/* Жазылулар / Super Admin: статистика */}

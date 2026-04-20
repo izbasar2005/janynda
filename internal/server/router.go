@@ -56,7 +56,24 @@ func NewRouter(db *gorm.DB) http.Handler {
 
 	// Me (JWT required)
 	mh := handler.NewMeHandler(db)
-	mux.Handle("/api/v1/me", middleware.AuthJWT(http.HandlerFunc(mh.Me)))
+	mux.HandleFunc("/api/v1/me", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			middleware.AuthJWT(http.HandlerFunc(mh.Me)).ServeHTTP(w, r)
+			return
+		}
+		if r.Method == http.MethodPatch || r.Method == http.MethodPut {
+			middleware.AuthJWT(http.HandlerFunc(mh.Update)).ServeHTTP(w, r)
+			return
+		}
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+	})
+	mux.HandleFunc("/api/v1/me/password", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPatch || r.Method == http.MethodPost {
+			middleware.AuthJWT(http.HandlerFunc(mh.ChangePassword)).ServeHTTP(w, r)
+			return
+		}
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+	})
 
 	// Users (JWT required) — безопасный get by id
 	uh := handler.NewUserDBHandler(db)
@@ -368,7 +385,8 @@ func NewRouter(db *gorm.DB) http.Handler {
 	uploadH := handler.NewUploadHandler()
 
 	// мысалы:
-	mux.Handle("/api/v1/upload", middleware.AuthJWT(http.HandlerFunc(uploadH.Upload)))
+	// avatar upload can happen before login (register) so keep it optional
+	mux.Handle("/api/v1/upload", middleware.OptionalAuthJWT(http.HandlerFunc(uploadH.Upload)))
 
 	mux.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("./static/uploads"))))
 

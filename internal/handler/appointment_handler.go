@@ -85,10 +85,24 @@ func (h *AppointmentHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ---- ТЕКСЕРУ ҮШІН: кез келген уақытқа рұқсат (өткен, толық сағат емес, 9–17 шектеусіз) - кейін қатты ережелерді қайта қосуға болады
-	// if startAt.Before(time.Now()) { ... }
-	// if startAt.Minute() != 0 ... { ... }
-	// if hour < 9 || hour > 16 { ... }
+	// Slot rules: 09:00–17:00, step 10 minutes (Asia/Almaty / +05)
+	loc := time.FixedZone("+05", 5*3600)
+	startAt = startAt.In(loc)
+	now := time.Now().In(loc)
+	if startAt.Before(now) {
+		http.Error(w, "Өткен уақытқа жазылуға болмайды", http.StatusBadRequest)
+		return
+	}
+	hour := startAt.Hour()
+	min := startAt.Minute()
+	if hour < 9 || hour > 17 || (hour == 17 && min != 0) {
+		http.Error(w, "Жазылу уақыты 09:00–17:00 аралығында болуы керек", http.StatusBadRequest)
+		return
+	}
+	if min%10 != 0 {
+		http.Error(w, "Жазылу уақыты 10 минуттық қадаммен болуы керек", http.StatusBadRequest)
+		return
+	}
 
 	// doctor user бар ма?
 	var u model.User

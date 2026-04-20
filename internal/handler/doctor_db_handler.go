@@ -161,16 +161,40 @@ func (h *DoctorDBHandler) Slots(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ТЕКСЕРУ ҮШІН: күн бойы 3 мин слоттар (00:00, 00:03, 00:06, ... 23:57)
 	loc := time.FixedZone("+05", 5*3600)
 	startOfDay := time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, loc)
+	now := time.Now().In(loc)
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+	if startOfDay.Before(todayStart) {
+		http.Error(w, "Өткен күнге слот берілмейді", http.StatusBadRequest)
+		return
+	}
+
+	// Жұмыс уақыты: 09:00–17:00, қадам: 10 минут
+	start := time.Date(day.Year(), day.Month(), day.Day(), 9, 0, 0, 0, loc)
+	end := time.Date(day.Year(), day.Month(), day.Day(), 17, 0, 0, 0, loc)
+
+	// Егер бүгін болса — өткен уақыттарды слот ретінде бермейміз.
+	if startOfDay.Equal(todayStart) {
+		// next10 = now дөңгелету (келесі 10 минут)
+		next10 := time.Date(day.Year(), day.Month(), day.Day(), now.Hour(), now.Minute(), 0, 0, loc)
+		if mod := next10.Minute() % 10; mod != 0 {
+			next10 = next10.Add(time.Duration(10-mod) * time.Minute)
+		}
+		// Егер секундтар бар болса, бір қадам алға (көрінетін слот "өтіп кетті" болып қалмасын)
+		if now.Second() > 0 || now.Nanosecond() > 0 {
+			if next10.Before(now) || next10.Equal(now) {
+				next10 = next10.Add(10 * time.Minute)
+			}
+		}
+		if next10.After(start) {
+			start = next10
+		}
+	}
 
 	var slots []string
-	for hour := 0; hour < 24; hour++ {
-		for min := 0; min < 60; min += 3 {
-			slotStart := startOfDay.Add(time.Duration(hour)*time.Hour + time.Duration(min)*time.Minute)
-			slots = append(slots, slotStart.Format("15:04"))
-		}
+	for t := start; !t.After(end); t = t.Add(10 * time.Minute) {
+		slots = append(slots, t.Format("15:04"))
 	}
 
 	// Дәрігердің сол күнгі занят слоттарын алу (тек pending/approved — canceled слот бос, қайта жазылуға болады)

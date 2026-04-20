@@ -1318,7 +1318,7 @@ hr{
     border-radius:999px;
     border:none;
     background:transparent;
-    color:#94a3b8;
+    color:#111;
     font-size:15px;
     cursor:pointer;
     box-shadow:none;
@@ -1326,9 +1326,14 @@ hr{
     align-items:center;
     justify-content:center;
     padding:0;
+    transform:translateY(-50%);
+    transition:none;
 }
 .password-field__toggle:hover{
-    color:#94a3b8;
+    color:#111;
+    background:transparent;
+    box-shadow:none;
+    transform:translateY(-50%);
 }
 
 .login-robot{

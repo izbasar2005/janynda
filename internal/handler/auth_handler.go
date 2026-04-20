@@ -26,6 +26,8 @@ type RegisterRequest struct {
 	Password string `json:"password"`
 	Role     string `json:"role"`
 
+	AvatarURL string `json:"avatar_url"`
+
 	IIN        string `json:"iin"`
 	FirstName  string `json:"first_name"`
 	LastName   string `json:"last_name"`
@@ -76,6 +78,8 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		Phone:    req.Phone,
 		Password: string(hash),
 		Role:     req.Role,
+
+		AvatarURL: strings.TrimSpace(req.AvatarURL),
 
 		IIN:        strings.TrimSpace(req.IIN),
 		FirstName:  strings.TrimSpace(req.FirstName),

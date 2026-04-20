@@ -10,6 +10,9 @@ export default function Register() {
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
 
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [avatarUploading, setAvatarUploading] = useState(false);
+
   const [iin, setIin] = useState("");
   const [firstName, setFirstName] = useState("");  // ИМЯ
   const [lastName, setLastName] = useState("");    // ФИО (сенде солай тұр) -> фамилия деп аламыз
@@ -17,6 +20,25 @@ export default function Register() {
   const [gender, setGender] = useState("");         // ПОЛ
   const [phone, setPhone] = useState("");           // ТЕЛЕФОН
   const [role, setRole] = useState("patient");      // РӨЛ
+
+  async function uploadAvatar(file) {
+    if (!file) return;
+    setAvatarUploading(true);
+    setMsg("");
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/v1/upload", { method: "POST", body: fd });
+      const text = await res.text();
+      if (!res.ok) throw new Error(text || `HTTP ${res.status}`);
+      const data = JSON.parse(text);
+      setAvatarUrl(data?.url || "");
+    } catch (e) {
+      setMsg("Аватар жүктеу қатесі: " + (e.message || "Қате"));
+    } finally {
+      setAvatarUploading(false);
+    }
+  }
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -39,6 +61,8 @@ export default function Register() {
           full_name,
           phone,
           password,
+
+          avatar_url: avatarUrl,
 
           iin,
           first_name: firstName,
@@ -68,6 +92,47 @@ export default function Register() {
           </div>
 
           <form className="reg-form form" onSubmit={onSubmit}>
+            <div className="form-field">
+              <label className="form-label">Аватар (міндетті емес)</label>
+              <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                <div
+                  aria-hidden="true"
+                  style={{
+                    width: 52,
+                    height: 52,
+                    borderRadius: 999,
+                    background: "rgba(15,23,42,.06)",
+                    border: "1px solid rgba(15,23,42,.08)",
+                    overflow: "hidden",
+                    display: "grid",
+                    placeItems: "center",
+                    color: "#0f172a",
+                    fontWeight: 800,
+                  }}
+                >
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ) : (
+                    "🙂"
+                  )}
+                </div>
+                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={(e) => uploadAvatar(e.target.files?.[0])}
+                    disabled={avatarUploading}
+                  />
+                  {avatarUrl && (
+                    <button type="button" className="btn ghost" onClick={() => setAvatarUrl("")} disabled={avatarUploading}>
+                      Өшіру
+                    </button>
+                  )}
+                  {avatarUploading && <span className="muted">Жүктелуде...</span>}
+                </div>
+              </div>
+            </div>
+
             <div className="form-field">
               <label className="form-label">Логин</label>
               <input className="reg-input" placeholder="LOGIN" value={login} onChange={(e)=>setLogin(e.target.value)} />
