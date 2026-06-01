@@ -1,20 +1,15 @@
 import { token } from "./api";
 
+// Must match internal/handler/ws_handler.go (Sec-WebSocket-Protocol).
+const WS_JWT_SUBPROTOCOL = "janymda.jwt";
+
 // Minimal WS client with reconnect + pubsub.
-// Server endpoint: /api/v1/ws?token=...
+// JWT is sent via Sec-WebSocket-Protocol (not ?token=) to avoid URL/referrer/proxy logs.
+// Same host as the SPA so Vite's /api proxy and Origin checks stay consistent.
 
 function wsUrl() {
-  const t = token();
   const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-  // In dev, the API is typically on :8080 while Vite runs on :5173.
-  // Using :8080 directly avoids WS proxy/hijack issues.
-  const host =
-    window.location.port === "5173"
-      ? `${window.location.hostname}:8080`
-      : window.location.host;
-  const qs = new URLSearchParams();
-  if (t) qs.set("token", t);
-  return `${proto}//${host}/api/v1/ws?${qs.toString()}`;
+  return `${proto}//${window.location.host}/api/v1/ws`;
 }
 
 class WSClient {
@@ -45,8 +40,13 @@ class WSClient {
     this.connecting = true;
     this.closedByUser = false;
 
+    const t = token();
+    if (!t) {
+      this.connecting = false;
+      return;
+    }
     const url = wsUrl();
-    const ws = new WebSocket(url);
+    const ws = new WebSocket(url, [WS_JWT_SUBPROTOCOL, t]);
     this.ws = ws;
 
     ws.onopen = () => {

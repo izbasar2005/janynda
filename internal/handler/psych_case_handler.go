@@ -29,7 +29,6 @@ func NewPsychCaseHandler(db *gorm.DB) *PsychCaseHandler {
 //   - red-кейсы только свои (назначенные ему)
 //   - + unassigned red-кейсы (чтобы мог "взять")
 //
-// Admin/super_admin видят все.
 // ---------------------------------------------------------------------------
 func (h *PsychCaseHandler) List(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -54,11 +53,13 @@ func (h *PsychCaseHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if role == "psychologist" {
-		// yellow: все видны (анонимно). red: только свои + unassigned.
-		q = q.Where(
-			"(zone = 'yellow') OR (zone = 'red' AND (psychologist_id IS NULL OR psychologist_id = ?))",
-			userID,
-		)
+		// Психолог видит кейсы только закреплённых за ним пациентов.
+		ids := model.AssignedPatientIDs(h.db, userID)
+		if len(ids) == 0 {
+			_ = json.NewEncoder(w).Encode([]map[string]any{})
+			return
+		}
+		q = q.Where("patient_id IN ?", ids)
 	}
 
 	var cases []model.PsychCase
@@ -81,7 +82,6 @@ func (h *PsychCaseHandler) List(w http.ResponseWriter, r *http.Request) {
 //   - yellow → анонимный текст, без пациента
 //   - red → полные данные ТОЛЬКО если назначен ему или unassigned
 //
-// Admin/super_admin → всё видно.
 // ---------------------------------------------------------------------------
 func (h *PsychCaseHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -108,22 +108,19 @@ func (h *PsychCaseHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if role == "psychologist" && pc.Zone == "red" {
-		if pc.PsychologistID != nil && *pc.PsychologistID != userID {
-			http.Error(w, "Forbidden: case assigned to another psychologist", http.StatusForbidden)
-			return
-		}
+	// Психолог видит только кейсы закреплённых за ним пациентов.
+	if role == "psychologist" && !h.patientAssignedTo(pc.PatientID, userID) {
+		http.Error(w, "Forbidden: пациент закреплён за другим психологом", http.StatusForbidden)
+		return
 	}
 
 	resp := formatCaseForRole(pc, role, userID)
 
 	canSeePatient := false
-	if role == "admin" || role == "super_admin" {
+	if role == "head_psychologist" {
 		canSeePatient = true
 	} else if role == "psychologist" && pc.Zone == "red" {
-		if pc.PsychologistID == nil || *pc.PsychologistID == userID {
-			canSeePatient = true
-		}
+		canSeePatient = true
 	}
 
 	if canSeePatient {
@@ -155,11 +152,7 @@ func (h *PsychCaseHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 }
 
 // ---------------------------------------------------------------------------
-// POST /api/v1/psych/cases/{id}/assign — "взять кейс" (самоназначение) или
-// админ назначает конкретного психолога.
-//
-//	body: {} — психолог назначает себя
-//	body: {"psychologist_id": 42} — админ назначает конкретного
+// POST /api/v1/psych/cases/{id}/assign — психолог забирает кейс (самоназначение).
 // ---------------------------------------------------------------------------
 func (h *PsychCaseHandler) Assign(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -191,23 +184,7 @@ func (h *PsychCaseHandler) Assign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req struct {
-		PsychologistID *uint `json:"psychologist_id"`
-	}
-	_ = json.NewDecoder(r.Body).Decode(&req)
-
-	assignID := userID
-	if (role == "admin" || role == "super_admin") && req.PsychologistID != nil {
-		// Verify the target user is actually a psychologist.
-		var target model.User
-		if err := h.db.Where("id = ? AND role = ?", *req.PsychologistID, "psychologist").First(&target).Error; err != nil {
-			http.Error(w, "Target psychologist not found", http.StatusBadRequest)
-			return
-		}
-		assignID = *req.PsychologistID
-	}
-
-	pc.PsychologistID = &assignID
+	pc.PsychologistID = &userID
 	if pc.Status == "open" {
 		pc.Status = "in_review"
 	}
@@ -249,9 +226,9 @@ func (h *PsychCaseHandler) Review(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Психолог: только свои или unassigned.
-	if role == "psychologist" && pc.PsychologistID != nil && *pc.PsychologistID != userID {
-		http.Error(w, "Forbidden: case assigned to another psychologist", http.StatusForbidden)
+	// Психолог: только закреплённые за ним пациенты.
+	if role == "psychologist" && !h.patientAssignedTo(pc.PatientID, userID) {
+		http.Error(w, "Forbidden: пациент закреплён за другим психологом", http.StatusForbidden)
 		return
 	}
 
@@ -337,7 +314,13 @@ func (h *PsychCaseHandler) CaseDiary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Yellow → any psychologist gets anonymous text only.
+	// Психолог: только закреплённые за ним пациенты.
+	if role == "psychologist" && !h.patientAssignedTo(pc.PatientID, userID) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	// Yellow → анонимный текст без записей дневника.
 	if pc.Zone == "yellow" && role == "psychologist" {
 		_ = json.NewEncoder(w).Encode([]map[string]any{
 			{
@@ -347,14 +330,6 @@ func (h *PsychCaseHandler) CaseDiary(w http.ResponseWriter, r *http.Request) {
 			},
 		})
 		return
-	}
-
-	// Red → only assigned psychologist or admin.
-	if role == "psychologist" && pc.Zone == "red" {
-		if pc.PsychologistID != nil && *pc.PsychologistID != userID {
-			http.Error(w, "Forbidden", http.StatusForbidden)
-			return
-		}
 	}
 
 	var entries []model.DiaryEntry
@@ -399,11 +374,11 @@ func formatCaseForRole(c model.PsychCase, role string, viewerID uint) map[string
 		m["resolved_at"] = *c.ResolvedAt
 	}
 
-	isAdmin := role == "admin" || role == "super_admin"
+	isHead := role == "head_psychologist"
 
 	if c.Zone == "yellow" {
 		m["anonymous_text"] = c.AnonymousText
-		if isAdmin {
+		if isHead {
 			m["patient_id"] = c.PatientID
 			if c.DiaryEntryID != nil {
 				m["diary_entry_id"] = *c.DiaryEntryID
@@ -413,8 +388,7 @@ func formatCaseForRole(c model.PsychCase, role string, viewerID uint) map[string
 			}
 		}
 	} else if c.Zone == "red" {
-		isAssigned := c.PsychologistID != nil && *c.PsychologistID == viewerID
-		if isAdmin || (role == "psychologist" && (isAssigned || c.PsychologistID == nil)) {
+		if isHead || role == "psychologist" {
 			m["patient_id"] = c.PatientID
 			if c.DiaryEntryID != nil {
 				m["diary_entry_id"] = *c.DiaryEntryID
@@ -442,6 +416,15 @@ func formatCaseForRole(c model.PsychCase, role string, viewerID uint) map[string
 	}
 
 	return m
+}
+
+// patientAssignedTo сообщает, закреплён ли пациент за данным психологом.
+func (h *PsychCaseHandler) patientAssignedTo(patientID, psychologistID uint) bool {
+	var cnt int64
+	h.db.Model(&model.PsychAssignment{}).
+		Where("patient_id = ? AND psychologist_id = ?", patientID, psychologistID).
+		Count(&cnt)
+	return cnt > 0
 }
 
 func extractTrailingID(path string) uint {

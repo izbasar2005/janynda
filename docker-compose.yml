@@ -25,7 +25,8 @@ services:
       DB_USER: postgres
       DB_PASSWORD: postgres
       DB_NAME: janymda
-      JWT_SECRET: "janymda_super_secret_123"
+      # Required; do not commit real values. Set in shell or a local .env file.
+      JWT_SECRET: "${JWT_SECRET:?JWT_SECRET is required (min 32 chars); set in environment or .env}"
     ports:
       - "8080:8080"
     restart: unless-stopped

@@ -48,7 +48,7 @@ export default function NewsList() {
         <div className="page">
             <div className="page-header">
                 <div>
-                    <h2 className="page-header__title">Новости</h2>
+                    <h2 className="page-header__title">Жаңалықтар</h2>
                     <p className="muted page-header__subtitle">Денсаулық туралы жаңалықтар мен пайдалы мақалалар.</p>
                 </div>
             </div>

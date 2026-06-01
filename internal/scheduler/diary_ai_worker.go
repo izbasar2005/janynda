@@ -171,6 +171,13 @@ func createPsychCaseFromRetry(db *gorm.DB, entry model.DiaryEntry, score int, zo
 	if zone == "yellow" {
 		pc.AnonymousText = entry.Text
 	}
+	// Red-кейс сразу закрепляем за психологом пациента (если он распределён).
+	if zone == "red" {
+		if pid := model.AssignedPsychologistID(db, entry.UserID); pid != nil {
+			pc.PsychologistID = pid
+			pc.Status = "in_review"
+		}
+	}
 	if err := db.Create(&pc).Error; err != nil {
 		log.Printf("[diary_ai_retry] failed to create psych case for diary=%d: %v", entry.ID, err)
 	}

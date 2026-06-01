@@ -183,7 +183,7 @@ export default function DirectChat() {
                                 <span className="chat-msg__time muted">{fmtTime(m.created_at)}</span>
                                 {!m.is_system && isLast && isMine && m.is_read_by_peer && m.read_at_by_peer ? (
                                     <span className="chat-msg__read muted">
-                                        Просмотрено:{" "}
+                                        Көрілді:{" "}
                                         {new Date(m.read_at_by_peer).toLocaleString("kk-KZ", { hour: "2-digit", minute: "2-digit" })}
                                     </span>
                                 ) : null}

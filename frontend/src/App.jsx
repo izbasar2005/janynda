@@ -26,6 +26,7 @@ import DoctorCabinet from "./pages/DoctorCabinet.jsx";
 import DoctorPatient from "./pages/DoctorPatient.jsx";
 import PsychDashboard from "./pages/PsychDashboard.jsx";
 import PsychCaseDetail from "./pages/PsychCaseDetail.jsx";
+import PsychAssignments from "./pages/PsychAssignments.jsx";
 
 export default function App() {
     return (
@@ -56,6 +57,7 @@ export default function App() {
                         <Route path="/news/:slug" element={<NewsDetail />} />
 
                         <Route path="/psych" element={token() ? <PsychDashboard /> : <Navigate to="/login" replace />} />
+                        <Route path="/psych/assignments" element={token() ? <PsychAssignments /> : <Navigate to="/login" replace />} />
                         <Route path="/psych/cases/:id" element={token() ? <PsychCaseDetail /> : <Navigate to="/login" replace />} />
 
                         <Route path="/admin/users" element={<AdminUsers />} />

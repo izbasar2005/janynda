@@ -39,8 +39,8 @@ export default function Navbar() {
                     <>
                         {role === "admin" && (
                             <>
-                                <Link className={active("/admin/doctors")} to="/admin/doctors">Admin Doctors</Link>
-                                <Link className={active("/admin/users")} to="/admin/users">Users</Link>
+                                <Link className={active("/admin/doctors")} to="/admin/doctors">Дәрігерлер</Link>
+                                <Link className={active("/admin/users")} to="/admin/users">Қолданушылар</Link>
                             </>
                         )}
                         <Link className={active("/profile")} to="/profile">Профиль</Link>

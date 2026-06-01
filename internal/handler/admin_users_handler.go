@@ -22,7 +22,7 @@ func NewAdminUsersHandler(db *gorm.DB) *AdminUsersHandler {
 }
 
 // GET /api/v1/admin/users (admin or super_admin)
-// admin: patient + doctor + volunteer; super_admin: только doctor + admin (супер админдер тізімде көрінбейді)
+// admin: patient + doctor + psychologist + volunteer; super_admin: все пользователи.
 func (h *AdminUsersHandler) List(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if r.Method != http.MethodGet {
@@ -36,7 +36,7 @@ func (h *AdminUsersHandler) List(w http.ResponseWriter, r *http.Request) {
 	var users []model.User
 	switch role {
 	case "super_admin":
-		if err := h.db.Where("role IN ?", []string{"doctor", "psychologist", "admin"}).Order("id asc").Find(&users).Error; err != nil {
+		if err := h.db.Order("id asc").Find(&users).Error; err != nil {
 			http.Error(w, "DB error", http.StatusInternalServerError)
 			return
 		}
@@ -102,7 +102,9 @@ func (h *AdminUsersHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 	// allowed roles per caller
 	validRoles := map[string]bool{"patient": true, "doctor": true, "psychologist": true, "volunteer": true, "admin": true}
 	if callerRole == "super_admin" {
+		// Только супер-админ может выдавать роли super_admin и head_psychologist.
 		validRoles["super_admin"] = true
+		validRoles["head_psychologist"] = true
 	}
 	if !validRoles[req.Role] {
 		http.Error(w, "role қате", http.StatusBadRequest)
@@ -119,12 +121,10 @@ func (h *AdminUsersHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if callerRole == "super_admin" {
-		ur := strings.ToLower(strings.TrimSpace(u.Role))
-		if ur != "doctor" && ur != "psychologist" && ur != "admin" {
-			http.Error(w, "super_admin can only change role of doctor, psychologist or admin", http.StatusForbidden)
-			return
-		}
+	// super_admin может менять роль любого пользователя, кроме самого себя (защита от блокировки).
+	if callerRole == "super_admin" && u.ID == callerID {
+		http.Error(w, "Нельзя менять собственную роль", http.StatusForbidden)
+		return
 	}
 
 	oldRole := strings.ToLower(strings.TrimSpace(u.Role))

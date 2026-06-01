@@ -311,6 +311,14 @@ func seedUsers(db *gorm.DB) (int, error) {
 		})
 	}
 
+	// head psychologist (главный психолог — распределяет пациентов): +70000004000
+	items = append(items, seedUser{
+		FullName: "Head Psychologist",
+		Phone:    "+70000004000",
+		Password: "headpsych123",
+		Role:     "head_psychologist",
+	})
+
 	// therapist doctor
 	items = append(items, seedUser{
 		FullName: "Терапевт Айгерім",

@@ -195,6 +195,13 @@ func createChatPsychCase(db *gorm.DB, ca model.ChatAiAssessment, batchText strin
 		}
 		pc.AnonymousText = batchText
 	}
+	// Red-кейс сразу закрепляем за психологом пациента (если он распределён).
+	if ca.Zone == "red" {
+		if pid := model.AssignedPsychologistID(db, ca.PatientID); pid != nil {
+			pc.PsychologistID = pid
+			pc.Status = "in_review"
+		}
+	}
 	if err := db.Create(&pc).Error; err != nil {
 		log.Printf("[chat_ai] failed to create psych case for patient=%d assessment=%d: %v", ca.PatientID, ca.ID, err)
 	}

@@ -69,7 +69,7 @@ func (h *DiaryHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Gemini assessment only for entries that include text.
+	// Claude assessment only for entries that include text.
 	// We retry inside the same request so frontend doesn't have to "resend".
 	if strings.TrimSpace(entry.Text) != "" {
 		var assessment ai.DiaryAssessment
@@ -188,7 +188,7 @@ func (h *DiaryHandler) ListMy(w http.ResponseWriter, r *http.Request) {
 }
 
 // stripAiForRole returns diary entry as map, stripping AI fields for non-privileged roles.
-// Only psychologist, admin, super_admin can see AI data.
+// Only psychologist can see AI data.
 func stripAiForRole(e model.DiaryEntry, role string) map[string]any {
 	m := map[string]any{
 		"id":         e.ID,
@@ -198,7 +198,7 @@ func stripAiForRole(e model.DiaryEntry, role string) map[string]any {
 		"created_at": e.CreatedAt,
 	}
 	r := strings.ToLower(strings.TrimSpace(role))
-	if r == "psychologist" || r == "admin" || r == "super_admin" {
+	if r == "psychologist" {
 		if e.AiStatus != nil {
 			m["ai_status"] = *e.AiStatus
 		}
@@ -237,6 +237,13 @@ func createPsychCase(db *gorm.DB, entry model.DiaryEntry, score int, zone string
 	}
 	if zone == "yellow" {
 		pc.AnonymousText = entry.Text
+	}
+	// Red-кейс сразу закрепляем за психологом пациента (если он распределён).
+	if zone == "red" {
+		if pid := model.AssignedPsychologistID(db, entry.UserID); pid != nil {
+			pc.PsychologistID = pid
+			pc.Status = "in_review"
+		}
 	}
 	if err := db.Create(&pc).Error; err != nil {
 		log.Printf("[WARN] failed to create psych case for diary=%d: %v", entry.ID, err)
