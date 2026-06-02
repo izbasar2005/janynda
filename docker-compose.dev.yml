@@ -41,6 +41,10 @@ services:
       # Gmail SMTP for email verification
       SMTP_EMAIL: "${SMTP_EMAIL}"
       SMTP_PASSWORD: "${SMTP_PASSWORD}"
+      # Cloudinary (optional, for cloud image storage)
+      CLOUDINARY_CLOUD_NAME: "${CLOUDINARY_CLOUD_NAME}"
+      CLOUDINARY_API_KEY: "${CLOUDINARY_API_KEY}"
+      CLOUDINARY_API_SECRET: "${CLOUDINARY_API_SECRET}"
     ports:
       - "8080:8080"
     volumes:
