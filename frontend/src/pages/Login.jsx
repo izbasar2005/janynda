@@ -2,6 +2,39 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { api } from "../services/api";
 
+function EyeIcon({ off = false }) {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      style={{ display: "block" }}
+    >
+      <path
+        d="M2.5 12s3.5-7 9.5-7 9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      {off ? (
+        <path
+          d="M4 20 20 4"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+      ) : null}
+    </svg>
+  );
+}
+
 export default function Login() {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
@@ -30,7 +63,7 @@ export default function Login() {
     setMsg("");
     // Формалық базалық валидация (қаласаң күшейтуге болады)
     if (!phone || !password) {
-      setMsg("Телефон/логин және парольді толтырыңыз.");
+      setMsg("Телефон/логин және құпия сөзді толтырыңыз.");
       return;
     }
     // Алдымен "Я не робот" модалын көрсетеміз
@@ -40,7 +73,7 @@ export default function Login() {
   async function handleRobotConfirm() {
     if (!notRobot) {
       // Модалдың ішінде кішкентай ескерту ретінде alert жеткілікті
-      alert('Алдымен "Я не робот" дегенді белгілеңіз.');
+      alert('Алдымен "Мен робот емеспін" дегенді белгілеңіз.');
       return;
     }
     setRobotVisible(false);
@@ -80,17 +113,19 @@ export default function Login() {
                       type={showPassword ? "text" : "password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Введите пароль"
+                      placeholder="Құпия сөзді енгізіңіз"
                   />
                   <button
                       type="button"
                       className="password-field__toggle"
                       onClick={() => setShowPassword((p) => !p)}
+                      title={showPassword ? "Құпия сөзді жасыру" : "Құпия сөзді көрсету"}
+                      aria-label={showPassword ? "Құпия сөзді жасыру" : "Құпия сөзді көрсету"}
                   >
-                    👁
+                    <EyeIcon off={showPassword} />
                   </button>
                 </div>
-                <p className="form-hint">Не передавайте пароль третьим лицам.</p>
+                <p className="form-hint">Құпия сөзді үшінші тұлғаларға бермеңіз.</p>
               </div>
 
               {msg && <div className="form-error login-error">{msg}</div>}
@@ -107,7 +142,7 @@ export default function Login() {
 
               {/* Мынау сенің /register маршрутыңа апарады */}
               <Link className="login-link login-link--accent" to="/register">
-                Зарегистрироваться
+                Тіркелу
               </Link>
             </div>
           </div>
@@ -118,7 +153,7 @@ export default function Login() {
           <div className="login-robot-modal__card">
             <div className="login-robot-modal__title">Қауіпсіздік тексерісі</div>
             <p className="login-robot-modal__subtitle">
-              Кіру үшін «Я не робот» дегенді белгілеңіз.
+              Кіру үшін «Мен робот емеспін» дегенді белгілеңіз.
             </p>
             <div className="login-robot">
               <label className="login-robot__label">
@@ -127,7 +162,7 @@ export default function Login() {
                     checked={notRobot}
                     onChange={(e) => setNotRobot(e.target.checked)}
                 />
-                <span>Я не робот</span>
+                <span>Мен робот емеспін</span>
               </label>
             </div>
             <div className="login-robot-modal__actions">
