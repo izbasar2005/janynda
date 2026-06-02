@@ -19,7 +19,7 @@ type DiaryEntry struct {
 
 	CreatedAt time.Time `json:"created_at"`
 
-	// ---- Gemini psychological assessment (set after create) ----
+	// ---- Claude psychological assessment (set after create) ----
 	// Stored as nullable so frontend can show "loading/error" state.
 	AiStatus     *string       `gorm:"type:varchar(16)" json:"ai_status,omitempty"`
 	AiScore      *int          `json:"ai_score,omitempty"`
@@ -30,7 +30,7 @@ type DiaryEntry struct {
 	AiUrgent     *bool         `json:"ai_urgent,omitempty"`
 	AiAssessedAt *time.Time    `json:"ai_assessed_at,omitempty"`
 
-	// Optional: last error message if Gemini failed.
+	// Optional: last error message if Claude assessment failed.
 	AiError *string `json:"ai_error,omitempty"`
 
 	// ---- Retry scheduling (AI) ----

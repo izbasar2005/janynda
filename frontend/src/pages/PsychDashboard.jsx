@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { api, token } from "../services/api";
 
@@ -23,15 +23,37 @@ const STATUS_LABELS = {
 const TREND_LABELS = { improving: "Жақсаруда", stable: "Тұрақты", declining: "Нашарлауда" };
 const TREND_COLORS = { improving: "#059669", stable: "#64748b", declining: "#dc2626" };
 
+const SOURCE_LABELS = { diary: "Күнделік", chat: "Чат" };
+
+/* ——— Persisted UI state (survives navigation to a case and back) ——— */
+const DASH_KEY = "psychDashState";
+const SCROLL_KEY = "psychDashScroll";
+
+function loadDashState() {
+    try {
+        return JSON.parse(sessionStorage.getItem(DASH_KEY)) || {};
+    } catch {
+        return {};
+    }
+}
+function saveDashState(patch) {
+    sessionStorage.setItem(DASH_KEY, JSON.stringify({ ...loadDashState(), ...patch }));
+}
+
 export default function PsychDashboard() {
     const nav = useNavigate();
-    const [activeTab, setActiveTab] = useState("patients");
+    const init = useMemo(() => loadDashState(), []);
+
+    const [activeTab, setActiveTab] = useState(init.activeTab || "patients");
     const [cases, setCases] = useState([]);
     const [patients, setPatients] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
-    const [zoneFilter, setZoneFilter] = useState("");
-    const [statusFilter, setStatusFilter] = useState("");
+    const [zoneFilter, setZoneFilter] = useState(init.zoneFilter || "");
+    const [statusFilter, setStatusFilter] = useState(init.statusFilter || "");
+    const [sourceFilter, setSourceFilter] = useState(init.sourceFilter || ""); // "" | "diary" | "chat"
+
+    const restoredRef = useRef(false);
 
     const role = useMemo(() => {
         const t = token();
@@ -39,10 +61,15 @@ export default function PsychDashboard() {
         return (parseJwt(t)?.role || "").toLowerCase();
     }, []);
 
+    // Persist tab + filters whenever they change.
+    useEffect(() => {
+        saveDashState({ activeTab, zoneFilter, statusFilter, sourceFilter });
+    }, [activeTab, zoneFilter, statusFilter, sourceFilter]);
+
     useEffect(() => {
         if (!token()) { nav("/login"); return; }
-        if (role !== "psychologist" && role !== "admin" && role !== "super_admin") {
-            setError("Бұл бет тек психолог, админ немесе суперадмин үшін.");
+        if (role !== "psychologist" && role !== "head_psychologist") {
+            setError("Бұл бет тек психолог үшін.");
             setLoading(false);
             return;
         }
@@ -71,20 +98,42 @@ export default function PsychDashboard() {
         }
     }, [nav, role, activeTab, zoneFilter, statusFilter]);
 
-    const stats = useMemo(() => {
-        const s = { total: cases.length, red: 0, yellow: 0, open: 0, resolved: 0 };
+    // Restore scroll position once after returning from a case detail page.
+    useEffect(() => {
+        if (loading || restoredRef.current) return;
+        restoredRef.current = true;
+        const y = Number(sessionStorage.getItem(SCROLL_KEY) || 0);
+        if (y > 0) {
+            requestAnimationFrame(() => window.scrollTo(0, y));
+        }
+        sessionStorage.removeItem(SCROLL_KEY);
+    }, [loading]);
+
+    // Cases filtered by source (Күнделік / Чат) on the client.
+    const visibleCases = useMemo(() => {
+        if (!sourceFilter) return cases;
+        return cases.filter((c) => (c.source_type || "diary") === sourceFilter);
+    }, [cases, sourceFilter]);
+
+    const sourceCounts = useMemo(() => {
+        let diary = 0, chat = 0;
         for (const c of cases) {
+            if ((c.source_type || "diary") === "chat") chat++;
+            else diary++;
+        }
+        return { all: cases.length, diary, chat };
+    }, [cases]);
+
+    const stats = useMemo(() => {
+        const s = { total: visibleCases.length, red: 0, yellow: 0, open: 0, resolved: 0 };
+        for (const c of visibleCases) {
             if (c.zone === "red") s.red++;
             if (c.zone === "yellow") s.yellow++;
             if (c.status === "open") s.open++;
             if (c.status === "resolved") s.resolved++;
         }
         return s;
-    }, [cases]);
-
-    if (error && !cases.length) {
-        return <div style={S.page}><div style={S.errorBanner}>{error}</div></div>;
-    }
+    }, [visibleCases]);
 
     const patientStats = useMemo(() => {
         const s = { total: patients.length, red: 0, yellow: 0, green: 0 };
@@ -96,36 +145,40 @@ export default function PsychDashboard() {
         return s;
     }, [patients]);
 
+    if (error && !cases.length && !patients.length) {
+        return <div style={S.page}><div style={S.errorBanner}>{error}</div></div>;
+    }
+
     return (
-        <div style={S.page}>
+        <div className="psych-dashboard-page" style={S.page}>
             <div style={S.header}>
                 <h1 style={S.title}>Психолог кабинеті</h1>
-                <p style={S.subtitle}>Пациенттердің AI бағалауы</p>
+                <p style={S.subtitle}>Пациенттердің AI бағалауы және кейстер</p>
             </div>
 
-            {/* Main tabs */}
-            <div style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: "2px solid #e2e8f0" }}>
+            {/* Main tabs (segmented) */}
+            <div className="psych-dashboard-main-tabs" style={S.segment}>
                 <button type="button" onClick={() => { setActiveTab("patients"); setZoneFilter(""); }}
-                    style={activeTab === "patients" ? S.mainTabActive : S.mainTab}>
+                    style={activeTab === "patients" ? S.segActive : S.seg}>
                     Пациенттер бағасы
                 </button>
                 <button type="button" onClick={() => { setActiveTab("cases"); setZoneFilter(""); setStatusFilter(""); }}
-                    style={activeTab === "cases" ? S.mainTabActive : S.mainTab}>
+                    style={activeTab === "cases" ? S.segActive : S.seg}>
                     Кейстер
                 </button>
             </div>
 
             {activeTab === "patients" && (
                 <>
-                    <div style={S.statsRow}>
+                    <div className="psych-dashboard-stats-row" style={S.statsRow}>
                         <StatCard label="Барлығы" value={patientStats.total} />
                         <StatCard label="Қызыл зона" value={patientStats.red} accent="#dc2626" />
                         <StatCard label="Сары зона" value={patientStats.yellow} accent="#d97706" />
                         <StatCard label="Жасыл зона" value={patientStats.green} accent="#059669" />
                     </div>
 
-                    <div style={S.filtersBar}>
-                        <div style={S.filterGroup}>
+                    <div className="psych-dashboard-filters" style={S.filtersBar}>
+                        <div className="psych-dashboard-filter-group" style={S.filterGroup}>
                             <span style={S.filterLabel}>Зона:</span>
                             <Tab active={zoneFilter === ""} onClick={() => setZoneFilter("")}>Барлығы</Tab>
                             <Tab active={zoneFilter === "red"} onClick={() => setZoneFilter("red")}>Қызыл</Tab>
@@ -137,15 +190,12 @@ export default function PsychDashboard() {
                     {loading && <p style={S.muted}>Жүктелуде…</p>}
 
                     {!loading && patients.length === 0 && (
-                        <div style={S.emptyState}>
-                            <p style={{ color: "#64748b", fontSize: 15 }}>Бағаланған пациенттер жоқ</p>
-                            <p style={{ color: "#94a3b8", fontSize: 13, marginTop: 4 }}>AI бағалау жүргізілгеннен кейін мұнда көрінеді</p>
-                        </div>
+                        <EmptyState title="Бағаланған пациенттер жоқ" hint="AI бағалау жүргізілгеннен кейін мұнда көрінеді" />
                     )}
 
                     {!loading && patients.length > 0 && (
-                        <div style={S.tableWrap}>
-                            <div style={S.tableHeader}>
+                        <div className="psych-dashboard-table-wrap" style={S.tableWrap}>
+                            <div className="psych-dashboard-table-header" style={S.tableHeader}>
                                 <span style={{ ...S.th, flex: 1 }}>Пациент</span>
                                 <span style={{ ...S.th, flex: "0 0 90px", textAlign: "center" }}>Жалпы балл</span>
                                 <span style={{ ...S.th, flex: "0 0 80px", textAlign: "center" }}>Зона</span>
@@ -163,7 +213,17 @@ export default function PsychDashboard() {
 
             {activeTab === "cases" && (
                 <>
-                    <div style={S.statsRow}>
+                    {/* Источник кейса: Күнделік / Чат — вынесено отдельным крупным переключателем */}
+                    <div style={S.sourceSeg}>
+                        <SourceBtn active={sourceFilter === ""} onClick={() => setSourceFilter("")}
+                            icon="🗂" label="Барлығы" count={sourceCounts.all} color="#0f172a" />
+                        <SourceBtn active={sourceFilter === "diary"} onClick={() => setSourceFilter("diary")}
+                            icon="📔" label="Күнделік" count={sourceCounts.diary} color="#047857" />
+                        <SourceBtn active={sourceFilter === "chat"} onClick={() => setSourceFilter("chat")}
+                            icon="💬" label="Чат" count={sourceCounts.chat} color="#6d28d9" />
+                    </div>
+
+                    <div className="psych-dashboard-stats-row" style={S.statsRow}>
                         <StatCard label="Барлығы" value={stats.total} />
                         <StatCard label="Қызыл зона" value={stats.red} accent="#dc2626" />
                         <StatCard label="Сары зона" value={stats.yellow} accent="#d97706" />
@@ -171,15 +231,15 @@ export default function PsychDashboard() {
                         <StatCard label="Шешілді" value={stats.resolved} accent="#059669" />
                     </div>
 
-                    <div style={S.filtersBar}>
-                        <div style={S.filterGroup}>
+                    <div className="psych-dashboard-filters" style={S.filtersBar}>
+                        <div className="psych-dashboard-filter-group" style={S.filterGroup}>
                             <span style={S.filterLabel}>Зона:</span>
                             <Tab active={zoneFilter === ""} onClick={() => setZoneFilter("")}>Барлығы</Tab>
                             <Tab active={zoneFilter === "red"} onClick={() => setZoneFilter("red")}>Қызыл</Tab>
                             <Tab active={zoneFilter === "yellow"} onClick={() => setZoneFilter("yellow")}>Сары</Tab>
                         </div>
-                        <div style={S.divider} />
-                        <div style={S.filterGroup}>
+                        <div className="psych-dashboard-divider" style={S.divider} />
+                        <div className="psych-dashboard-filter-group" style={S.filterGroup}>
                             <span style={S.filterLabel}>Статус:</span>
                             <Tab active={statusFilter === ""} onClick={() => setStatusFilter("")}>Барлығы</Tab>
                             <Tab active={statusFilter === "open"} onClick={() => setStatusFilter("open")}>Ашық</Tab>
@@ -191,16 +251,16 @@ export default function PsychDashboard() {
 
                     {loading && <p style={S.muted}>Жүктелуде…</p>}
 
-                    {!loading && cases.length === 0 && (
-                        <div style={S.emptyState}>
-                            <p style={{ color: "#64748b", fontSize: 15 }}>Кейстер табылмады</p>
-                            <p style={{ color: "#94a3b8", fontSize: 13, marginTop: 4 }}>Фильтрді өзгертіп көріңіз</p>
-                        </div>
+                    {!loading && visibleCases.length === 0 && (
+                        <EmptyState
+                            title={sourceFilter === "chat" ? "Чаттан кейстер жоқ" : sourceFilter === "diary" ? "Күнделіктен кейстер жоқ" : "Кейстер табылмады"}
+                            hint="Фильтрді өзгертіп көріңіз"
+                        />
                     )}
 
-                    {!loading && cases.length > 0 && (
-                        <div style={S.tableWrap}>
-                            <div style={S.tableHeader}>
+                    {!loading && visibleCases.length > 0 && (
+                        <div className="psych-dashboard-table-wrap" style={S.tableWrap}>
+                            <div className="psych-dashboard-table-header" style={S.tableHeader}>
                                 <span style={{ ...S.th, flex: "0 0 56px" }}>#</span>
                                 <span style={{ ...S.th, flex: "0 0 100px" }}>Зона</span>
                                 <span style={{ ...S.th, flex: "0 0 80px" }}>Көзі</span>
@@ -209,7 +269,7 @@ export default function PsychDashboard() {
                                 <span style={{ ...S.th, flex: 1 }}>Мәтін</span>
                                 <span style={{ ...S.th, flex: "0 0 120px", textAlign: "right" }}>Күні</span>
                             </div>
-                            {cases.map((c) => <CaseRow key={c.id} c={c} />)}
+                            {visibleCases.map((c) => <CaseRow key={c.id} c={c} />)}
                         </div>
                     )}
                 </>
@@ -232,17 +292,41 @@ function StatCard({ label, value, accent }) {
 
 function Tab({ active, onClick, children }) {
     return (
-        <button
-            type="button"
-            onClick={onClick}
-            style={active ? { ...S.tab, ...S.tabActive } : S.tab}
-        >
+        <button type="button" onClick={onClick} style={active ? { ...S.tab, ...S.tabActive } : S.tab}>
             {children}
         </button>
     );
 }
 
-const SOURCE_LABELS = { diary: "Күнделік", chat: "Чат" };
+function SourceBtn({ active, onClick, icon, label, count, color }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            style={{
+                ...S.sourceBtn,
+                ...(active ? { borderColor: color, background: "#fff", boxShadow: `inset 0 -3px 0 ${color}`, color } : {}),
+            }}
+        >
+            <span style={S.sourceIcon}>{icon}</span>
+            <span style={S.sourceLabel}>{label}</span>
+            <span style={{ ...S.sourceCount, ...(active ? { background: color, color: "#fff" } : {}) }}>{count}</span>
+        </button>
+    );
+}
+
+function EmptyState({ title, hint }) {
+    return (
+        <div style={S.emptyState}>
+            <p style={{ color: "#64748b", fontSize: 15 }}>{title}</p>
+            {hint && <p style={{ color: "#94a3b8", fontSize: 13, marginTop: 4 }}>{hint}</p>}
+        </div>
+    );
+}
+
+function saveScroll() {
+    sessionStorage.setItem(SCROLL_KEY, String(window.scrollY || window.pageYOffset || 0));
+}
 
 function CaseRow({ c }) {
     const d = new Date(c.created_at);
@@ -250,8 +334,8 @@ function CaseRow({ c }) {
     const isChat = c.source_type === "chat";
 
     return (
-        <Link to={`/psych/cases/${c.id}`} style={S.rowLink}>
-            <div style={{ ...S.row, borderLeftColor: isRed ? "#dc2626" : "#d97706" }}>
+        <Link className="psych-dashboard-row-link" to={`/psych/cases/${c.id}`} style={S.rowLink} onClick={saveScroll}>
+            <div className="psych-dashboard-row psych-dashboard-row--case" style={{ ...S.row, borderLeftColor: isRed ? "#dc2626" : "#d97706" }}>
                 <span style={{ ...S.td, flex: "0 0 56px", fontWeight: 600, color: "#94a3b8" }}>
                     {c.id}
                 </span>
@@ -265,11 +349,12 @@ function CaseRow({ c }) {
 
                 <span style={{ ...S.td, flex: "0 0 80px" }}>
                     <span style={{
+                        display: "inline-flex", alignItems: "center", gap: 4,
                         padding: "2px 8px", borderRadius: 5, fontSize: 11, fontWeight: 600,
                         background: isChat ? "#ede9fe" : "#ecfdf5",
                         color: isChat ? "#6d28d9" : "#047857",
                     }}>
-                        {SOURCE_LABELS[c.source_type] || c.source_type || "Күнделік"}
+                        {isChat ? "💬" : "📔"} {SOURCE_LABELS[c.source_type] || c.source_type || "Күнделік"}
                     </span>
                 </span>
 
@@ -308,7 +393,7 @@ function CaseRow({ c }) {
                     </div>
                 </span>
 
-                <span style={{ ...S.td, flex: "0 0 120px", textAlign: "right", color: "#94a3b8", fontSize: 13 }}>
+                <span style={{ ...S.td, flex: "0 0 120px", textAlign: "right", color: "#94a3b8", fontSize: 13, justifyContent: "flex-end" }}>
                     {d.toLocaleDateString("kk-KZ", { day: "numeric", month: "short", year: "numeric" })}
                 </span>
             </div>
@@ -322,7 +407,7 @@ function PatientRow({ p }) {
     const trendColor = TREND_COLORS[p.trend] || "#64748b";
 
     return (
-        <div style={{ ...S.row, borderLeftColor: zoneColor }}>
+        <div className="psych-dashboard-row psych-dashboard-row--patient" style={{ ...S.row, borderLeftColor: zoneColor }}>
             <span style={{ ...S.td, flex: 1 }}>
                 <span style={{ fontSize: 14, fontWeight: 600, color: "#1e293b" }}>{p.patient_name || `ID: ${p.patient_id}`}</span>
             </span>
@@ -400,15 +485,57 @@ const S = {
     title: { fontSize: 22, fontWeight: 700, color: "#0f172a", margin: 0 },
     subtitle: { fontSize: 14, color: "#64748b", marginTop: 4 },
 
-    mainTab: {
-        padding: "10px 20px", border: "none", borderBottom: "2px solid transparent",
-        background: "none", color: "#94a3b8", fontSize: 14, fontWeight: 600,
-        cursor: "pointer", marginBottom: -2,
+    segment: {
+        display: "inline-flex",
+        gap: 4,
+        padding: 4,
+        background: "#f1f5f9",
+        borderRadius: 12,
+        marginBottom: 24,
     },
-    mainTabActive: {
-        padding: "10px 20px", border: "none", borderBottom: "2px solid #0f172a",
-        background: "none", color: "#0f172a", fontSize: 14, fontWeight: 700,
-        cursor: "pointer", marginBottom: -2,
+    seg: {
+        padding: "9px 20px", border: "none", borderRadius: 9,
+        background: "transparent", color: "#64748b", fontSize: 14, fontWeight: 600,
+        cursor: "pointer", transition: "all 0.12s",
+    },
+    segActive: {
+        padding: "9px 20px", border: "none", borderRadius: 9,
+        background: "#fff", color: "#0f172a", fontSize: 14, fontWeight: 700,
+        cursor: "pointer", boxShadow: "0 1px 3px rgba(15,23,42,0.12)",
+    },
+
+    sourceSeg: {
+        display: "flex",
+        gap: 12,
+        marginBottom: 20,
+        flexWrap: "wrap",
+    },
+    sourceBtn: {
+        flex: "1 1 140px",
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "14px 18px",
+        borderRadius: 12,
+        border: "1px solid #e2e8f0",
+        background: "#f8fafc",
+        color: "#475569",
+        cursor: "pointer",
+        fontSize: 15,
+        fontWeight: 600,
+        transition: "all 0.12s",
+    },
+    sourceIcon: { fontSize: 20, lineHeight: 1 },
+    sourceLabel: { flex: 1, textAlign: "left" },
+    sourceCount: {
+        minWidth: 26,
+        padding: "2px 8px",
+        borderRadius: 999,
+        background: "#e2e8f0",
+        color: "#475569",
+        fontSize: 13,
+        fontWeight: 700,
+        textAlign: "center",
     },
 
     statsRow: {

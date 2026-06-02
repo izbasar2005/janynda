@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -24,15 +25,91 @@ func NewWSHandler(db *gorm.DB, hub *realtime.Hub) *WSHandler {
 	return &WSHandler{db: db, hub: hub}
 }
 
-var wsUpgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
-		// dev-friendly; rely on JWT. In prod you can restrict origins.
+// wsJWTSubprotocol is the first Sec-WebSocket-Protocol token; the JWT follows as the next token.
+// Avoid ?token= in the URL (referrers, access logs, history).
+const wsJWTSubprotocol = "janymda.jwt"
+
+func wsUpgrader() websocket.Upgrader {
+	return websocket.Upgrader{
+		CheckOrigin: wsCheckOrigin,
+		// Negotiate so browsers can send [wsJWTSubprotocol, jwt] without putting the JWT in the URL.
+		Subprotocols: []string{wsJWTSubprotocol},
+		Error: func(w http.ResponseWriter, r *http.Request, status int, reason error) {
+			log.Printf("ws upgrade error status=%d err=%v ua=%q origin=%q conn=%q upgrade=%q", status, reason, r.UserAgent(), r.Header.Get("Origin"), r.Header.Get("Connection"), r.Header.Get("Upgrade"))
+			http.Error(w, "WS upgrade failed", status)
+		},
+	}
+}
+
+func wsCheckOrigin(r *http.Request) bool {
+	origin := strings.TrimSpace(r.Header.Get("Origin"))
+	if origin == "" {
+		// Non-browser clients often omit Origin; JWT still required on upgrade.
 		return true
-	},
-	Error: func(w http.ResponseWriter, r *http.Request, status int, reason error) {
-		log.Printf("ws upgrade error status=%d err=%v ua=%q origin=%q conn=%q upgrade=%q", status, reason, r.UserAgent(), r.Header.Get("Origin"), r.Header.Get("Connection"), r.Header.Get("Upgrade"))
-		http.Error(w, "WS upgrade failed", status)
-	},
+	}
+	for _, allowed := range wsAllowedOrigins() {
+		if origin == allowed {
+			return true
+		}
+	}
+	return false
+}
+
+func wsAllowedOrigins() []string {
+	raw := strings.TrimSpace(os.Getenv("WS_ALLOWED_ORIGINS"))
+	if raw != "" {
+		var out []string
+		for _, p := range strings.Split(raw, ",") {
+			p = strings.TrimSpace(p)
+			if p != "" {
+				out = append(out, p)
+			}
+		}
+		return out
+	}
+	// Local dev defaults only; production frontends must set WS_ALLOWED_ORIGINS.
+	return []string{
+		"http://localhost:5173",
+		"http://127.0.0.1:5173",
+		"http://localhost:8080",
+		"http://127.0.0.1:8080",
+		"http://localhost:4173",
+		"http://127.0.0.1:4173",
+	}
+}
+
+func tokenFromSecWebSocketProtocol(r *http.Request) (string, bool) {
+	raw := strings.TrimSpace(r.Header.Get("Sec-WebSocket-Protocol"))
+	if raw == "" {
+		return "", false
+	}
+	parts := strings.Split(raw, ",")
+	for i := 0; i < len(parts); i++ {
+		p := strings.TrimSpace(parts[i])
+		if strings.EqualFold(p, wsJWTSubprotocol) {
+			if i+1 >= len(parts) {
+				return "", false
+			}
+			tok := strings.TrimSpace(parts[i+1])
+			if tok == "" {
+				return "", false
+			}
+			return tok, true
+		}
+	}
+	return "", false
+}
+
+func tokenFromAuthorization(r *http.Request) (string, bool) {
+	ah := r.Header.Get("Authorization")
+	if !strings.HasPrefix(strings.ToLower(ah), "bearer ") {
+		return "", false
+	}
+	tok := strings.TrimSpace(ah[7:])
+	if tok == "" {
+		return "", false
+	}
+	return tok, true
 }
 
 type wsIn struct {
@@ -49,18 +126,13 @@ type wsOut struct {
 }
 
 func (h *WSHandler) ServeWS(w http.ResponseWriter, r *http.Request) {
-	// Browser WebSocket can't set Authorization headers reliably,
-	// so we support query param token=... as primary auth.
+	// Prefer Sec-WebSocket-Protocol: janymda.jwt, <jwt> (browser-safe; avoids ?token= in URLs).
+	// Authorization: Bearer is supported for clients that can set headers.
 	tokenStr := ""
-	if q := strings.TrimSpace(r.URL.Query().Get("token")); q != "" {
-		tokenStr = q
-	} else if q := strings.TrimSpace(r.URL.Query().Get("access_token")); q != "" {
-		tokenStr = q
-	} else {
-		ah := r.Header.Get("Authorization")
-		if strings.HasPrefix(ah, "Bearer ") {
-			tokenStr = strings.TrimSpace(strings.TrimPrefix(ah, "Bearer "))
-		}
+	if tok, ok := tokenFromSecWebSocketProtocol(r); ok {
+		tokenStr = tok
+	} else if tok, ok := tokenFromAuthorization(r); ok {
+		tokenStr = tok
 	}
 	if tokenStr == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -72,7 +144,8 @@ func (h *WSHandler) ServeWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	conn, err := wsUpgrader.Upgrade(w, r, nil)
+	up := wsUpgrader()
+	conn, err := up.Upgrade(w, r, nil)
 	if err != nil {
 		return
 	}

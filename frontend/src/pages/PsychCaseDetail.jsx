@@ -45,8 +45,6 @@ export default function PsychCaseDetail() {
     const [submitting, setSubmitting] = useState(false);
     const [submitMsg, setSubmitMsg] = useState("");
     const [assigning, setAssigning] = useState(false);
-    const [psychologists, setPsychologists] = useState([]);
-    const [selectedPsychId, setSelectedPsychId] = useState("");
 
     const role = useMemo(() => {
         const t = token();
@@ -56,27 +54,18 @@ export default function PsychCaseDetail() {
 
     useEffect(() => {
         if (!token()) { nav("/login"); return; }
-        if (role !== "psychologist" && role !== "admin" && role !== "super_admin") {
+        if (role !== "psychologist" && role !== "head_psychologist") {
             setError("Рұқсат жоқ.");
             setLoading(false);
             return;
         }
 
         setLoading(true);
-        const promises = [api(`/api/v1/psych/cases/${id}`, { auth: true })];
-        if (role === "admin" || role === "super_admin") {
-            promises.push(
-                api("/api/v1/admin/users", { auth: true })
-                    .then((users) => (Array.isArray(users) ? users : []).filter((u) => u.role === "psychologist"))
-                    .catch(() => [])
-            );
-        }
-        Promise.all(promises)
-            .then(([data, psychList]) => {
+        api(`/api/v1/psych/cases/${id}`, { auth: true })
+            .then((data) => {
                 setCaseData(data);
                 if (data.psych_score != null) setScore(String(data.psych_score));
                 if (data.psych_note) setNote(data.psych_note);
-                if (psychList) setPsychologists(psychList);
             })
             .catch((e) => setError(e.message || "Қате"))
             .finally(() => setLoading(false));
@@ -124,11 +113,11 @@ export default function PsychCaseDetail() {
     }
 
     if (loading) {
-        return <div style={S.page}><p style={S.muted}>Жүктелуде…</p></div>;
+        return <div className="psych-case-page" style={S.page}><p style={S.muted}>Жүктелуде…</p></div>;
     }
     if (error) {
         return (
-            <div style={S.page}>
+            <div className="psych-case-page" style={S.page}>
                 <div style={S.errorBanner}>{error}</div>
                 <Link to="/psych" style={S.backLink}>← Кейстер тізіміне қайту</Link>
             </div>
@@ -140,19 +129,18 @@ export default function PsychCaseDetail() {
     const isYellow = caseData.zone === "yellow";
     const isResolved = caseData.status === "resolved";
     const isRedUnassigned = isRed && !caseData.psychologist_id && role === "psychologist";
-    const isAdminCanAssign = !caseData.psychologist_id && (role === "admin" || role === "super_admin");
     const isMine = caseData.is_mine === true;
     const isChat = caseData.source_type === "chat";
     const d = new Date(caseData.created_at);
     const sc = STATUS_COLORS[caseData.status] || STATUS_COLORS.open;
 
     return (
-        <div style={S.page}>
-            <Link to="/psych" style={S.backLink}>← Кейстер тізіміне қайту</Link>
+        <div className="psych-case-page" style={S.page}>
+            <Link className="psych-case-back-link" to="/psych" style={S.backLink}>← Кейстер тізіміне қайту</Link>
 
             {/* ——— Header bar ——— */}
-            <div style={{ ...S.card, borderLeft: `3px solid ${isRed ? "#dc2626" : "#d97706"}` }}>
-                <div style={S.headerRow}>
+            <div className="psych-case-card psych-case-card--header" style={{ ...S.card, borderLeft: `3px solid ${isRed ? "#dc2626" : "#d97706"}` }}>
+                <div className="psych-case-header-row" style={S.headerRow}>
                     <div>
                         <div style={S.caseTitle}>Кейс #{caseData.id}</div>
                         <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
@@ -168,7 +156,7 @@ export default function PsychCaseDetail() {
                             {isMine && <span style={{ ...S.badge, background: "#eff6ff", color: "#2563eb" }}>Менікі</span>}
                         </div>
                     </div>
-                    <div style={S.headerRight}>
+                    <div className="psych-case-header-right" style={S.headerRight}>
                         <div style={S.metaItem}>
                             <span style={S.metaLabel}>AI балл</span>
                             <span style={{ ...S.metaValue, color: isRed ? "#dc2626" : "#d97706" }}>{caseData.ai_score}</span>
@@ -191,41 +179,26 @@ export default function PsychCaseDetail() {
 
             {/* ——— Assignment ——— */}
             {caseData.psychologist_id && (
-                <div style={{ ...S.notice, background: "#f8fafc", borderColor: "#e2e8f0" }}>
+                <div className="psych-case-notice" style={{ ...S.notice, background: "#f8fafc", borderColor: "#e2e8f0" }}>
                     {isMine ? "Бұл кейс сізге тағайындалған" : `Тағайындалған психолог ID: ${caseData.psychologist_id}`}
                 </div>
             )}
 
             {isRedUnassigned && (
-                <div style={{ ...S.notice, background: "#fef2f2", borderColor: "#fecaca" }}>
+                <div className="psych-case-notice" style={{ ...S.notice, background: "#fef2f2", borderColor: "#fecaca" }}>
                     <div style={{ flex: 1 }}>
                         <strong style={{ color: "#991b1b" }}>Тағайындалмаған кейс.</strong>
                         <span style={{ color: "#b91c1c", marginLeft: 6 }}>Қабылдағаннан кейін толық деректер ашылады.</span>
                     </div>
-                    <button type="button" disabled={assigning} onClick={() => handleAssign(null)} style={S.btnDanger}>
+                    <button className="psych-case-btn psych-case-btn--danger" type="button" disabled={assigning} onClick={() => handleAssign(null)} style={S.btnDanger}>
                         {assigning ? "..." : "Кейсті қабылдау"}
-                    </button>
-                </div>
-            )}
-
-            {isAdminCanAssign && (
-                <div style={{ ...S.notice, background: "#faf5ff", borderColor: "#e9d5ff" }}>
-                    <span style={{ fontWeight: 600, color: "#6d28d9", marginRight: 8 }}>Психолог тағайындау:</span>
-                    <select value={selectedPsychId} onChange={(e) => setSelectedPsychId(e.target.value)} style={S.select}>
-                        <option value="">— Таңдаңыз —</option>
-                        {psychologists.map((p) => (
-                            <option key={p.id} value={p.id}>{p.full_name} (ID: {p.id})</option>
-                        ))}
-                    </select>
-                    <button type="button" disabled={assigning || !selectedPsychId} onClick={() => handleAssign(Number(selectedPsychId))} style={S.btnPrimary}>
-                        {assigning ? "..." : "Тағайындау"}
                     </button>
                 </div>
             )}
 
             {/* ——— Anonymous text (yellow) ——— */}
             {isYellow && caseData.anonymous_text && (
-                <div style={S.card}>
+                <div className="psych-case-card" style={S.card}>
                     <div style={S.sectionTitle}>Анонимді мәтін <span style={S.hint}>(пациент белгісіз)</span></div>
                     <div style={{ ...S.textBlock, background: "#fffbeb", borderColor: "#fde68a" }}>
                         {caseData.anonymous_text}
@@ -235,7 +208,7 @@ export default function PsychCaseDetail() {
 
             {/* ——— Chat AI assessment details ——— */}
             {isChat && caseData.chat_assessment && (
-                <div style={S.card}>
+                <div className="psych-case-card" style={S.card}>
                     <div style={S.sectionTitle}>
                         AI чат талдауы
                         <span style={{ ...S.badge, background: "#ede9fe", color: "#6d28d9", marginLeft: 8 }}>
@@ -273,9 +246,9 @@ export default function PsychCaseDetail() {
 
             {/* ——— Patient info (red zone) ——— */}
             {!isYellow && caseData.patient && (
-                <div style={{ ...S.card, borderLeft: "3px solid #dc2626" }}>
+                <div className="psych-case-card" style={{ ...S.card, borderLeft: "3px solid #dc2626" }}>
                     <div style={S.sectionTitle}>Пациент деректері <span style={{ ...S.badge, background: "#fef2f2", color: "#dc2626", marginLeft: 8 }}>Қызыл зона</span></div>
-                    <div style={S.fieldGrid}>
+                    <div className="psych-case-field-grid" style={S.fieldGrid}>
                         <Field label="Аты-жөні" value={caseData.patient.full_name} />
                         <Field label="Телефон" value={caseData.patient.phone} />
                         {caseData.patient.iin && <Field label="ЖСН" value={caseData.patient.iin} />}
@@ -286,12 +259,12 @@ export default function PsychCaseDetail() {
 
             {/* ——— Diary entries ——— */}
             {caseData.diary_entries && caseData.diary_entries.length > 0 && (
-                <div style={S.card}>
+                <div className="psych-case-card" style={S.card}>
                     <div style={S.sectionTitle}>
                         Күнделік жазбалары
                         <span style={S.countBadge}>{caseData.diary_entries.length}</span>
                     </div>
-                    <div style={{ maxHeight: 420, overflowY: "auto" }}>
+                    <div className="psych-case-diary-list" style={{ maxHeight: 420, overflowY: "auto" }}>
                         {caseData.diary_entries.map((entry, i) => {
                             const ed = new Date(entry.created_at);
                             const opt = MOOD_OPTIONS.find((o) => o.value === entry.mood);
@@ -340,7 +313,7 @@ export default function PsychCaseDetail() {
 
             {/* ——— Review form ——— */}
             {!isResolved && (
-                <div style={S.card}>
+                <div className="psych-case-card" style={S.card}>
                     <div style={S.sectionTitle}>Бағалау</div>
 
                     {isYellow && (
@@ -349,10 +322,11 @@ export default function PsychCaseDetail() {
                         </div>
                     )}
 
-                    <form onSubmit={handleSubmit}>
+                    <form className="psych-case-form" onSubmit={handleSubmit}>
                         <div style={{ marginBottom: 14 }}>
                             <label style={S.formLabel}>Сіздің бағаңыз (0–100)</label>
                             <input
+                                className="psych-case-input"
                                 type="number" min="0" max="100"
                                 value={score}
                                 onChange={(e) => setScore(e.target.value)}
@@ -363,6 +337,7 @@ export default function PsychCaseDetail() {
                         <div style={{ marginBottom: 16 }}>
                             <label style={S.formLabel}>Жазба / ескертпе</label>
                             <textarea
+                                className="psych-case-textarea"
                                 rows={3}
                                 value={note}
                                 onChange={(e) => setNote(e.target.value)}
@@ -384,7 +359,7 @@ export default function PsychCaseDetail() {
                             </div>
                         )}
 
-                        <button type="submit" disabled={submitting} style={S.btnPrimary}>
+                        <button className="psych-case-btn psych-case-btn--primary" type="submit" disabled={submitting} style={S.btnPrimary}>
                             {submitting ? "Сақталуда…" : "Бағалауды сақтау"}
                         </button>
                     </form>

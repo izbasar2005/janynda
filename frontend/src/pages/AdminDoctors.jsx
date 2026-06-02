@@ -20,6 +20,7 @@ export default function AdminDoctors() {
 
     const [form, setForm] = useState({});
     const [uploading, setUploading] = useState({});
+    const formRef = useRef({});
 
     const fileRefs = useRef({}); // fileRefs.current[uid] = inputEl
 
@@ -30,13 +31,17 @@ export default function AdminDoctors() {
             return;
         }
         const role = parseJwt(t)?.role;
-        if (role !== "admin") {
-            setMsg("Бұл бет тек admin үшін.");
+        if (role !== "admin" && role !== "super_admin") {
+            setMsg("Бұл бет тек admin немесе super_admin үшін.");
             return;
         }
         load();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    useEffect(() => {
+        formRef.current = form;
+    }, [form]);
 
     async function load() {
         setLoading(true);
@@ -104,8 +109,28 @@ export default function AdminDoctors() {
                 data = {};
             }
 
-            setField(uid, "photo_url", data.url || "");
-            alert("Фото жүктелді ✅");
+            const url = (data.url || "").trim();
+            setField(uid, "photo_url", url);
+
+            // UX fix: if profile exists, persist immediately so refresh won't revert.
+            const current = formRef.current[uid] || {};
+            if (current.has_profile) {
+                const specialty = (current.specialty || "").trim();
+                const experience = parseInt(current.experience || 0, 10);
+                const price = parseInt(current.price || 0, 10);
+                const education = (current.education || "").trim();
+                const languages = (current.languages || "").trim();
+
+                if (specialty) {
+                    await api(`/api/v1/admin/doctors/${uid}`, {
+                        method: "PUT",
+                        auth: true,
+                        body: { specialty, experience, price, photo_url: url, education, languages },
+                    });
+                }
+            }
+
+            alert("Фото жүктелді және сақталды ✅");
         } catch (e) {
             alert("Upload қате: " + e.message);
         } finally {

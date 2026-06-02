@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"janymda/internal/auth"
 	"janymda/internal/model"
 	"net/http"
 	"os"
@@ -17,6 +18,11 @@ func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
+	}
+
+	if err := auth.ValidateJWTSecretFromEnv(); err != nil {
+		fmt.Fprintf(os.Stderr, "jwt config: %v\n", err)
+		os.Exit(1)
 	}
 
 	db, err := storage.NewGormFromEnv()
@@ -73,6 +79,9 @@ func main() {
 		panic(err)
 	}
 	if err := db.AutoMigrate(&model.PatientAiScore{}); err != nil {
+		panic(err)
+	}
+	if err := db.AutoMigrate(&model.PsychAssignment{}); err != nil {
 		panic(err)
 	}
 

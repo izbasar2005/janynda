@@ -57,7 +57,7 @@ export default function Diary() {
         const p = parseJwt(t);
         return (p?.role || "patient").toLowerCase();
     }, []);
-    const canSeeAi = currentRole === "psychologist" || currentRole === "admin" || currentRole === "super_admin";
+    const canSeeAi = currentRole === "psychologist";
 
     useEffect(() => {
         let off = false;
@@ -124,9 +124,9 @@ export default function Diary() {
     const selectedMood = MOOD.find((m) => m.value === mood);
 
     return (
-        <div style={S.page}>
+        <div className="diary-page" style={S.page}>
             {/* ===== TOP: greeting + streak ===== */}
-            <div style={S.topBar}>
+            <div className="diary-topbar" style={S.topBar}>
                 <div>
                     <h1 style={S.title}>
                         <span style={{ marginRight: 8 }}>{greeting.icon}</span>
@@ -134,7 +134,7 @@ export default function Diary() {
                     </h1>
                     <p style={S.greet}>{greeting.text}</p>
                 </div>
-                <div style={S.topRight}>
+                <div className="diary-topbar__right" style={S.topRight}>
                     {streak > 0 && (
                         <div style={S.streak}>
                             <span style={S.streakFire}>🔥</span>
@@ -149,10 +149,10 @@ export default function Diary() {
             </div>
 
             {/* ===== MAIN GRID: form + calendar ===== */}
-            <div style={S.grid}>
+            <div className="diary-grid" style={S.grid}>
                 {/* LEFT — write */}
-                <div style={S.left}>
-                    <div style={{
+                <div className="diary-grid__left" style={S.left}>
+                    <div className="diary-form-card" style={{
                         ...S.formCard,
                         borderColor: selectedMood ? selectedMood.color + "55" : "#e8e8e8",
                         background: selectedMood ? selectedMood.bg : "#fff",
@@ -162,7 +162,7 @@ export default function Diary() {
                         <form onSubmit={handleSubmit}>
                             {/* Mood */}
                             <p style={S.label}>Қалыңыз қалай?</p>
-                            <div style={S.moodRow}>
+                            <div className="diary-mood-row" style={S.moodRow}>
                                 {MOOD.map((m) => (
                                     <button
                                         key={m.value}
@@ -184,7 +184,7 @@ export default function Diary() {
                             </div>
 
                             {/* Prompts */}
-                            <div style={S.prompts}>
+                            <div className="diary-prompts" style={S.prompts}>
                                 {PROMPTS.map((p) => (
                                     <button
                                         key={p} type="button" style={S.chip}
@@ -197,6 +197,7 @@ export default function Diary() {
 
                             {/* Textarea */}
                             <textarea
+                                className="diary-textarea"
                                 style={S.textarea}
                                 rows={6}
                                 placeholder="Ойыңызды, сезіміңізді еркін жазыңыз...&#10;Тек көңіл-күй таңдау да жеткілікті 🤍"
@@ -207,7 +208,7 @@ export default function Diary() {
                             {error && <div style={S.errBox}>{error}</div>}
                             {success && <div style={S.okBox}>{success}</div>}
 
-                            <button type="submit" disabled={saving} className="btn" style={S.submit}>
+                            <button type="submit" disabled={saving} className="btn diary-submit-btn" style={S.submit}>
                                 {saving ? "Сақталуда..." : "Жазбаны сақтау 📖"}
                             </button>
                         </form>
@@ -215,7 +216,7 @@ export default function Diary() {
                 </div>
 
                 {/* RIGHT — calendar + stats */}
-                <div style={S.right}>
+                <div className="diary-grid__right" style={S.right}>
                     <MiniCalendar
                         year={viewMonth.year} month={viewMonth.month}
                         entryDates={entryDates}
@@ -236,8 +237,8 @@ export default function Diary() {
             </div>
 
             {/* ===== HISTORY ===== */}
-            <div style={S.historyBlock}>
-                <div style={S.historyHead}>
+            <div className="diary-history" style={S.historyBlock}>
+                <div className="diary-history__head" style={S.historyHead}>
                     <h2 style={S.historyTitle}>Соңғы жазбалар</h2>
                     {totalEntries > 6 && (
                         <button type="button" style={S.toggleBtn} onClick={() => setShowAll(!showAll)}>
@@ -256,7 +257,7 @@ export default function Diary() {
                     </div>
                 )}
                 {!loading && visibleEntries.length > 0 && (
-                    <div style={S.entriesGrid}>
+                    <div className="diary-entries-grid" style={S.entriesGrid}>
                         {visibleEntries.map((entry) => (
                             <EntryCard key={entry.id} entry={entry} canSeeAi={canSeeAi} />
                         ))}

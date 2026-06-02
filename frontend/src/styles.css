@@ -4830,3 +4830,794 @@ h3{
 .chat-video-link--old:hover{ background:rgba(15,23,42,.18); color:rgba(15,23,42,.85); }
 .chat-form{ display:flex; gap:10px; padding:14px; border-top:1px solid var(--border); }
 .chat-input{ flex:1; }
+
+/* =========================
+   MOBILE ADAPTATION LAYER
+   (global + complex pages)
+========================= */
+@media (max-width: 900px){
+    .container{
+        padding:0 12px;
+    }
+    .app-main{
+        padding-bottom:28px;
+    }
+    .page{
+        margin-top:16px;
+    }
+    .card{
+        padding:14px;
+        border-radius:14px;
+    }
+    .page-header{
+        align-items:flex-start;
+        margin-bottom:12px;
+    }
+    .page-header__actions{
+        width:100%;
+    }
+    .form-row{
+        gap:10px;
+    }
+    .form-field{
+        min-width:0;
+    }
+    .table-wrap{
+        overflow-x:auto;
+        -webkit-overflow-scrolling:touch;
+    }
+    .table th,
+    .table td{
+        padding:10px;
+    }
+    .app-header__inner{
+        flex-wrap:wrap;
+        row-gap:10px;
+    }
+    .app-brand{
+        min-width:0;
+        flex:1 1 auto;
+    }
+    .app-header__right{
+        min-width:0;
+        gap:10px;
+        margin-left:auto;
+    }
+    .app-nav{
+        order:3;
+        flex:0 0 100%;
+        justify-content:flex-start;
+        gap:14px;
+        overflow-x:auto;
+        white-space:nowrap;
+        padding-bottom:2px;
+    }
+    .app-nav__link{
+        flex:0 0 auto;
+        font-size:11px;
+        padding-bottom:4px;
+    }
+    .app-footer__inner{
+        grid-template-columns:repeat(2, minmax(0, 1fr));
+        gap:16px;
+    }
+    .app-footer__bottom{
+        padding:14px 12px 18px;
+    }
+    .admin-news__form-top{
+        flex-direction:column;
+        align-items:flex-start;
+    }
+    .admin-news__form-top > div:last-child{
+        width:100%;
+        display:flex;
+        flex-wrap:wrap;
+        gap:8px;
+    }
+    .admin-news__form-top .btn{
+        flex:1 1 150px;
+    }
+    .admin-users-rolecell{
+        min-width:160px;
+    }
+    .chat-card{
+        max-height:72vh;
+    }
+    .chat-messages{
+        padding:12px;
+    }
+    .chat-form{
+        padding:10px;
+        gap:8px;
+    }
+}
+
+@media (max-width: 640px){
+    .container{
+        padding:0 10px;
+    }
+    .page{
+        margin-top:12px;
+    }
+    .card{
+        padding:12px;
+        border-radius:12px;
+    }
+    .form-row{
+        flex-direction:column;
+    }
+    .form-field{
+        width:100%;
+    }
+    .btn,
+    button{
+        min-height:40px;
+    }
+    .table{
+        min-width:620px;
+    }
+    .app-header__inner{
+        padding:10px;
+        gap:10px;
+    }
+    .app-header__notif,
+    .app-header__diary-link,
+    .app-user__avatar{
+        width:40px;
+        height:40px;
+    }
+    .app-authlinks{
+        gap:10px;
+    }
+    .app-footer__inner{
+        grid-template-columns:1fr;
+    }
+    .app-footcol{
+        text-align:left;
+    }
+    .app-news{
+        flex-wrap:wrap;
+    }
+    .app-news__btn{
+        width:100%;
+        height:34px;
+    }
+    .chat-card{
+        max-height:68vh;
+    }
+    .chat-form{
+        flex-wrap:wrap;
+    }
+    .chat-form > button{
+        width:100%;
+    }
+    .groups-chat__composer{
+        flex-wrap:wrap;
+    }
+    .groups-chat__send{
+        width:100%;
+    }
+}
+
+@media (max-width: 480px){
+    .app-brand__text{
+        font-size:16px;
+    }
+    .app-nav{
+        gap:12px;
+    }
+    .app-nav__link{
+        font-size:10.5px;
+        letter-spacing:.06em;
+    }
+    .page-header__title{
+        font-size:20px;
+    }
+    .table{
+        min-width:560px;
+    }
+}
+
+@media (max-width: 900px){
+    .diary-page{
+        padding:20px 12px 42px !important;
+    }
+    .diary-grid{
+        grid-template-columns:1fr !important;
+        gap:16px !important;
+    }
+    .diary-topbar{
+        gap:12px !important;
+        margin-bottom:16px !important;
+    }
+    .diary-topbar__right{
+        width:100%;
+        justify-content:flex-start !important;
+        flex-wrap:wrap;
+    }
+    .diary-form-card{
+        padding:18px 16px 16px !important;
+        border-radius:16px !important;
+    }
+    .diary-submit-btn{
+        width:100%;
+        min-width:0 !important;
+    }
+    .diary-history{
+        margin-top:26px !important;
+    }
+    .diary-history__head{
+        flex-direction:column;
+        align-items:flex-start !important;
+        gap:8px !important;
+    }
+    .diary-entries-grid{
+        grid-template-columns:1fr !important;
+    }
+}
+
+@media (max-width: 520px){
+    .diary-page{
+        padding:16px 8px 34px !important;
+    }
+    .diary-mood-row{
+        display:grid !important;
+        grid-template-columns:repeat(3, minmax(0, 1fr));
+        gap:8px !important;
+    }
+    .diary-mood-row > button{
+        width:100%;
+        min-width:0 !important;
+        padding:8px 6px !important;
+    }
+    .diary-prompts > button{
+        width:100%;
+        text-align:left;
+    }
+    .diary-textarea{
+        min-height:110px !important;
+        font-size:14px !important;
+    }
+}
+
+@media (max-width: 900px){
+    .psych-dashboard-page{
+        padding:22px 14px 44px !important;
+    }
+    .psych-dashboard-main-tabs{
+        overflow-x:auto;
+        white-space:nowrap;
+        margin-bottom:18px !important;
+    }
+    .psych-dashboard-main-tabs button{
+        flex:0 0 auto;
+        padding:10px 14px !important;
+        font-size:13px !important;
+    }
+    .psych-dashboard-stats-row{
+        grid-template-columns:repeat(2, minmax(0, 1fr)) !important;
+        gap:10px !important;
+    }
+    .psych-dashboard-filters{
+        flex-direction:column;
+        align-items:stretch !important;
+        gap:10px !important;
+    }
+    .psych-dashboard-filter-group{
+        flex-wrap:wrap;
+        gap:6px !important;
+    }
+    .psych-dashboard-divider{
+        display:none !important;
+    }
+    .psych-dashboard-table-wrap{
+        overflow-x:auto !important;
+        -webkit-overflow-scrolling:touch;
+    }
+    .psych-dashboard-table-wrap > *{
+        min-width:760px;
+    }
+    .psych-dashboard-table-header{
+        padding:10px 14px !important;
+    }
+    .psych-dashboard-row{
+        padding:12px 14px !important;
+    }
+}
+
+@media (max-width: 560px){
+    .psych-dashboard-page{
+        padding:18px 10px 36px !important;
+    }
+    .psych-dashboard-stats-row{
+        grid-template-columns:1fr !important;
+    }
+    .psych-dashboard-main-tabs button{
+        padding:9px 12px !important;
+    }
+}
+
+@media (max-width: 900px){
+    .psych-case-page{
+        padding:22px 14px 44px !important;
+    }
+    .psych-case-card{
+        padding:16px 14px !important;
+    }
+    .psych-case-header-row{
+        flex-direction:column;
+        align-items:flex-start !important;
+        gap:12px !important;
+    }
+    .psych-case-header-right{
+        width:100%;
+        display:grid !important;
+        grid-template-columns:repeat(2, minmax(0, 1fr));
+        gap:10px !important;
+    }
+    .psych-case-notice{
+        align-items:flex-start !important;
+    }
+    .psych-case-field-grid{
+        grid-template-columns:1fr !important;
+    }
+    .psych-case-diary-list{
+        max-height:none !important;
+    }
+    .psych-case-input,
+    .psych-case-textarea,
+    .psych-case-select{
+        width:100% !important;
+        max-width:none !important;
+    }
+    .psych-case-btn{
+        width:100%;
+        text-align:center;
+    }
+}
+
+@media (max-width: 520px){
+    .psych-case-page{
+        padding:16px 8px 30px !important;
+    }
+    .psych-case-header-right{
+        grid-template-columns:1fr !important;
+    }
+    .psych-case-btn{
+        padding:10px 14px !important;
+    }
+    .psych-case-back-link{
+        font-size:12px !important;
+    }
+}
+
+/* ============================================================
+   Топтар — жаңартылған заманауи дизайн (бірыңғай ақ/индиго стиль)
+   ============================================================ */
+.groups-page{
+    --wa-bg:#f8fafc;
+    --wa-panel:#ffffff;
+    --wa-border:#e2e8f0;
+    --wa-own:#4f46e5;
+    --wa-other:#ffffff;
+    max-width:1100px;
+    margin:0 auto;
+}
+.groups-page .page-header__title{
+    font-size:24px;
+    font-weight:700;
+    color:#0f172a;
+}
+
+/* Хабарландыру (toast) */
+.groups-toast{
+    background:#0f172a;
+    box-shadow:0 12px 30px rgba(15,23,42,.28);
+    border-radius:12px;
+    padding:11px 18px;
+}
+.groups-status{
+    background:#eef2ff;
+    border:1px solid #c7d2fe;
+    color:#4338ca;
+    border-radius:12px;
+}
+
+/* Чат қабығы */
+.groups-chat-shell{
+    grid-template-columns:340px 1fr;
+    border:1px solid #e2e8f0;
+    border-radius:18px;
+    background:#fff;
+    box-shadow:0 10px 40px rgba(15,23,42,.06);
+    height:min(740px, calc(100vh - 170px));
+}
+
+/* Сайдбар */
+.groups-sidebar{
+    background:#fff;
+    border-right:1px solid #eef2f6;
+}
+.groups-sidebar__head{
+    font-size:12px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    color:#94a3b8;
+    padding:16px 16px 10px;
+    border-bottom:none;
+}
+.groups-sidebar__head--sub{
+    margin-top:4px;
+    border-top:1px solid #eef2f6;
+    padding-top:14px;
+}
+.groups-sidebar__plus{
+    width:32px;
+    height:32px;
+    border-radius:10px;
+    font-size:20px;
+    background:#4f46e5;
+    box-shadow:0 6px 14px rgba(79,70,229,.30);
+}
+.groups-sidebar__plus:hover{
+    box-shadow:0 8px 18px rgba(79,70,229,.40);
+}
+.groups-sidebar__plus:focus-visible{
+    box-shadow:0 0 0 3px rgba(99,102,241,.30), 0 6px 14px rgba(79,70,229,.30);
+}
+
+/* Топ/чат тізімі */
+.groups-list__item{
+    padding:11px 14px;
+    margin:2px 8px;
+    border-radius:12px;
+    border-bottom:none;
+    transition:background .12s ease;
+}
+.groups-list__item:hover{
+    background:#f1f5f9;
+}
+.groups-list__item.is-active{
+    background:#eef2ff;
+    position:relative;
+}
+.groups-list__item.is-active::before{
+    content:"";
+    position:absolute;
+    left:3px;
+    top:10px;
+    bottom:10px;
+    width:3px;
+    border-radius:999px;
+    background:#4f46e5;
+}
+.groups-list__avatar{
+    width:42px;
+    height:42px;
+    border-radius:50%;
+    background:linear-gradient(135deg, #6366f1, #4f46e5);
+}
+.groups-list__name{
+    color:#0f172a;
+    font-weight:700;
+    font-size:14px;
+}
+.groups-list__meta{
+    font-size:12.5px;
+    color:#94a3b8;
+    font-weight:500;
+}
+.groups-list__time{
+    color:#94a3b8;
+    font-weight:600;
+}
+.groups-list__badge{
+    background:#4f46e5;
+    height:20px;
+    min-width:20px;
+}
+.groups-sidebar__empty{
+    color:#94a3b8;
+    font-size:13px;
+}
+
+/* Чат аймағы */
+.groups-chat{
+    background:#f8fafc;
+}
+.groups-chat__placeholder{
+    background:#fff;
+    border:1px dashed #cbd5e1;
+    border-radius:14px;
+    color:#94a3b8;
+    padding:18px 22px;
+    font-size:14px;
+}
+.groups-chat__head{
+    background:#fff;
+    border-bottom:1px solid #eef2f6;
+    padding:12px 16px;
+}
+.groups-chat__head--clickable:hover{
+    background:#f8fafc;
+}
+.groups-chat__avatar{
+    width:40px;
+    height:40px;
+    background:linear-gradient(135deg, #6366f1, #4f46e5);
+}
+.groups-chat__title-btn{
+    color:#0f172a;
+    font-size:15px;
+}
+.groups-chat__title-btn:hover{
+    color:#4f46e5;
+}
+.groups-chat__subtitle{
+    color:#94a3b8;
+}
+.groups-chat__edit-btn{
+    border:1px solid #e2e8f0;
+    background:#fff;
+    color:#475569;
+    border-radius:9px;
+    font-weight:600;
+}
+.groups-chat__edit-btn:hover{
+    background:#f1f5f9;
+    color:#0f172a;
+}
+
+/* Хабарламалар */
+.groups-chat__messages{
+    padding:18px 16px;
+    gap:6px;
+    background:
+        radial-gradient(circle at 20% 10%, rgba(99,102,241,.04), transparent 40%),
+        #f8fafc;
+}
+.groups-msg{
+    border:1px solid #eef2f6;
+    border-radius:14px 14px 14px 4px;
+    padding:9px 13px;
+    box-shadow:0 1px 2px rgba(15,23,42,.05);
+}
+.groups-msg.is-own{
+    background:#4f46e5;
+    border-color:#4f46e5;
+    border-radius:14px 14px 4px 14px;
+}
+.groups-msg.is-own .groups-msg__body{
+    color:#fff;
+}
+.groups-msg.is-own .groups-msg__meta{
+    color:rgba(255,255,255,.78);
+}
+.groups-msg.is-own .groups-msg__read{
+    color:rgba(255,255,255,.85);
+}
+.groups-msg__meta{
+    font-size:11px;
+    color:#94a3b8;
+}
+.groups-msg__system{
+    background:#eef2f6;
+    color:#64748b;
+}
+
+/* Жазу жолы (composer) */
+.groups-chat__composer{
+    background:#fff;
+    border-top:1px solid #eef2f6;
+    padding:12px 14px;
+    gap:10px;
+}
+.groups-chat__input{
+    border-radius:999px;
+    border:1px solid #cbd5e1;
+    padding:11px 18px;
+    background:#f8fafc;
+}
+.groups-chat__input:focus{
+    outline:none;
+    border-color:#a5b4fc;
+    background:#fff;
+    box-shadow:0 0 0 3px rgba(99,102,241,.15);
+}
+.groups-chat__send{
+    background:#4f46e5;
+    border:none;
+    border-radius:999px;
+    padding:11px 22px;
+    font-weight:600;
+    color:#fff;
+}
+.groups-chat__send:hover{
+    background:#4338ca;
+}
+
+/* Топ туралы карточка */
+.groups-info-card{
+    border:1px solid #e2e8f0;
+    border-radius:16px;
+    background:#fff;
+    box-shadow:0 8px 24px rgba(15,23,42,.05);
+}
+.groups-info-card::before{
+    background:linear-gradient(90deg, #6366f1, #4f46e5);
+}
+.groups-info-card__row:first-child strong{
+    color:#0f172a;
+}
+.groups-info-card__row:nth-child(2) strong{
+    color:#4338ca;
+    border-color:#c7d2fe;
+    background:#eef2ff;
+}
+.groups-info-card__desc{
+    background:#f8fafc;
+    border-color:#eef2f6;
+    color:#475569;
+}
+.groups-info-card__members-title{
+    color:#64748b;
+}
+
+/* Шағын қатысушылар тізімі */
+.groups-members-mini__item{
+    background:#f1f5f9;
+    border:1px solid #e2e8f0;
+    color:#334155;
+    box-shadow:none;
+}
+.groups-members-mini__chatbtn{
+    background:#4f46e5;
+}
+.groups-members-mini__chatbtn:hover{
+    background:#4338ca;
+}
+
+/* Құру/баптау батырмалары мен формалары */
+.groups-create-inline{
+    border:1px solid #e2e8f0;
+    background:#f8fafc;
+    border-radius:14px;
+}
+.groups-create-inline__toggle{
+    border:1px solid #e2e8f0;
+    background:#fff;
+    color:#4338ca;
+    border-radius:9px;
+}
+.groups-create-inline__toggle:hover{
+    background:#eef2ff;
+}
+.groups-create-member-picker__add,
+.groups-create-inline .btn{
+    background:#4f46e5;
+    border-radius:9px;
+}
+.groups-create-member-picker__add:not(:disabled):hover,
+.groups-create-inline .btn:hover{
+    background:#4338ca;
+}
+.groups-create-check.is-checked{
+    background:#eef2ff;
+}
+.groups-create-check.is-checked .groups-create-check__mark{
+    background:#4f46e5;
+    border-color:#4f46e5;
+}
+.groups-create-check__mark{
+    border-color:#cbd5e1;
+}
+.groups-create-members__item{
+    border:1px solid #c7d2fe;
+    background:#eef2ff;
+    color:#4338ca;
+}
+.groups-settings-modal__title{
+    color:#0f172a;
+}
+.groups-settings-modal__close{
+    border:1px solid #e2e8f0;
+    background:#fff;
+    color:#475569;
+}
+.groups-settings-modal__close:hover{
+    background:#f1f5f9;
+}
+.groups-inline-settings__title{
+    color:#4338ca;
+}
+.groups-inline-settings__edit,
+.groups-inline-settings__add{
+    border:1px solid #e2e8f0;
+    border-radius:12px;
+}
+
+/* Сайдбар қойындылары: Топтар / Жеке чаттар */
+.groups-sidebar__tabs{
+    display:flex;
+    gap:6px;
+    padding:12px 12px 10px;
+    border-bottom:1px solid #eef2f6;
+}
+.groups-sidebar__tab{
+    flex:1;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:7px;
+    padding:9px 10px;
+    border:1px solid #e2e8f0;
+    border-radius:10px;
+    background:#fff;
+    color:#64748b;
+    font-size:13px;
+    font-weight:700;
+    cursor:pointer;
+    transition:all .12s ease;
+}
+.groups-sidebar__tab:hover{
+    background:#f8fafc;
+    color:#0f172a;
+}
+.groups-sidebar__tab.is-active{
+    background:#4f46e5;
+    border-color:#4f46e5;
+    color:#fff;
+    box-shadow:0 6px 14px rgba(79,70,229,.25);
+}
+.groups-sidebar__tab-count{
+    min-width:20px;
+    padding:1px 7px;
+    border-radius:999px;
+    background:#f1f5f9;
+    color:#64748b;
+    font-size:12px;
+    font-weight:700;
+}
+.groups-sidebar__tab.is-active .groups-sidebar__tab-count{
+    background:rgba(255,255,255,.22);
+    color:#fff;
+}
+.groups-sidebar__tab-badge{
+    min-width:20px;
+    height:20px;
+    padding:0 6px;
+    border-radius:999px;
+    background:#ef4444;
+    color:#fff;
+    font-size:11px;
+    font-weight:800;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+}
+.groups-sidebar__tab.is-active .groups-sidebar__tab-badge{
+    background:#fff;
+    color:#4f46e5;
+}
+.groups-sidebar__actions{
+    padding:10px 12px 4px;
+}
+.groups-sidebar__create{
+    width:100%;
+    padding:9px 12px;
+    border:1px dashed #c7d2fe;
+    border-radius:10px;
+    background:#eef2ff;
+    color:#4338ca;
+    font-size:13px;
+    font-weight:700;
+    cursor:pointer;
+    transition:all .12s ease;
+}
+.groups-sidebar__create:hover{
+    background:#e0e7ff;
+}
+.groups-sidebar .groups-list{
+    overflow-y:auto;
+}

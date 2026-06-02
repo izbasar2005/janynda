@@ -165,7 +165,7 @@ func NewRouter(db *gorm.DB) http.Handler {
 	mux.Handle("/api/v1/groups/candidates", middleware.AuthJWT(http.HandlerFunc(gh.ListCandidates)))
 	mux.Handle("/api/v1/groups/", middleware.AuthJWT(http.HandlerFunc(gh.HandleWithID)))
 
-	// WebSocket realtime (JWT via query token or Authorization)
+	// WebSocket realtime (JWT via Sec-WebSocket-Protocol or Authorization)
 	wsH := handler.NewWSHandler(db, hub)
 	mux.HandleFunc("/api/v1/ws", wsH.ServeWS)
 
@@ -194,16 +194,16 @@ func NewRouter(db *gorm.DB) http.Handler {
 		middleware.AuthJWT(http.HandlerFunc(refH.GetByID)),
 	)
 
-	// Patient AI scores (psychologist, admin, super_admin)
+	// Patient AI scores (psychologist + head_psychologist)
 	psh := handler.NewPatientScoreHandler(db)
 	mux.Handle("/api/v1/psych/patients",
 		middleware.AuthJWT(
-			middleware.PsychologistOrAdmin(http.HandlerFunc(psh.ListPatients)),
+			middleware.PsychologistOrHead(http.HandlerFunc(psh.ListPatients)),
 		),
 	)
 	mux.Handle("/api/v1/patients/",
 		middleware.AuthJWT(
-			middleware.PsychologistOrAdmin(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			middleware.PsychologistOrHead(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if strings.HasSuffix(r.URL.Path, "/ai-score") {
 					psh.GetPatientScore(w, r)
 					return
@@ -213,15 +213,15 @@ func NewRouter(db *gorm.DB) http.Handler {
 		),
 	)
 
-	// Psychologist cases (psychologist, admin, super_admin)
+	// Psychologist cases (psychologist + head_psychologist)
 	pch := handler.NewPsychCaseHandler(db)
 	mux.Handle("/api/v1/psych/cases",
 		middleware.AuthJWT(
-			middleware.PsychologistOrAdmin(http.HandlerFunc(pch.List)),
+			middleware.PsychologistOrHead(http.HandlerFunc(pch.List)),
 		),
 	)
 	mux.Handle("/api/v1/psych/cases/", middleware.AuthJWT(
-		middleware.PsychologistOrAdmin(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		middleware.PsychologistOrHead(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if strings.HasSuffix(r.URL.Path, "/diary") {
 				pch.CaseDiary(w, r)
 				return
@@ -237,6 +237,24 @@ func NewRouter(db *gorm.DB) http.Handler {
 			pch.GetByID(w, r)
 		})),
 	))
+
+	// Распределение пациентов по психологам (только главный психолог).
+	pah := handler.NewPsychAssignmentHandler(db)
+	mux.Handle("/api/v1/psych/psychologists",
+		middleware.AuthJWT(
+			middleware.HeadPsychologistOnly(http.HandlerFunc(pah.ListPsychologists)),
+		),
+	)
+	mux.Handle("/api/v1/psych/assignments",
+		middleware.AuthJWT(
+			middleware.HeadPsychologistOnly(http.HandlerFunc(pah.Assign)),
+		),
+	)
+	mux.Handle("/api/v1/psych/assignments/",
+		middleware.AuthJWT(
+			middleware.HeadPsychologistOnly(http.HandlerFunc(pah.Unassign)),
+		),
+	)
 
 	// GET /api/v1/appointments/all (super_admin only — барлық жазылулар тек супер админге)
 	mux.Handle("/api/v1/appointments/all",

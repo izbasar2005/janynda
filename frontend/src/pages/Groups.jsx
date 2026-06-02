@@ -38,6 +38,7 @@ export default function Groups() {
     const [members, setMembers] = useState([]);
     const [msgText, setMsgText] = useState("");
     const [status, setStatus] = useState("");
+    const [sideTab, setSideTab] = useState("groups"); // "groups" | "direct"
 
     const [newGroup, setNewGroup] = useState({ name: "", diagnosis_type: "", description: "", photo_url: "" });
     const [newGroupMembers, setNewGroupMembers] = useState([]);
@@ -94,6 +95,9 @@ export default function Groups() {
         if (v === "admin") return "Админ";
         if (v === "super_admin") return "Сүпер админ";
         if (v === "patient") return "Пациент";
+        if (v === "volunteer") return "Волонтёр";
+        if (v === "psychologist") return "Психолог";
+        if (v === "head_psychologist") return "Бас психолог";
         return role || "—";
     }
 
@@ -835,6 +839,7 @@ export default function Groups() {
                 photo_url: "",
             };
             setActiveDirect(next);
+            setSideTab("direct");
             setDirectMessages([]);
             initialDirectScrollDoneRef.current = false;
             directAutoScrollOnceRef.current = false;
@@ -903,6 +908,8 @@ export default function Groups() {
         );
     }
 
+    const totalDirectUnread = Object.values(unreadByChat).reduce((a, b) => a + Number(b || 0), 0);
+
     return (
         <div className="page groups-page">
             {toastText && (
@@ -921,19 +928,40 @@ export default function Groups() {
 
             <div className="groups-chat-shell">
                 <aside className="groups-sidebar">
-                    <div className="groups-sidebar__head">
-                        <span>Менің топтарым</span>
-                        {canManage && (
+                    <div className="groups-sidebar__tabs">
+                        <button
+                            type="button"
+                            className={`groups-sidebar__tab ${sideTab === "groups" ? "is-active" : ""}`}
+                            onClick={() => setSideTab("groups")}
+                        >
+                            Топтар
+                            <span className="groups-sidebar__tab-count">{myGroups.length}</span>
+                        </button>
+                        <button
+                            type="button"
+                            className={`groups-sidebar__tab ${sideTab === "direct" ? "is-active" : ""}`}
+                            onClick={() => setSideTab("direct")}
+                        >
+                            Жеке чаттар
+                            {totalDirectUnread > 0 && (
+                                <span className="groups-sidebar__tab-badge">{totalDirectUnread}</span>
+                            )}
+                        </button>
+                    </div>
+
+                    {sideTab === "groups" && (
+                    <>
+                    {canManage && (
+                        <div className="groups-sidebar__actions">
                             <button
                                 type="button"
-                                className="groups-sidebar__plus"
+                                className="groups-sidebar__create"
                                 onClick={() => setCreateOpen((v) => !v)}
-                                title="Создать группу"
                             >
-                                +
+                                {createOpen ? "Жабу" : "+ Жаңа топ құру"}
                             </button>
-                        )}
-                    </div>
+                        </div>
+                    )}
                     {canManage && createOpen && (
                         <form className="groups-create-inline" onSubmit={createGroup}>
                             <input
@@ -1008,9 +1036,9 @@ export default function Groups() {
                                             value={createMemberRole}
                                             onChange={(e) => setCreateMemberRole(e.target.value)}
                                         >
-                                            <option value="patient">patient</option>
-                                            <option value="doctor">doctor</option>
-                                            <option value="volunteer">volunteer</option>
+                                            <option value="patient">Пациент</option>
+                                            <option value="doctor">Дәрігер</option>
+                                            <option value="volunteer">Волонтёр</option>
                                         </select>
                                         <div className="groups-create-checklist">
                                             {createCandidateUsers.length === 0 ? (
@@ -1056,7 +1084,7 @@ export default function Groups() {
                                         ) : (
                                             newGroupMembers.map((m) => (
                                                 <span key={m.user_id} className="groups-create-members__item">
-                                                    {m.full_name} · {m.role_in_group}
+                                                    {m.full_name} · {roleLabel(m.role_in_group)}
                                                     <button type="button" onClick={() => removeCreateMember(m.user_id)}>x</button>
                                                 </span>
                                             ))
@@ -1110,7 +1138,11 @@ export default function Groups() {
                             ))}
                         </div>
                     )}
-                    <div className="groups-sidebar__head groups-sidebar__head--sub">Жеке чаттар</div>
+                    </>
+                    )}
+
+                    {sideTab === "direct" && (
+                    <>
                     {directChats.length === 0 ? (
                         <p className="muted groups-sidebar__empty">Әзірге жеке чат жоқ.</p>
                     ) : (
@@ -1144,6 +1176,8 @@ export default function Groups() {
                                 </button>
                             ))}
                         </div>
+                    )}
+                    </>
                     )}
                 </aside>
 
@@ -1193,7 +1227,7 @@ export default function Groups() {
                                                         <div className="groups-msg__body">{m.body}</div>
                                                         {!m.is_system && isLast && isMine && m.is_read_by_peer && m.read_at_by_peer ? (
                                                             <div className="groups-msg__read">
-                                                                Просмотрено:{" "}
+                                                                Көрілді:{" "}
                                                                 {new Date(m.read_at_by_peer).toLocaleString("kk-KZ", {
                                                                     hour: "2-digit",
                                                                     minute: "2-digit",
@@ -1297,7 +1331,7 @@ export default function Groups() {
                                                         </button>
                                                     ) : (
                                                         <span key={m.user_id} className="groups-members-mini__item">
-                                                            Вы
+                                                            Сіз
                                                         </span>
                                                     )
                                                 ))
@@ -1394,9 +1428,9 @@ export default function Groups() {
                                                     value={memberForm.role_in_group}
                                                     onChange={(e) => setMemberForm((p) => ({ ...p, role_in_group: e.target.value }))}
                                                 >
-                                                    <option value="patient">patient</option>
-                                                    <option value="doctor">doctor</option>
-                                                    <option value="volunteer">volunteer</option>
+                                                    <option value="patient">Пациент</option>
+                                                    <option value="doctor">Дәрігер</option>
+                                                    <option value="volunteer">Волонтёр</option>
                                                 </select>
                                                 <select
                                                     className="input"
@@ -1465,7 +1499,7 @@ export default function Groups() {
                                                 )}
                                                 {!m.is_system && isLast && isMine && peerReaders.length > 0 ? (
                                                     <div className="groups-msg__read">
-                                                        Просмотрено:{" "}
+                                                        Көрілді:{" "}
                                                         {peerReaders
                                                             .slice(0, 4)
                                                             .map((r) => r.full_name)

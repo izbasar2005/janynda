@@ -181,6 +181,16 @@ export default function Header() {
                             Психолог кабинеті
                         </Link>
                     )}
+                    {t && role === "head_psychologist" && (
+                        <>
+                            <Link className={`app-nav__link ${active("/psych")}`} to="/psych">
+                                Психолог кабинеті
+                            </Link>
+                            <Link className={`app-nav__link ${active("/psych/assignments")}`} to="/psych/assignments">
+                                Пациенттерді бөлу
+                            </Link>
+                        </>
+                    )}
                     {t && (
                         <Link className={`app-nav__link ${active("/groups")}`} to="/groups">
                             Топтар
@@ -191,32 +201,29 @@ export default function Header() {
                     {t && role === "admin" && (
                         <>
                             <Link className={`app-nav__link ${active("/admin/doctors")}`} to="/admin/doctors">
-                                Admin Doctors
+                                Дәрігерлер
                             </Link>
                             <Link className={`app-nav__link ${active("/admin/users")}`} to="/admin/users">
-                                Users
+                                Қолданушылар
                             </Link>
                             <Link className={`app-nav__link ${active("/admin/news")}`} to="/admin/news">
-                                News
+                                Жаңалықтар
                             </Link>
                         </>
                     )}
                     {t && role === "super_admin" && (
                         <>
                             <Link className={`app-nav__link ${active("/admin/dashboard")}`} to="/admin/dashboard">
-                                Dashboard
-                            </Link>
-                            <Link className={`app-nav__link ${active("/psych")}`} to="/psych">
-                                Кейстер
+                                Басқару панелі
                             </Link>
                             <Link className={`app-nav__link ${active("/admin/doctors-stats")}`} to="/admin/doctors-stats">
                                 Дәрігерлер
                             </Link>
                             <Link className={`app-nav__link ${active("/admin/users")}`} to="/admin/users">
-                                Users
+                                Қолданушылар
                             </Link>
                             <Link className={`app-nav__link ${active("/admin/news")}`} to="/admin/news">
-                                News
+                                Жаңалықтар
                             </Link>
                         </>
                     )}

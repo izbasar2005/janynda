@@ -288,7 +288,7 @@ export default function Profile() {
     const infoRows = [];
     if (me) {
         if (displayName) infoRows.push({ label: "Аты-жөні", value: displayName });
-        infoRows.push({ label: "Рөлі", value: me.role === "doctor" ? "Дәрігер" : me.role === "psychologist" ? "Психолог" : me.role === "admin" ? "Админ" : me.role === "super_admin" ? "Сүпер админ" : me.role === "volunteer" ? "Волонтёр" : "Пациент" });
+        infoRows.push({ label: "Рөлі", value: me.role === "doctor" ? "Дәрігер" : me.role === "psychologist" ? "Психолог" : me.role === "head_psychologist" ? "Бас психолог" : me.role === "admin" ? "Админ" : me.role === "super_admin" ? "Сүпер админ" : me.role === "volunteer" ? "Волонтёр" : "Пациент" });
         if (me.phone) infoRows.push({ label: "Телефон", value: me.phone });
         if (me.iin) infoRows.push({ label: "ЖСН", value: me.iin });
         if (me.first_name) infoRows.push({ label: "Аты", value: me.first_name });
@@ -365,7 +365,7 @@ export default function Profile() {
                         <div className="profile-hero__info">
                             <h1 className="profile-hero__name">{displayName}</h1>
                             <span className={`profile-hero__role profile-hero__role--${me.role || "patient"}`}>
-                                {me.role === "doctor" ? "Дәрігер" : me.role === "psychologist" ? "Психолог" : me.role === "admin" ? "Админ" : me.role === "super_admin" ? "Сүпер админ" : me.role === "volunteer" ? "Волонтёр" : "Пациент"}
+                                {me.role === "doctor" ? "Дәрігер" : me.role === "psychologist" ? "Психолог" : me.role === "head_psychologist" ? "Бас психолог" : me.role === "admin" ? "Админ" : me.role === "super_admin" ? "Сүпер админ" : me.role === "volunteer" ? "Волонтёр" : "Пациент"}
                             </span>
                         </div>
                     </div>
@@ -646,24 +646,24 @@ export default function Profile() {
                                         <>
                                             <div className="admin-dashboard-cards" style={{ marginTop: 12 }}>
                                                 <div className="admin-dashboard-card card">
-                                                    <div className="admin-dashboard-card__label">Users</div>
+                                                    <div className="admin-dashboard-card__label">Қолданушылар</div>
                                                     <div className="admin-dashboard-card__value">{dashboardStats.users ?? 0}</div>
-                                                    <p className="admin-dashboard-card__hint">Қолданушылар</p>
+                                                    <p className="admin-dashboard-card__hint">Жүйеде тіркелгендер</p>
                                                 </div>
                                                 <div className="admin-dashboard-card card">
-                                                    <div className="admin-dashboard-card__label">Doctors</div>
+                                                    <div className="admin-dashboard-card__label">Дәрігерлер</div>
                                                     <div className="admin-dashboard-card__value">{dashboardStats.doctors ?? 0}</div>
-                                                    <p className="admin-dashboard-card__hint">Дәрігерлер</p>
+                                                    <p className="admin-dashboard-card__hint">Барлық дәрігерлер</p>
                                                 </div>
                                                 <div className="admin-dashboard-card card">
-                                                    <div className="admin-dashboard-card__label">Appointments</div>
+                                                    <div className="admin-dashboard-card__label">Жазылулар</div>
                                                     <div className="admin-dashboard-card__value">{dashboardStats.appointments ?? 0}</div>
-                                                    <p className="admin-dashboard-card__hint">Жазылулар</p>
+                                                    <p className="admin-dashboard-card__hint">Барлық жазылулар</p>
                                                 </div>
                                                 <div className="admin-dashboard-card card">
-                                                    <div className="admin-dashboard-card__label">Reviews</div>
+                                                    <div className="admin-dashboard-card__label">Пікірлер</div>
                                                     <div className="admin-dashboard-card__value">{dashboardStats.reviews ?? 0}</div>
-                                                    <p className="admin-dashboard-card__hint">Пікірлер</p>
+                                                    <p className="admin-dashboard-card__hint">Қалдырылған пікірлер</p>
                                                 </div>
                                             </div>
                                         </>

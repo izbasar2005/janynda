@@ -8,6 +8,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"janymda/internal/middleware"
 	"janymda/internal/model"
 )
 
@@ -19,8 +20,8 @@ func NewPatientScoreHandler(db *gorm.DB) *PatientScoreHandler {
 	return &PatientScoreHandler{db: db}
 }
 
-// GET /api/v1/psych/patients — all patients with their aggregated AI score.
-// Accessible by psychologist, admin, super_admin.
+// GET /api/v1/psych/patients — пациенты с агрегированной AI-оценкой.
+// head_psychologist видит всех (для распределения), psychologist — только закреплённых.
 func (h *PatientScoreHandler) ListPatients(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if r.Method != http.MethodGet {
@@ -28,12 +29,45 @@ func (h *PatientScoreHandler) ListPatients(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	role, _ := r.Context().Value(middleware.CtxRole).(string)
+	userID, _ := r.Context().Value(middleware.CtxUserID).(uint)
+	role = strings.ToLower(strings.TrimSpace(role))
+
 	var scores []model.PatientAiScore
 	q := h.db.Order("score ASC")
 
 	zoneFilter := strings.ToLower(r.URL.Query().Get("zone"))
 	if zoneFilter == "green" || zoneFilter == "yellow" || zoneFilter == "red" {
 		q = q.Where("zone = ?", zoneFilter)
+	}
+
+	if role == "psychologist" {
+		ids := model.AssignedPatientIDs(h.db, userID)
+		if len(ids) == 0 {
+			_ = json.NewEncoder(w).Encode([]map[string]any{})
+			return
+		}
+		q = q.Where("patient_id IN ?", ids)
+	}
+
+	// Главный психолог: фильтр по статусу распределения (?assigned=0|1).
+	assignedFilter := strings.TrimSpace(r.URL.Query().Get("assigned"))
+	if role == "head_psychologist" && (assignedFilter == "0" || assignedFilter == "1") {
+		var allAssigned []model.PsychAssignment
+		h.db.Select("patient_id").Find(&allAssigned)
+		assignedIDs := make([]uint, 0, len(allAssigned))
+		for _, a := range allAssigned {
+			assignedIDs = append(assignedIDs, a.PatientID)
+		}
+		if assignedFilter == "1" {
+			if len(assignedIDs) == 0 {
+				_ = json.NewEncoder(w).Encode([]map[string]any{})
+				return
+			}
+			q = q.Where("patient_id IN ?", assignedIDs)
+		} else if len(assignedIDs) > 0 {
+			q = q.Where("patient_id NOT IN ?", assignedIDs)
+		}
 	}
 
 	if err := q.Find(&scores).Error; err != nil {
@@ -73,9 +107,29 @@ func (h *PatientScoreHandler) ListPatients(w http.ResponseWriter, r *http.Reques
 		caseMap[cc.PatientID] = cc.Cnt
 	}
 
+	// Закрепление пациентов за психологами (для главного психолога).
+	assignMap := make(map[uint]uint)        // patientID -> psychologistID
+	psychNameMap := make(map[uint]string)   // psychologistID -> name
+	if role == "head_psychologist" && len(patientIDs) > 0 {
+		var assigns []model.PsychAssignment
+		h.db.Where("patient_id IN ?", patientIDs).Find(&assigns)
+		psychIDset := make([]uint, 0, len(assigns))
+		for _, a := range assigns {
+			assignMap[a.PatientID] = a.PsychologistID
+			psychIDset = append(psychIDset, a.PsychologistID)
+		}
+		if len(psychIDset) > 0 {
+			var psychs []model.User
+			h.db.Select("id, full_name").Where("id IN ?", psychIDset).Find(&psychs)
+			for _, p := range psychs {
+				psychNameMap[p.ID] = p.FullName
+			}
+		}
+	}
+
 	result := make([]map[string]any, 0, len(scores))
 	for _, s := range scores {
-		result = append(result, map[string]any{
+		row := map[string]any{
 			"patient_id":   s.PatientID,
 			"patient_name": nameMap[s.PatientID],
 			"score":        s.Score,
@@ -87,7 +141,16 @@ func (h *PatientScoreHandler) ListPatients(w http.ResponseWriter, r *http.Reques
 			"trend":        s.Trend,
 			"open_cases":   caseMap[s.PatientID],
 			"updated_at":   s.UpdatedAt,
-		})
+		}
+		if role == "head_psychologist" {
+			if pid, ok := assignMap[s.PatientID]; ok {
+				row["psychologist_id"] = pid
+				row["psychologist_name"] = psychNameMap[pid]
+			} else {
+				row["psychologist_id"] = nil
+			}
+		}
+		result = append(result, row)
 	}
 
 	_ = json.NewEncoder(w).Encode(result)
@@ -108,6 +171,19 @@ func (h *PatientScoreHandler) GetPatientScore(w http.ResponseWriter, r *http.Req
 	if patientID == 0 {
 		http.Error(w, "invalid patient id", http.StatusBadRequest)
 		return
+	}
+
+	role, _ := r.Context().Value(middleware.CtxRole).(string)
+	userID, _ := r.Context().Value(middleware.CtxUserID).(uint)
+	role = strings.ToLower(strings.TrimSpace(role))
+	if role == "psychologist" {
+		var cnt int64
+		h.db.Model(&model.PsychAssignment{}).
+			Where("patient_id = ? AND psychologist_id = ?", uint(patientID), userID).Count(&cnt)
+		if cnt == 0 {
+			http.Error(w, "Forbidden: пациент закреплён за другим психологом", http.StatusForbidden)
+			return
+		}
 	}
 
 	var score model.PatientAiScore

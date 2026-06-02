@@ -2,11 +2,16 @@ package auth
 
 import (
 	"errors"
+	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
+
+// HS256 keys should be long and unpredictable; shorter secrets are rejected.
+const minJWTSecretLen = 32
 
 type Claims struct {
 	UserID      uint   `json:"user_id"`
@@ -15,13 +20,21 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-func secret() []byte {
-	s := os.Getenv("JWT_SECRET")
+func jwtSigningKey() ([]byte, error) {
+	s := strings.TrimSpace(os.Getenv("JWT_SECRET"))
 	if s == "" {
-
-		s = "dev_secret_change_me"
+		return nil, errors.New("JWT_SECRET is required (no default is allowed)")
 	}
-	return []byte(s)
+	if len(s) < minJWTSecretLen {
+		return nil, fmt.Errorf("JWT_SECRET must be at least %d characters", minJWTSecretLen)
+	}
+	return []byte(s), nil
+}
+
+// ValidateJWTSecretFromEnv fails fast at process start if JWT is misconfigured.
+func ValidateJWTSecretFromEnv() error {
+	_, err := jwtSigningKey()
+	return err
 }
 
 func GenerateToken(userID uint, role string, isTherapist bool) (string, error) {
@@ -36,8 +49,12 @@ func GenerateToken(userID uint, role string, isTherapist bool) (string, error) {
 		},
 	}
 
+	key, err := jwtSigningKey()
+	if err != nil {
+		return "", err
+	}
 	t := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return t.SignedString(secret())
+	return t.SignedString(key)
 }
 
 func ParseToken(tokenStr string) (*Claims, error) {
@@ -46,7 +63,7 @@ func ParseToken(tokenStr string) (*Claims, error) {
 		if t.Method != jwt.SigningMethodHS256 {
 			return nil, errors.New("unexpected signing method")
 		}
-		return secret(), nil
+		return jwtSigningKey()
 	})
 	if err != nil {
 		return nil, err
