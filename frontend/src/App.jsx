@@ -8,6 +8,7 @@ import Doctors from "./pages/Doctors.jsx";
 import DoctorDetail from "./pages/DoctorDetail.jsx";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
+import ForgotPassword from "./pages/ForgotPassword.jsx";
 import Profile from "./pages/Profile.jsx";
 import Diary from "./pages/Diary.jsx";
 import Book from "./pages/Book.jsx";
@@ -42,6 +43,7 @@ export default function App() {
 
                         <Route path="/login" element={<Login />} />
                         <Route path="/register" element={<Register />} />
+                        <Route path="/forgot-password" element={<ForgotPassword />} />
 
                         <Route path="/profile" element={<Profile />} />
                         <Route path="/doctor" element={<DoctorCabinet />} />

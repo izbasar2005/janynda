@@ -39,7 +39,7 @@ export default function Register() {
   const nav = useNavigate();
   const [msg, setMsg] = useState("");
 
-  const [login, setLogin] = useState("");          // LOGIN (қалауыңша full_name ретінде қолданамыз)
+  const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -49,12 +49,86 @@ export default function Register() {
   const [avatarUploading, setAvatarUploading] = useState(false);
 
   const [iin, setIin] = useState("");
-  const [firstName, setFirstName] = useState("");  // ИМЯ
-  const [lastName, setLastName] = useState("");    // ФИО (сенде солай тұр) -> фамилия деп аламыз
-  const [patronymic, setPatronymic] = useState(""); // ОТЧЕСТВО
-  const [gender, setGender] = useState("");         // ПОЛ
-  const [phone, setPhone] = useState("");           // ТЕЛЕФОН
-  const [role, setRole] = useState("patient");      // РӨЛ
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [patronymic, setPatronymic] = useState("");
+  const [gender, setGender] = useState("");
+  const [phone, setPhone] = useState("");
+  const [role, setRole] = useState("patient");
+
+  // SMS verification state
+  const [smsCode, setSmsCode] = useState("");
+  const [smsSent, setSmsSent] = useState(false);
+  const [phoneVerified, setPhoneVerified] = useState(false);
+  const [smsLoading, setSmsLoading] = useState(false);
+  const [smsMsg, setSmsMsg] = useState("");
+  const [countdown, setCountdown] = useState(0);
+
+  function startCountdown() {
+    setCountdown(60);
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }
+
+  async function sendSmsCode() {
+    if (!phone.trim()) {
+      setSmsMsg("Телефон нөмірін енгізіңіз");
+      return;
+    }
+    setSmsLoading(true);
+    setSmsMsg("");
+    try {
+      const data = await api("/api/v1/sms/send-code", {
+        method: "POST",
+        body: { phone: phone.trim() },
+      });
+      setSmsSent(true);
+      if (data.method === "call") {
+        setSmsMsg("Сізге қоңырау шалынады. Кодты тыңдаңыз.");
+      } else {
+        setSmsMsg("SMS код жіберілді ✓");
+      }
+      startCountdown();
+    } catch (e) {
+      setSmsMsg("Қате: " + e.message);
+    } finally {
+      setSmsLoading(false);
+    }
+  }
+
+  async function verifySmsCode() {
+    if (!smsCode.trim()) {
+      setSmsMsg("Кодты енгізіңіз");
+      return;
+    }
+    setSmsLoading(true);
+    setSmsMsg("");
+    try {
+      await api("/api/v1/sms/verify-code", {
+        method: "POST",
+        body: { phone: phone.trim(), code: smsCode.trim() },
+      });
+      setPhoneVerified(true);
+      setSmsMsg("Нөмір расталды ✓");
+    } catch (e) {
+      const errText = e.message;
+      try {
+        const parsed = JSON.parse(errText);
+        setSmsMsg(parsed.error || errText);
+      } catch {
+        setSmsMsg(errText);
+      }
+    } finally {
+      setSmsLoading(false);
+    }
+  }
 
   async function uploadAvatar(file) {
     if (!file) return;
@@ -79,12 +153,16 @@ export default function Register() {
     e.preventDefault();
     setMsg("");
 
+    if (!phoneVerified) {
+      setMsg("Алдымен телефон нөмірін растаңыз");
+      return;
+    }
+
     if (password !== password2) {
       setMsg("Қате: құпия сөздер сәйкес емес");
       return;
     }
 
-    // full_name backend міндетті, сондықтан құрастырып жібереміз
     const full_name =
         (lastName + " " + firstName + " " + patronymic).trim() ||
         login.trim();
@@ -96,9 +174,7 @@ export default function Register() {
           full_name,
           phone,
           password,
-
           avatar_url: avatarUrl,
-
           iin,
           first_name: firstName,
           last_name: lastName,
@@ -225,9 +301,97 @@ export default function Register() {
               </div>
               <div className="form-field">
                 <label className="form-label">Телефон</label>
-                <input className="login-input" placeholder="+7 700 000 00 00" value={phone} onChange={(e)=>setPhone(e.target.value)} />
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <input
+                    className="login-input"
+                    placeholder="+7 700 000 00 00"
+                    value={phone}
+                    onChange={(e) => {
+                      setPhone(e.target.value);
+                      if (phoneVerified) {
+                        setPhoneVerified(false);
+                        setSmsSent(false);
+                        setSmsCode("");
+                        setSmsMsg("");
+                      }
+                    }}
+                    disabled={phoneVerified}
+                    style={{ flex: 1 }}
+                  />
+                  {!phoneVerified && (
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={sendSmsCode}
+                      disabled={smsLoading || countdown > 0 || !phone.trim()}
+                      style={{
+                        whiteSpace: "nowrap",
+                        padding: "8px 12px",
+                        fontSize: "13px",
+                        borderRadius: 8,
+                        background: "#6366f1",
+                        color: "#fff",
+                        border: "none",
+                        cursor: smsLoading || countdown > 0 ? "not-allowed" : "pointer",
+                        opacity: smsLoading || countdown > 0 ? 0.6 : 1,
+                      }}
+                    >
+                      {smsLoading ? "..." : countdown > 0 ? `${countdown}с` : "Растау"}
+                    </button>
+                  )}
+                  {phoneVerified && (
+                    <span style={{ color: "#16a34a", fontWeight: 600, fontSize: 14 }}>✓</span>
+                  )}
+                </div>
               </div>
             </div>
+
+            {/* SMS code input */}
+            {smsSent && !phoneVerified && (
+              <div className="form-field" style={{ marginTop: 4 }}>
+                <label className="form-label">SMS код</label>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <input
+                    className="login-input"
+                    placeholder="Кодты енгізіңіз"
+                    value={smsCode}
+                    onChange={(e) => setSmsCode(e.target.value)}
+                    maxLength={4}
+                    inputMode="numeric"
+                    style={{ flex: 1, maxWidth: 160 }}
+                  />
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={verifySmsCode}
+                    disabled={smsLoading || !smsCode.trim()}
+                    style={{
+                      padding: "8px 16px",
+                      fontSize: "13px",
+                      borderRadius: 8,
+                      background: "#16a34a",
+                      color: "#fff",
+                      border: "none",
+                      cursor: smsLoading ? "not-allowed" : "pointer",
+                      opacity: smsLoading ? 0.6 : 1,
+                    }}
+                  >
+                    {smsLoading ? "..." : "Тексеру"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {smsMsg && (
+              <div style={{
+                fontSize: 13,
+                marginTop: 4,
+                color: phoneVerified || smsMsg.includes("✓") ? "#16a34a" : "#dc2626",
+                fontWeight: 500,
+              }}>
+                {smsMsg}
+              </div>
+            )}
 
             <div className="form-row">
               <div className="form-field">
@@ -275,7 +439,7 @@ export default function Register() {
 
             {msg && <div className="form-error login-error">{msg}</div>}
 
-            <button className="login-btn" type="submit">Тіркелу</button>
+            <button className="login-btn" type="submit" disabled={!phoneVerified}>Тіркелу</button>
           </form>
             <div className="login-links">
               <Link className="login-link login-link--accent" to="/login">Кіру</Link>

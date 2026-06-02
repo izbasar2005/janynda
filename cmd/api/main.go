@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"janymda/internal/auth"
+	"janymda/internal/email"
 	"janymda/internal/model"
+	"janymda/internal/sms"
 	"net/http"
 	"os"
 	"strings"
@@ -24,6 +26,9 @@ func main() {
 		fmt.Fprintf(os.Stderr, "jwt config: %v\n", err)
 		os.Exit(1)
 	}
+
+	sms.Init()
+	email.Init()
 
 	db, err := storage.NewGormFromEnv()
 	if err != nil {
