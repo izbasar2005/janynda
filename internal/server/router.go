@@ -43,11 +43,16 @@ func NewRouter(db *gorm.DB) http.Handler {
 	mux.HandleFunc("/api/v1/auth/register", ah.Register)
 	mux.HandleFunc("/api/v1/auth/login", ah.Login)
 
+	// AI test (auth) — quick check that Anthropic works
+	aiTestH := handler.NewAITestHandler()
+	mux.Handle("/api/v1/ai/test", middleware.AuthJWT(http.HandlerFunc(aiTestH.Test)))
+
 	// SMS verification (public)
 	smsH := handler.NewSMSHandler(db)
 	mux.HandleFunc("/api/v1/sms/send-code", smsH.SendCode)
 	mux.HandleFunc("/api/v1/sms/verify-code", smsH.VerifyCode)
 	mux.HandleFunc("/api/v1/auth/forgot-password/send-code", smsH.ForgotPasswordSendCode)
+	mux.HandleFunc("/api/v1/auth/forgot-password/check-code", smsH.CheckCode)
 	mux.HandleFunc("/api/v1/auth/forgot-password/reset", smsH.ResetPassword)
 
 	// Email verification
@@ -57,6 +62,7 @@ func NewRouter(db *gorm.DB) http.Handler {
 	mux.Handle("/api/v1/email/verify-code",
 		middleware.AuthJWT(http.HandlerFunc(emailH.VerifyEmailCode)))
 	mux.HandleFunc("/api/v1/auth/forgot-password/email/send-code", emailH.ForgotPasswordEmailSendCode)
+	mux.HandleFunc("/api/v1/auth/forgot-password/email/check-code", emailH.CheckEmailCode)
 	mux.HandleFunc("/api/v1/auth/forgot-password/email/reset", emailH.ResetPasswordByEmail)
 
 	// News (public)

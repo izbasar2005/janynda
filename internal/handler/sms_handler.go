@@ -171,6 +171,40 @@ func (h *SMSHandler) ForgotPasswordSendCode(w http.ResponseWriter, r *http.Reque
 	})
 }
 
+func (h *SMSHandler) CheckCode(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req VerifyCodeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"JSON қате"}`, http.StatusBadRequest)
+		return
+	}
+
+	req.Phone = strings.TrimSpace(req.Phone)
+	req.Code = strings.TrimSpace(req.Code)
+
+	if req.Phone == "" || req.Code == "" {
+		http.Error(w, `{"error":"Телефон мен кодты енгізіңіз"}`, http.StatusBadRequest)
+		return
+	}
+
+	ok, errMsg := sms.CheckCode(req.Phone, req.Code)
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": errMsg})
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]any{
+		"valid": true,
+	})
+}
+
 func (h *SMSHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 

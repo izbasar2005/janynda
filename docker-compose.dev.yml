@@ -34,7 +34,7 @@ services:
       # IMPORTANT: do not hardcode secrets in git. Provide via environment variable:
       #   set ANTHROPIC_API_KEY=... before running docker compose.
       ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
-      ANTHROPIC_MODEL: "${ANTHROPIC_MODEL:-claude-haiku-4-5}"
+      ANTHROPIC_MODEL: "${ANTHROPIC_MODEL:-claude-sonnet-4-5}"
       # SMSC.kz SMS service credentials
       SMSC_LOGIN: "${SMSC_LOGIN}"
       SMSC_PASSWORD: "${SMSC_PASSWORD}"

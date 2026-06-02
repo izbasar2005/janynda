@@ -110,7 +110,21 @@ export default function ForgotPassword() {
     e.preventDefault();
     if (!code.trim()) { setMsg("Кодты енгізіңіз"); return; }
     setMsg("");
-    setStep(3);
+    setLoading(true);
+    try {
+      const endpoint = method === "phone"
+        ? "/api/v1/auth/forgot-password/check-code"
+        : "/api/v1/auth/forgot-password/email/check-code";
+      const body = method === "phone"
+        ? { phone: phone.trim(), code: code.trim() }
+        : { email: emailInput.trim(), code: code.trim() };
+      await api(endpoint, { method: "POST", body });
+      setStep(3);
+    } catch (e) {
+      try { setMsg(JSON.parse(e.message).error || e.message); } catch { setMsg(e.message); }
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleResetPassword(e) {

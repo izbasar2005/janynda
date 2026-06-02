@@ -72,6 +72,34 @@ func VerifyCode(phone, code string) (bool, string) {
 	return true, ""
 }
 
+// CheckCode validates the code without consuming it (for multi-step flows).
+func CheckCode(phone, code string) (bool, string) {
+	codesMu.Lock()
+	defer codesMu.Unlock()
+
+	entry, ok := codes[phone]
+	if !ok {
+		return false, "Код жіберілмеген"
+	}
+
+	if time.Now().After(entry.ExpiresAt) {
+		delete(codes, phone)
+		return false, "Код мерзімі аяқталды"
+	}
+
+	entry.Attempts++
+	if entry.Attempts > maxAttempts {
+		delete(codes, phone)
+		return false, "Тым көп әрекет. Жаңа код сұраңыз"
+	}
+
+	if entry.Code != code {
+		return false, "Код дұрыс емес"
+	}
+
+	return true, ""
+}
+
 func IsPhoneVerified(phone string) bool {
 	codesMu.Lock()
 	defer codesMu.Unlock()

@@ -166,6 +166,41 @@ func (h *EmailHandler) ForgotPasswordEmailSendCode(w http.ResponseWriter, r *htt
 	})
 }
 
+// CheckEmailCode validates the code without consuming it.
+func (h *EmailHandler) CheckEmailCode(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req EmailVerifyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"JSON қате"}`, http.StatusBadRequest)
+		return
+	}
+
+	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
+	req.Code = strings.TrimSpace(req.Code)
+
+	if req.Email == "" || req.Code == "" {
+		http.Error(w, `{"error":"Email мен кодты енгізіңіз"}`, http.StatusBadRequest)
+		return
+	}
+
+	ok, errMsg := sms.CheckCode("email:"+req.Email, req.Code)
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": errMsg})
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]any{
+		"valid": true,
+	})
+}
+
 // ResetPasswordByEmail resets password using email code.
 func (h *EmailHandler) ResetPasswordByEmail(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
