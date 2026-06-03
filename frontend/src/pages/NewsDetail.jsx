@@ -6,7 +6,7 @@ function formatDate(iso) {
     if (!iso) return "";
     try {
         const d = new Date(iso);
-        return d.toLocaleDateString();
+        return d.toLocaleDateString("kk-KZ", { day: "numeric", month: "long", year: "numeric" });
     } catch {
         return "";
     }
@@ -27,18 +27,38 @@ export default function NewsDetail() {
             .finally(() => setLoading(false));
     }, [slug]);
 
-    if (loading) return <p className="muted">Жүктелуде...</p>;
-    if (msg) return <p className="muted">{msg}</p>;
-    if (!item) return <p className="muted">Табылмады.</p>;
+    if (loading) {
+        return (
+            <div className="page news-detail-page">
+                <p className="muted">Жүктелуде...</p>
+            </div>
+        );
+    }
+    if (msg) {
+        return (
+            <div className="page news-detail-page">
+                <p className="muted">{msg}</p>
+            </div>
+        );
+    }
+    if (!item) {
+        return (
+            <div className="page news-detail-page">
+                <p className="muted">Табылмады.</p>
+            </div>
+        );
+    }
 
     return (
-        <div className="page">
-            <div className="news-detail card">
+        <div className="page news-detail-page">
+            <article className="news-detail card">
                 <div className="news-detail__top">
-                    <Link to="/news" className="muted" style={{ textDecoration: "none" }}>
-                        ← Барлық жаңалық
+                    <Link to="/news" className="news-detail__back muted">
+                        ← Барлық жаңалықтар
                     </Link>
-                    <div className="muted">{formatDate(item.published_at)}</div>
+                    <time className="muted" dateTime={item.published_at || undefined}>
+                        {formatDate(item.published_at)}
+                    </time>
                 </div>
 
                 <h1 className="news-detail__title">{item.title}</h1>
@@ -55,8 +75,7 @@ export default function NewsDetail() {
                     className="news-detail__content"
                     dangerouslySetInnerHTML={{ __html: item.content_html || "" }}
                 />
-            </div>
+            </article>
         </div>
     );
 }
-

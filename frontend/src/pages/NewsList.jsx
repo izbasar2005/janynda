@@ -6,7 +6,7 @@ function formatDate(iso) {
     if (!iso) return "";
     try {
         const d = new Date(iso);
-        return d.toLocaleDateString();
+        return d.toLocaleDateString("kk-KZ", { day: "numeric", month: "long", year: "numeric" });
     } catch {
         return "";
     }
@@ -45,15 +45,17 @@ export default function NewsList() {
     }
 
     return (
-        <div className="page">
+        <div className="page news-list-page">
             <div className="page-header">
                 <div>
                     <h2 className="page-header__title">Жаңалықтар</h2>
-                    <p className="muted page-header__subtitle">Денсаулық туралы жаңалықтар мен пайдалы мақалалар.</p>
+                    <p className="muted page-header__subtitle">
+                        Денсаулық туралы жаңалықтар мен пайдалы мақалалар.
+                    </p>
                 </div>
             </div>
 
-            {msg && <p className="muted" style={{ marginTop: 12 }}>{msg}</p>}
+            {msg && <p className="muted news-list-page__msg">{msg}</p>}
 
             <div className="news-grid">
                 {items.map((n) => (
@@ -61,30 +63,35 @@ export default function NewsList() {
                         key={n.id}
                         to={`/news/${n.slug}`}
                         className="news-card card"
-                        style={{ textDecoration: "none", color: "inherit" }}
                     >
                         <div className="news-card__cover">
                             {n.cover_url ? (
-                                <img src={n.cover_url} alt="" className="news-card__img" />
+                                <img src={n.cover_url} alt="" className="news-card__img" loading="lazy" />
                             ) : (
-                                <div className="news-card__placeholder" />
+                                <div className="news-card__placeholder" aria-hidden />
                             )}
                         </div>
                         <div className="news-card__body">
+                            {n.featured ? (
+                                <span className="news-card__featured">★ Басты жаңалық</span>
+                            ) : null}
                             <div className="news-card__title">{n.title}</div>
-                            {n.excerpt ? <div className="news-card__excerpt muted">{n.excerpt}</div> : null}
+                            {n.excerpt ? (
+                                <div className="news-card__excerpt muted">{n.excerpt}</div>
+                            ) : null}
                             <div className="news-card__meta muted">{formatDate(n.published_at)}</div>
                         </div>
                     </Link>
                 ))}
             </div>
 
-            <div style={{ marginTop: 18, display: "flex", justifyContent: "center" }}>
-                <button className="btn" type="button" onClick={() => loadMore(false)} disabled={loading}>
-                    {loading ? "Жүктелуде..." : "Тағы көрсету"}
-                </button>
-            </div>
+            {items.length > 0 && (
+                <div className="news-list-more">
+                    <button className="btn" type="button" onClick={() => loadMore(false)} disabled={loading}>
+                        {loading ? "Жүктелуде..." : "Тағы көрсету"}
+                    </button>
+                </div>
+            )}
         </div>
     );
 }
-

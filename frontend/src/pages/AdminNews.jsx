@@ -158,82 +158,104 @@ export default function AdminNews() {
         }
     }
 
+    const msgClass = msg.startsWith("Қате") ? "admin-banner admin-banner--error" : "admin-banner admin-banner--info";
+
     return (
-        <div style={S.page}>
-            <div style={S.header}>
-                <h1 style={S.title}>Жаңалықтар</h1>
-                <p style={S.subtitle}>Жаңалық пен мақалаларды қосу, өңдеу және өшіру.</p>
+        <div className="page admin-news-page">
+            <div className="page-header">
+                <div>
+                    <h2 className="page-header__title">Жаңалықтар</h2>
+                    <p className="muted page-header__subtitle">Жаңалық пен мақалаларды қосу, өңдеу және өшіру.</p>
+                </div>
             </div>
 
-            {msg && <div style={S.errorBanner}>{msg}</div>}
+            {msg && <div className={msgClass}>{msg}</div>}
 
-            <div style={S.layout}>
-                {/* Форма */}
-                <div style={S.formCard}>
-                    <div style={S.formTop}>
-                        <div style={S.formTitle}>{editingId ? `Өңдеу #${editingId}` : "Жаңа жаңалық"}</div>
-                        <div style={{ display: "flex", gap: 8 }}>
-                            <button type="button" style={S.btnGhost} onClick={startCreate} disabled={uploading}>Тазарту</button>
-                            <button type="button" style={S.btnPrimary} onClick={save} disabled={uploading}>
+            <div className="admin-news-layout">
+                <section className="admin-news-form" aria-label="Жаңалық формасы">
+                    <div className="admin-news-form__top">
+                        <h3 className="admin-news-form__title">
+                            {editingId ? `Өңдеу #${editingId}` : "Жаңа жаңалық"}
+                        </h3>
+                        <div className="admin-news-form__actions">
+                            <button type="button" className="btn ghost" onClick={startCreate} disabled={uploading}>
+                                Тазарту
+                            </button>
+                            <button type="button" className="btn" onClick={save} disabled={uploading}>
                                 {editingId ? "Жаңарту" : "Қосу"}
                             </button>
                         </div>
                     </div>
 
-                    <label style={S.label}>Тақырып</label>
-                    <input
-                        style={S.input}
-                        value={form.title}
-                        onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-                        placeholder="Тақырыпты енгізіңіз"
-                    />
+                    <div className="admin-news-field">
+                        <label htmlFor="admin-news-title">Тақырып</label>
+                        <input
+                            id="admin-news-title"
+                            className="input"
+                            value={form.title}
+                            onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
+                            placeholder="Тақырыпты енгізіңіз"
+                        />
+                    </div>
 
-                    <label style={S.label}>Жариялану күні</label>
-                    <input
-                        style={S.input}
-                        type="datetime-local"
-                        value={form.published_at}
-                        onChange={(e) => setForm((p) => ({ ...p, published_at: e.target.value }))}
-                    />
+                    <div className="admin-news-field">
+                        <label htmlFor="admin-news-date">Жариялану күні</label>
+                        <input
+                            id="admin-news-date"
+                            className="input"
+                            type="datetime-local"
+                            value={form.published_at}
+                            onChange={(e) => setForm((p) => ({ ...p, published_at: e.target.value }))}
+                        />
+                    </div>
 
-                    <label style={S.label}>Қысқаша сипаттама</label>
-                    <textarea
-                        style={{ ...S.input, resize: "vertical" }}
-                        rows={2}
-                        value={form.excerpt}
-                        onChange={(e) => setForm((p) => ({ ...p, excerpt: e.target.value }))}
-                        placeholder="Қысқаша сипаттама"
-                    />
+                    <div className="admin-news-field">
+                        <label htmlFor="admin-news-excerpt">Қысқаша сипаттама</label>
+                        <textarea
+                            id="admin-news-excerpt"
+                            className="input"
+                            rows={2}
+                            value={form.excerpt}
+                            onChange={(e) => setForm((p) => ({ ...p, excerpt: e.target.value }))}
+                            placeholder="Қысқаша сипаттама"
+                        />
+                    </div>
 
-                    <label style={S.label}>Мазмұны (HTML)</label>
-                    <textarea
-                        style={{ ...S.input, resize: "vertical", fontFamily: "monospace", fontSize: 13 }}
-                        rows={9}
-                        value={form.content_html}
-                        onChange={(e) => setForm((p) => ({ ...p, content_html: e.target.value }))}
-                        placeholder="<p>...</p>"
-                    />
+                    <div className="admin-news-field">
+                        <label htmlFor="admin-news-html">Мазмұны (HTML)</label>
+                        <textarea
+                            id="admin-news-html"
+                            className="input admin-news-field__html"
+                            rows={9}
+                            value={form.content_html}
+                            onChange={(e) => setForm((p) => ({ ...p, content_html: e.target.value }))}
+                            placeholder="<p>...</p>"
+                        />
+                    </div>
 
-                    <label style={S.label}>Мұқаба (URL)</label>
-                    <input
-                        style={S.input}
-                        value={form.cover_url}
-                        onChange={(e) => setForm((p) => ({ ...p, cover_url: e.target.value }))}
-                        placeholder="/uploads/..."
-                    />
+                    <div className="admin-news-field">
+                        <label htmlFor="admin-news-cover">Мұқаба (URL)</label>
+                        <input
+                            id="admin-news-cover"
+                            className="input"
+                            value={form.cover_url}
+                            onChange={(e) => setForm((p) => ({ ...p, cover_url: e.target.value }))}
+                            placeholder="/uploads/..."
+                        />
+                    </div>
 
-                    <div style={S.coverRow}>
+                    <div className="admin-news-cover-row">
                         <input
                             ref={fileRef}
                             type="file"
                             accept="image/*"
-                            style={{ display: "none" }}
+                            hidden
                             onChange={(e) => uploadCover(e.target.files?.[0])}
                         />
-                        <button style={S.btnUpload} type="button" onClick={() => fileRef.current?.click()} disabled={uploading}>
+                        <button className="btn ghost" type="button" onClick={() => fileRef.current?.click()} disabled={uploading}>
                             {uploading ? "Жүктелуде…" : "📷 Мұқаба жүктеу"}
                         </button>
-                        <label style={S.checkLabel}>
+                        <label className="admin-news-check">
                             <input
                                 type="checkbox"
                                 checked={!!form.featured}
@@ -247,87 +269,57 @@ export default function AdminNews() {
                         <img
                             src={form.cover_url}
                             alt=""
-                            style={S.coverPreview}
+                            className="admin-news-cover-preview"
                             onError={(e) => (e.currentTarget.style.display = "none")}
                         />
                     ) : null}
-                </div>
+                </section>
 
-                {/* Список */}
-                <div style={S.listCard}>
-                    <div style={S.listTitle}>Барлық жаңалықтар <span style={S.countBadge}>{list.length}</span></div>
-                    {loading && <p style={S.muted}>Жүктелуде…</p>}
-                    {!loading && list.length === 0 && <p style={S.muted}>Тізім бос.</p>}
-                    <div style={S.newsList}>
+                <section className="admin-news-list-panel" aria-label="Жаңалықтар тізімі">
+                    <h3 className="admin-news-list-panel__head">
+                        Барлық жаңалықтар
+                        <span className="admin-news-count">{list.length}</span>
+                    </h3>
+                    {loading && <p className="muted">Жүктелуде…</p>}
+                    {!loading && list.length === 0 && <p className="muted">Тізім бос.</p>}
+                    <div className="admin-news-cards">
                         {list.map((n) => (
-                            <div key={n.id} style={S.newsItem}>
-                                {n.cover_url ? (
-                                    <img src={n.cover_url} alt="" style={S.newsThumb} onError={(e) => (e.currentTarget.style.display = "none")} />
-                                ) : (
-                                    <div style={S.newsThumbEmpty}>📰</div>
-                                )}
-                                <div style={{ minWidth: 0, flex: 1 }}>
-                                    <div style={S.newsItemTitle}>
-                                        {n.featured ? <span style={S.featStar}>★</span> : null}
+                            <article key={n.id} className="admin-news-item">
+                                <div className="admin-news-item__media">
+                                    {n.cover_url ? (
+                                        <img
+                                            src={n.cover_url}
+                                            alt=""
+                                            className="admin-news-item__img"
+                                            onError={(e) => (e.currentTarget.style.display = "none")}
+                                        />
+                                    ) : (
+                                        <span aria-hidden>📰</span>
+                                    )}
+                                </div>
+                                <div className="admin-news-item__body">
+                                    <h4 className="admin-news-item__title">
+                                        {n.featured ? <span className="admin-news-item__star" aria-label="Басты">★</span> : null}
                                         {n.title}
-                                    </div>
-                                    {n.excerpt ? <div style={S.newsExcerpt}>{n.excerpt}</div> : null}
-                                    <div style={S.newsMeta}>
+                                    </h4>
+                                    {n.excerpt ? <p className="admin-news-item__excerpt">{n.excerpt}</p> : null}
+                                    <p className="admin-news-item__meta">
                                         #{n.id} · {(n.published_at || "").slice(0, 10) || "күні жоқ"}
-                                    </div>
+                                    </p>
                                 </div>
-                                <div style={S.newsActions}>
-                                    <button style={S.btnSmall} type="button" onClick={() => startEdit(n)} disabled={uploading}>Өңдеу</button>
-                                    <button style={S.btnSmallDanger} type="button" onClick={() => del(n.id)} disabled={uploading}>Жою</button>
+                                <div className="admin-news-item__actions">
+                                    <button className="btn ghost" type="button" onClick={() => startEdit(n)} disabled={uploading}>
+                                        Өңдеу
+                                    </button>
+                                    <button className="btn ghost btn--danger" type="button" onClick={() => del(n.id)} disabled={uploading}>
+                                        Жою
+                                    </button>
                                 </div>
-                            </div>
+                            </article>
                         ))}
                     </div>
-                </div>
+                </section>
             </div>
         </div>
     );
 }
-
-const S = {
-    page: { maxWidth: 1180, margin: "0 auto", padding: "32px 24px 60px" },
-    header: { marginBottom: 20 },
-    title: { fontSize: 24, fontWeight: 700, color: "#0f172a", margin: 0 },
-    subtitle: { fontSize: 14, color: "#64748b", marginTop: 4 },
-    muted: { color: "#94a3b8", fontSize: 14 },
-    errorBanner: { background: "#fef2f2", color: "#dc2626", borderRadius: 10, padding: "12px 16px", fontWeight: 600, fontSize: 14, marginBottom: 16 },
-
-    layout: { display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 20, alignItems: "start" },
-
-    formCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "20px 22px", position: "sticky", top: 16 },
-    formTop: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 },
-    formTitle: { fontSize: 16, fontWeight: 700, color: "#0f172a" },
-
-    label: { display: "block", fontSize: 13, fontWeight: 600, color: "#475569", margin: "12px 0 5px" },
-    input: {
-        width: "100%", padding: "10px 12px", borderRadius: 9, border: "1px solid #cbd5e1",
-        fontSize: 14, background: "#fff", boxSizing: "border-box",
-    },
-    coverRow: { display: "flex", alignItems: "center", gap: 16, marginTop: 14, flexWrap: "wrap" },
-    checkLabel: { display: "flex", gap: 8, alignItems: "center", fontSize: 14, color: "#334155", fontWeight: 600, cursor: "pointer" },
-    coverPreview: { marginTop: 14, width: 180, height: 100, objectFit: "cover", borderRadius: 12, border: "1px solid #e2e8f0", display: "block" },
-
-    btnPrimary: { padding: "8px 18px", borderRadius: 9, border: "none", background: "#0f172a", color: "#fff", fontWeight: 600, cursor: "pointer", fontSize: 14 },
-    btnGhost: { padding: "8px 16px", borderRadius: 9, border: "1px solid #cbd5e1", background: "#fff", color: "#475569", fontWeight: 600, cursor: "pointer", fontSize: 14 },
-    btnUpload: { padding: "9px 16px", borderRadius: 9, border: "1px solid #cbd5e1", background: "#f8fafc", color: "#334155", fontWeight: 600, cursor: "pointer", fontSize: 14 },
-
-    listCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "20px 22px" },
-    listTitle: { fontSize: 16, fontWeight: 700, color: "#0f172a", marginBottom: 14, display: "flex", alignItems: "center", gap: 10 },
-    countBadge: { fontSize: 12, fontWeight: 700, color: "#64748b", background: "#f1f5f9", borderRadius: 999, padding: "2px 9px" },
-    newsList: { display: "flex", flexDirection: "column", gap: 10 },
-    newsItem: { display: "flex", gap: 12, padding: 12, border: "1px solid #eef2f6", borderRadius: 12, alignItems: "center" },
-    newsThumb: { width: 64, height: 64, borderRadius: 10, objectFit: "cover", flexShrink: 0 },
-    newsThumbEmpty: { width: 64, height: 64, borderRadius: 10, background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 },
-    newsItemTitle: { fontWeight: 700, color: "#0f172a", fontSize: 14, display: "flex", gap: 6, alignItems: "center" },
-    featStar: { color: "#f59e0b" },
-    newsExcerpt: { fontSize: 13, color: "#64748b", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
-    newsMeta: { fontSize: 12, color: "#94a3b8", marginTop: 4 },
-    newsActions: { display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 },
-    btnSmall: { padding: "6px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#fff", color: "#334155", fontWeight: 600, cursor: "pointer", fontSize: 13 },
-    btnSmallDanger: { padding: "6px 12px", borderRadius: 8, border: "1px solid #fecaca", background: "#fff", color: "#dc2626", fontWeight: 600, cursor: "pointer", fontSize: 13 },
-};
