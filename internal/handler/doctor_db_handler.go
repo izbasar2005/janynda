@@ -30,12 +30,15 @@ type DoctorResponse struct {
 	Experience int       `json:"experience"`
 	Price      int       `json:"price"`
 	PhotoURL   string    `json:"photo_url"`
+	AvatarURL  string    `json:"avatar_url"` // users.avatar_url — басты бет/профиль фотосы
 	Education  string    `json:"education"`
 	Languages  string    `json:"languages"`
 	CreatedAt  time.Time `json:"created_at"`
 }
 
 func toDoctorResponse(d model.Doctor) DoctorResponse {
+	// Публичный фото: тек users.avatar_url (doctors.photo_url қолданылмайды).
+	avatar := strings.TrimSpace(d.User.AvatarURL)
 	return DoctorResponse{
 		ID:         d.ID,
 		UserID:     d.UserID,
@@ -44,7 +47,8 @@ func toDoctorResponse(d model.Doctor) DoctorResponse {
 		Specialty:  d.Specialty,
 		Experience: d.Experience,
 		Price:      d.Price,
-		PhotoURL:   d.PhotoURL,
+		PhotoURL:   avatar,
+		AvatarURL:  avatar,
 		Education:  d.Education,
 		Languages:  d.Languages,
 		CreatedAt:  d.CreatedAt,

@@ -127,7 +127,7 @@ export default function DoctorDetail() {
         );
     }
 
-    const photoSrc = normalizePhoto(doc.photo_url);
+    const photoSrc = normalizePhoto(doc.avatar_url || doc.photo_url);
     const avg = reviews.average_rating != null ? Number(reviews.average_rating).toFixed(1) : "0";
     const price = Number(doc.price || 0);
 

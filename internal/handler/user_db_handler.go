@@ -86,11 +86,7 @@ func (h *UserDBHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	photoURL := ""
 	if strings.EqualFold(u.Role, "doctor") {
-		var d model.Doctor
-		// Doctor profile сақталатын кесте
-		if err := h.db.Where("user_id = ?", u.ID).First(&d).Error; err == nil {
-			photoURL = d.PhotoURL
-		}
+		photoURL = strings.TrimSpace(u.AvatarURL)
 	}
 
 	_ = json.NewEncoder(w).Encode(map[string]any{

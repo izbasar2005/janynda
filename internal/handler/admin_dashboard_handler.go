@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -287,7 +288,7 @@ func (h *AdminDashboardHandler) TopDoctors(w http.ResponseWriter, r *http.Reques
 			DoctorName:   d.User.FullName,
 			Specialty:    d.Specialty,
 			Appointments: countByUser[r.DoctorUserID],
-			PhotoURL:     d.PhotoURL,
+			PhotoURL:     strings.TrimSpace(d.User.AvatarURL),
 		})
 	}
 	_ = json.NewEncoder(w).Encode(list)
@@ -353,7 +354,7 @@ func (h *AdminDashboardHandler) DoctorRatings(w http.ResponseWriter, r *http.Req
 			Specialty:  d.Specialty,
 			Rating:     r.AvgRating,
 			Reviews:    r.Count,
-			PhotoURL:   d.PhotoURL,
+			PhotoURL:   strings.TrimSpace(d.User.AvatarURL),
 		})
 	}
 	_ = json.NewEncoder(w).Encode(list)

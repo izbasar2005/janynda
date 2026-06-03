@@ -20,7 +20,7 @@ func NewAdminDoctorsHandler(db *gorm.DB) *AdminDoctorsHandler {
 }
 
 // GET /api/v1/admin/doctor-users
-// role=doctor user-лер тізімі + profile бар/жоқ
+// role=doctor user-лер тізімі + profile бар/жоқ (фото жоқ — дәрігер Profile-тан басқарады)
 type DoctorUserItem struct {
 	UserID     uint   `json:"user_id"`
 	FullName   string `json:"full_name"`
@@ -30,10 +30,8 @@ type DoctorUserItem struct {
 	Specialty  string `json:"specialty,omitempty"`
 	Experience int    `json:"experience,omitempty"`
 	Price      int    `json:"price,omitempty"`
-
-	PhotoURL  string `json:"photo_url,omitempty"` // 🆕
-	Education string `json:"education,omitempty"` // 🆕
-	Languages string `json:"languages,omitempty"` // 🆕
+	Education  string `json:"education,omitempty"`
+	Languages  string `json:"languages,omitempty"`
 }
 
 func (h *AdminDoctorsHandler) ListDoctorUsers(w http.ResponseWriter, r *http.Request) {
@@ -64,8 +62,6 @@ func (h *AdminDoctorsHandler) ListDoctorUsers(w http.ResponseWriter, r *http.Req
 			item.Specialty = doc.Specialty
 			item.Experience = doc.Experience
 			item.Price = doc.Price
-
-			item.PhotoURL = doc.PhotoURL
 			item.Education = doc.Education
 			item.Languages = doc.Languages
 		} else if err == gorm.ErrRecordNotFound {
@@ -87,10 +83,8 @@ type CreateDoctorProfileRequest struct {
 	Specialty  string `json:"specialty"`
 	Experience int    `json:"experience"`
 	Price      int    `json:"price"`
-
-	PhotoURL  string `json:"photo_url"` // 🆕
-	Education string `json:"education"` // 🆕
-	Languages string `json:"languages"` // 🆕
+	Education  string `json:"education"`
+	Languages  string `json:"languages"`
 }
 
 func (h *AdminDoctorsHandler) CreateDoctorProfile(w http.ResponseWriter, r *http.Request) {
@@ -107,7 +101,6 @@ func (h *AdminDoctorsHandler) CreateDoctorProfile(w http.ResponseWriter, r *http
 	}
 
 	req.Specialty = strings.TrimSpace(req.Specialty)
-	req.PhotoURL = strings.TrimSpace(req.PhotoURL)
 	req.Education = strings.TrimSpace(req.Education)
 	req.Languages = strings.TrimSpace(req.Languages)
 
@@ -116,7 +109,6 @@ func (h *AdminDoctorsHandler) CreateDoctorProfile(w http.ResponseWriter, r *http
 		return
 	}
 
-	// user бар ма және role doctor ма?
 	var u model.User
 	if err := h.db.First(&u, req.UserID).Error; err != nil {
 		http.Error(w, "User not found", http.StatusNotFound)
@@ -127,7 +119,6 @@ func (h *AdminDoctorsHandler) CreateDoctorProfile(w http.ResponseWriter, r *http
 		return
 	}
 
-	// profile бар ма?
 	var exists model.Doctor
 	err := h.db.Where("user_id = ?", req.UserID).First(&exists).Error
 	if err == nil {
@@ -144,10 +135,9 @@ func (h *AdminDoctorsHandler) CreateDoctorProfile(w http.ResponseWriter, r *http
 		Specialty:  req.Specialty,
 		Experience: req.Experience,
 		Price:      req.Price,
-
-		PhotoURL:  req.PhotoURL,
-		Education: req.Education,
-		Languages: req.Languages,
+		PhotoURL:   "",
+		Education:  req.Education,
+		Languages:  req.Languages,
 	}
 
 	if err := h.db.Create(&doc).Error; err != nil {
@@ -164,10 +154,8 @@ type UpdateDoctorProfileRequest struct {
 	Specialty  string `json:"specialty"`
 	Experience int    `json:"experience"`
 	Price      int    `json:"price"`
-
-	PhotoURL  string `json:"photo_url"` // 🆕
-	Education string `json:"education"` // 🆕
-	Languages string `json:"languages"` // 🆕
+	Education  string `json:"education"`
+	Languages  string `json:"languages"`
 }
 
 func (h *AdminDoctorsHandler) UpdateDoctorProfile(w http.ResponseWriter, r *http.Request) {
@@ -177,8 +165,12 @@ func (h *AdminDoctorsHandler) UpdateDoctorProfile(w http.ResponseWriter, r *http
 		return
 	}
 
-	// path: /api/v1/admin/doctors/{user_id}
 	userIDStr := strings.TrimPrefix(r.URL.Path, "/api/v1/admin/doctors/")
+	userIDStr = strings.Trim(userIDStr, "/")
+	if strings.Contains(userIDStr, "/") {
+		http.Error(w, "Not found", http.StatusNotFound)
+		return
+	}
 	userID, err := strconv.Atoi(userIDStr)
 	if err != nil || userID <= 0 {
 		http.Error(w, "Invalid user_id", http.StatusBadRequest)
@@ -192,7 +184,6 @@ func (h *AdminDoctorsHandler) UpdateDoctorProfile(w http.ResponseWriter, r *http
 	}
 
 	req.Specialty = strings.TrimSpace(req.Specialty)
-	req.PhotoURL = strings.TrimSpace(req.PhotoURL)
 	req.Education = strings.TrimSpace(req.Education)
 	req.Languages = strings.TrimSpace(req.Languages)
 
@@ -214,10 +205,9 @@ func (h *AdminDoctorsHandler) UpdateDoctorProfile(w http.ResponseWriter, r *http
 	doc.Specialty = req.Specialty
 	doc.Experience = req.Experience
 	doc.Price = req.Price
-
-	doc.PhotoURL = req.PhotoURL
 	doc.Education = req.Education
 	doc.Languages = req.Languages
+	// PhotoURL админ арқылы өзгертілмейді — тек users.avatar_url (дәрігер профилі).
 
 	if err := h.db.Save(&doc).Error; err != nil {
 		http.Error(w, "DB error", http.StatusInternalServerError)

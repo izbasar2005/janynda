@@ -102,7 +102,7 @@ export default function Book() {
                         <div className="book-doctor">
                             <div className="book-doctor__photo-wrap">
                                 <img
-                                    src={normalizePhoto(doc.photo_url)}
+                                    src={normalizePhoto(doc.avatar_url || doc.photo_url)}
                                     alt={doc.full_name}
                                     className="book-doctor__photo"
                                     onError={(e) => {

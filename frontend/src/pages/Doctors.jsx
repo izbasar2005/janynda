@@ -163,7 +163,7 @@ export default function Doctors() {
 }
 
 function DoctorCard({ d, role }) {
-    const src = normalizePhoto(d.photo_url);
+    const src = normalizePhoto(d.avatar_url || d.photo_url);
     const imgRef = useRef(null);
     const [loaded, setLoaded] = useState(false);
 

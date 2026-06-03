@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, token } from "../services/api";
 
@@ -17,12 +17,7 @@ export default function AdminDoctors() {
     const [list, setList] = useState([]);
     const [msg, setMsg] = useState("");
     const [loading, setLoading] = useState(false);
-
     const [form, setForm] = useState({});
-    const [uploading, setUploading] = useState({});
-    const formRef = useRef({});
-
-    const fileRefs = useRef({}); // fileRefs.current[uid] = inputEl
 
     useEffect(() => {
         const t = token();
@@ -38,10 +33,6 @@ export default function AdminDoctors() {
         load();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
-    useEffect(() => {
-        formRef.current = form;
-    }, [form]);
 
     async function load() {
         setLoading(true);
@@ -63,11 +54,8 @@ export default function AdminDoctors() {
                     specialty: u.specialty || "",
                     experience: Number.isFinite(u.experience) ? u.experience : 0,
                     price: Number.isFinite(u.price) ? u.price : 0,
-
-                    photo_url: u.photo_url || "",
                     education: u.education || "",
                     languages: u.languages || "",
-
                     has_profile: !!u.has_profile,
                 };
             });
@@ -86,68 +74,12 @@ export default function AdminDoctors() {
         }));
     }
 
-    async function uploadPhoto(uid, file) {
-        try {
-            setUploading((p) => ({ ...p, [uid]: true }));
-
-            const fd = new FormData();
-            fd.append("file", file);
-
-            const res = await fetch("/api/v1/upload", {
-                method: "POST",
-                headers: { Authorization: `Bearer ${token()}` },
-                body: fd,
-            });
-
-            const text = await res.text();
-            if (!res.ok) throw new Error(text || "Upload failed");
-
-            let data;
-            try {
-                data = JSON.parse(text);
-            } catch {
-                data = {};
-            }
-
-            const url = (data.url || "").trim();
-            setField(uid, "photo_url", url);
-
-            // UX fix: if profile exists, persist immediately so refresh won't revert.
-            const current = formRef.current[uid] || {};
-            if (current.has_profile) {
-                const specialty = (current.specialty || "").trim();
-                const experience = parseInt(current.experience || 0, 10);
-                const price = parseInt(current.price || 0, 10);
-                const education = (current.education || "").trim();
-                const languages = (current.languages || "").trim();
-
-                if (specialty) {
-                    await api(`/api/v1/admin/doctors/${uid}`, {
-                        method: "PUT",
-                        auth: true,
-                        body: { specialty, experience, price, photo_url: url, education, languages },
-                    });
-                }
-            }
-
-            alert("Фото жүктелді және сақталды ✅");
-        } catch (e) {
-            alert("Upload қате: " + e.message);
-        } finally {
-            setUploading((p) => ({ ...p, [uid]: false }));
-            const el = fileRefs.current[uid];
-            if (el) el.value = "";
-        }
-    }
-
     async function createProfile(userId) {
         try {
             const f = form[userId] || {};
             const specialty = (f.specialty || "").trim();
             const experience = parseInt(f.experience || 0, 10);
             const price = parseInt(f.price || 0, 10);
-
-            const photo_url = (f.photo_url || "").trim();
             const education = (f.education || "").trim();
             const languages = (f.languages || "").trim();
 
@@ -157,7 +89,7 @@ export default function AdminDoctors() {
             await api("/api/v1/admin/doctors", {
                 method: "POST",
                 auth: true,
-                body: { user_id: userId, specialty, experience, price, photo_url, education, languages },
+                body: { user_id: userId, specialty, experience, price, education, languages },
             });
 
             alert("Doctor профилі жасалды ✅");
@@ -173,8 +105,6 @@ export default function AdminDoctors() {
             const specialty = (f.specialty || "").trim();
             const experience = parseInt(f.experience || 0, 10);
             const price = parseInt(f.price || 0, 10);
-
-            const photo_url = (f.photo_url || "").trim();
             const education = (f.education || "").trim();
             const languages = (f.languages || "").trim();
 
@@ -184,7 +114,7 @@ export default function AdminDoctors() {
             await api(`/api/v1/admin/doctors/${userId}`, {
                 method: "PUT",
                 auth: true,
-                body: { specialty, experience, price, photo_url, education, languages },
+                body: { specialty, experience, price, education, languages },
             });
 
             alert("Сақталды ✅");
@@ -200,7 +130,7 @@ export default function AdminDoctors() {
                 <div>
                     <h2 className="page-header__title">Admin — Doctor профилі</h2>
                     <p className="muted page-header__subtitle">
-                        Мамандық, тәжірибе, баға, фото және басқа да дәрігердің профиль өрістерін толтырыңыз.
+                        Мамандық, тәжірибе, баға, білім және тілдер. Аватарды дәрігер өз профилінен басқарады.
                     </p>
                 </div>
             </div>
@@ -213,22 +143,18 @@ export default function AdminDoctors() {
             {loading && <p className="muted">Жүктелуде...</p>}
 
             <div className="table-wrap">
-                <table className="table" style={{ minWidth: 1750 }}>
+                <table className="table" style={{ minWidth: 1400 }}>
                     <thead>
                     <tr>
                         <th>UserID</th>
                         <th>Аты-жөні</th>
                         <th>Телефон</th>
                         <th>Профиль</th>
-
                         <th>Мамандығы</th>
                         <th>Тәжірибе (жыл)</th>
                         <th>Баға (₸)</th>
-
-                        <th>Фото</th>
                         <th>Білімі</th>
                         <th>Тілдері</th>
-
                         <th>Әрекет</th>
                     </tr>
                     </thead>
@@ -238,7 +164,6 @@ export default function AdminDoctors() {
                         const uid = u.user_id;
                         const f = form[uid] || {};
                         const has = !!f.has_profile;
-                        const isUp = !!uploading[uid];
 
                         return (
                             <tr key={uid}>
@@ -276,77 +201,6 @@ export default function AdminDoctors() {
                                     />
                                 </td>
 
-                                <td style={{ minWidth: 320, position: "relative" }}>
-                                    {(() => {
-                                        const inputId = `doctor-photo-${uid}`;
-                                        return (
-                                            <>
-                                                <input
-                                                    id={inputId}
-                                                    ref={(el) => {
-                                                        if (el) fileRefs.current[uid] = el;
-                                                    }}
-                                                    type="file"
-                                                    accept="image/*"
-                                                    style={{
-                                                        position: "absolute",
-                                                        left: "-9999px",
-                                                        width: 1,
-                                                        height: 1,
-                                                    }}
-                                                    disabled={isUp}
-                                                    onChange={(e) => {
-                                                        const file = e.target.files?.[0];
-                                                        if (file) uploadPhoto(uid, file);
-                                                    }}
-                                                />
-
-                                                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                                                    <label
-                                                        htmlFor={inputId}
-                                                        className="btn ghost"
-                                                        style={{ cursor: isUp ? "not-allowed" : "pointer", opacity: isUp ? 0.6 : 1 }}
-                                                    >
-                                                        {isUp ? "Жүктелуде..." : "📷 Фото таңдау"}
-                                                    </label>
-
-                                                    {f.photo_url ? (
-                                                        <button
-                                                            className="btn"
-                                                            type="button"
-                                                            onClick={() => setField(uid, "photo_url", "")}
-                                                            disabled={isUp}
-                                                        >
-                                                            Өшіру
-                                                        </button>
-                                                    ) : null}
-                                                </div>
-
-                                                {f.photo_url ? (
-                                                    <div style={{ marginTop: 10 }}>
-                                                        <img
-                                                            src={f.photo_url}
-                                                            alt="doctor"
-                                                            style={{
-                                                                width: 72,
-                                                                height: 72,
-                                                                objectFit: "cover",
-                                                                borderRadius: 12,
-                                                                border: "1px solid rgba(255,255,255,0.08)",
-                                                            }}
-                                                            onError={(e) => (e.currentTarget.style.display = "none")}
-                                                        />
-                                                    </div>
-                                                ) : (
-                                                    <div className="muted" style={{ marginTop: 8, fontSize: 13 }}>
-                                                        Фото жоқ
-                                                    </div>
-                                                )}
-                                            </>
-                                        );
-                                    })()}
-                                </td>
-
                                 <td style={{ minWidth: 240 }}>
                                     <input
                                         className="input"
@@ -382,7 +236,7 @@ export default function AdminDoctors() {
 
                     {list.length === 0 && !loading && (
                         <tr>
-                            <td colSpan={11} className="muted">
+                            <td colSpan={10} className="muted">
                                 Тізім бос.
                             </td>
                         </tr>

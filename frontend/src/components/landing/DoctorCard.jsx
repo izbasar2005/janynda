@@ -37,9 +37,10 @@ export default function DoctorCard({ doctor, reviewsData }) {
         experience = 0,
         price = 0,
         photo_url,
+        avatar_url,
         id,
     } = doctor || {};
-    const src = normalizePhoto(photo_url);
+    const src = normalizePhoto(avatar_url || photo_url);
     const avgRating = reviewsData?.average_rating != null ? Number(reviewsData.average_rating).toFixed(1) : null;
     const lastReview = reviewsData?.reviews?.[0];
 
