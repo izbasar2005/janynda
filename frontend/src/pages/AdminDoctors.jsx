@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, token } from "../services/api";
+import TableWrap from "../components/ui/TableWrap";
 
 function parseJwt(t) {
     try {
@@ -142,7 +143,7 @@ export default function AdminDoctors() {
             )}
             {loading && <p className="muted">Жүктелуде...</p>}
 
-            <div className="table-wrap">
+            <TableWrap>
                 <table className="table" style={{ minWidth: 1400 }}>
                     <thead>
                     <tr>
@@ -243,7 +244,7 @@ export default function AdminDoctors() {
                     )}
                     </tbody>
                 </table>
-            </div>
+            </TableWrap>
         </div>
     );
 }

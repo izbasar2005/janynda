@@ -179,7 +179,7 @@ function DoctorCard({ d, role }) {
     }, [src]);
 
     return (
-        <article className="card doctor-card">
+        <article className="card doctor-card card--interactive">
             <div className="doctor-card__avatar-wrap">
                 <div className="doctor-card__avatar-inner">
                     {!loaded && <div className="doctor-card__avatar-skeleton" />}

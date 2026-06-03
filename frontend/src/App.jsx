@@ -38,10 +38,13 @@ function RequireAuth({ children }) {
 export default function App() {
     return (
         <div className="app-shell">
+            <a href="#main-content" className="skip-link">
+                Негізгі мазмұнға өту
+            </a>
             <Header />
 
-            <main className="app-main">
-                <div className="container">
+            <main id="main-content" className="app-main" tabIndex={-1}>
+                <div className="container page">
                     <Routes>
                         <Route path="/" element={<Home />} />
                         <Route path="/doctors" element={<Doctors />} />

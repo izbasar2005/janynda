@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, token } from "../services/api";
+import TableWrap from "../components/ui/TableWrap";
 
 function parseJwt(t) {
     try {
@@ -163,8 +164,8 @@ export default function AdminUsers() {
             {loading && <p style={S.muted}>Жүктелуде…</p>}
 
             {!loading && (
-                <div style={S.tableWrap}>
-                    <table style={S.table}>
+                <TableWrap className="admin-users-tablewrap">
+                    <table className="table admin-users-table" style={S.table}>
                         <thead>
                             <tr>
                                 <th style={{ ...S.th, width: 60 }}>ID</th>
@@ -220,7 +221,7 @@ export default function AdminUsers() {
                             )}
                         </tbody>
                     </table>
-                </div>
+                </TableWrap>
             )}
         </div>
     );

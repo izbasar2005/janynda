@@ -1,22 +1,12 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { api } from "../services/api";
+import { getNavLinks } from "./navLinks";
 
-function IconChat({ className }) {
+function IconMenu() {
     return (
-        <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path
-                d="M7.5 19.5c-1.8 0-3-1.2-3-3v-7.2c0-1.8 1.2-3 3-3h9c1.8 0 3 1.2 3 3v7.2c0 1.8-1.2 3-3 3H12l-3.9 2.3c-.4.2-.6 0-.6-.4V19.5Z"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinejoin="round"
-            />
-            <path
-                d="M8.2 11.3h7.6M8.2 14.2h5.2"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-            />
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         </svg>
     );
 }
@@ -30,12 +20,7 @@ function IconBell({ className }) {
                 strokeWidth="1.8"
                 strokeLinejoin="round"
             />
-            <path
-                d="M9.6 19a2.4 2.4 0 0 0 4.8 0"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-            />
+            <path d="M9.6 19a2.4 2.4 0 0 0 4.8 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
         </svg>
     );
 }
@@ -69,8 +54,14 @@ export default function Header() {
     const [hidden, setHidden] = useState(false);
     const [scrolled, setScrolled] = useState(false);
     const [profileOpen, setProfileOpen] = useState(false);
+    const [mobileOpen, setMobileOpen] = useState(false);
     const lastScrollY = useRef(0);
     const profileRef = useRef(null);
+
+    const active = useCallback((p) => (loc.pathname === p ? "is-active" : ""), [loc.pathname]);
+    const navLinks = getNavLinks({ token: t, role, active });
+
+    const closeMobile = () => setMobileOpen(false);
 
     useEffect(() => {
         if (!t) {
@@ -80,58 +71,46 @@ export default function Header() {
         api("/api/v1/notifications", { auth: true })
             .then((data) => {
                 const list = Array.isArray(data) ? data : [];
-                const count = list.filter((n) => !n.read_at).length;
-                setUnreadCount(count);
+                setUnreadCount(list.filter((n) => !n.read_at).length);
             })
             .catch(() => setUnreadCount(0));
     }, [t, loc.pathname]);
 
-    // Hide header on scroll down, show on scroll up
+    useEffect(() => {
+        closeMobile();
+        setProfileOpen(false);
+    }, [loc.pathname]);
+
+    useEffect(() => {
+        document.body.classList.toggle("mobile-nav-open", mobileOpen);
+        return () => document.body.classList.remove("mobile-nav-open");
+    }, [mobileOpen]);
+
+    useEffect(() => {
+        if (mobileOpen) setHidden(false);
+    }, [mobileOpen]);
+
     useEffect(() => {
         lastScrollY.current = window.scrollY || 0;
         setScrolled(lastScrollY.current > 120);
         const handleScroll = () => {
+            if (mobileOpen) return;
             const currentY = window.scrollY || 0;
             const diff = currentY - lastScrollY.current;
-
-            // кішкентай қозғалысты елемеу
-            if (Math.abs(diff) < 8) {
-                return;
-            }
-
-            if (currentY > 80 && diff > 0) {
-                // төмен қарай жылжығанда — жасырамыз
-                setHidden(true);
-            } else if (diff < 0) {
-                // жоғары қайтқанда — қайта көрсетеміз
-                setHidden(false);
-            }
-
-            // hero-дан айтарлықтай төмен түскенде — хедерді толық ақ қыламыз
+            if (Math.abs(diff) < 8) return;
+            if (currentY > 80 && diff > 0) setHidden(true);
+            else if (diff < 0) setHidden(false);
             setScrolled(currentY > 120);
-
             lastScrollY.current = currentY;
         };
-
         window.addEventListener("scroll", handleScroll);
         return () => window.removeEventListener("scroll", handleScroll);
-    }, []);
+    }, [mobileOpen]);
 
-    const showNotifBadge = unreadCount > 0 && loc.pathname !== "/notifications";
-
-    const active = (p) => (loc.pathname === p ? "is-active" : "");
-
-    const logout = () => {
-        localStorage.removeItem("token");
-        nav("/login");
-    };
-
-    // Close profile menu on outside click / Esc
     useEffect(() => {
         if (!profileOpen) return;
         const onDown = (e) => {
-            if (!profileRef.current) return;
-            if (!profileRef.current.contains(e.target)) setProfileOpen(false);
+            if (!profileRef.current?.contains(e.target)) setProfileOpen(false);
         };
         const onKey = (e) => {
             if (e.key === "Escape") setProfileOpen(false);
@@ -144,102 +123,75 @@ export default function Header() {
         };
     }, [profileOpen]);
 
+    useEffect(() => {
+        if (!mobileOpen) return;
+        const onKey = (e) => {
+            if (e.key === "Escape") closeMobile();
+        };
+        document.addEventListener("keydown", onKey);
+        return () => document.removeEventListener("keydown", onKey);
+    }, [mobileOpen]);
+
+    const showNotifBadge = unreadCount > 0 && loc.pathname !== "/notifications";
+
+    const logout = () => {
+        localStorage.removeItem("token");
+        closeMobile();
+        nav("/login");
+    };
+
+    const headerClass = [
+        "app-header",
+        hidden && !mobileOpen ? "app-header--hidden" : "",
+        scrolled || mobileOpen ? "app-header--solid" : "app-header--overlay",
+    ]
+        .filter(Boolean)
+        .join(" ");
+
+    const renderNavLinks = (linkClass) =>
+        navLinks.map(({ to, label, className }) => (
+            <Link
+                key={to}
+                className={`${linkClass} ${className}`.trim()}
+                to={to}
+                onClick={closeMobile}
+            >
+                {label}
+            </Link>
+        ));
+
     return (
-        <header className={`app-header ${hidden ? "app-header--hidden" : ""} ${scrolled ? "app-header--solid" : "app-header--overlay"}`}>
+        <header className={headerClass}>
             <div className="app-header__inner">
-                {/* Left: logo + brand */}
-                <Link className="app-brand" to="/">
+                <Link className="app-brand" to="/" onClick={closeMobile}>
                     <img src="/img/logo.png" alt="Janynda логотипі" className="app-brand__logo" />
                     <span className="app-brand__text">Janynda</span>
                 </Link>
 
-                {/* Center: nav */}
-                <nav className="app-nav" aria-label="Main">
-                    <Link className={`app-nav__link ${active("/")}`} to="/">
-                        Басты бет
-                    </Link>
-
-                    {t && (role === "patient" || role === "volunteer") && (
-                        <Link className={`app-nav__link ${active("/doctors")}`} to="/doctors">
-                            Дәрігерге жазылу
-                        </Link>
-                    )}
-
-                    {t && (role === "patient" || role === "volunteer") && (
-                        <Link className={`app-nav__link ${active("/diary")}`} to="/diary">
-                            Күнделік
-                        </Link>
-                    )}
-
-                    {t && role === "doctor" && (
-                        <Link className={`app-nav__link ${active("/doctor")}`} to="/doctor">
-                            Дәрігер кабинеті
-                        </Link>
-                    )}
-                    {t && role === "psychologist" && (
-                        <Link className={`app-nav__link ${active("/psych")}`} to="/psych">
-                            Психолог кабинеті
-                        </Link>
-                    )}
-                    {t && role === "head_psychologist" && (
-                        <>
-                            <Link className={`app-nav__link ${active("/psych")}`} to="/psych">
-                                Психолог кабинеті
-                            </Link>
-                            <Link className={`app-nav__link ${active("/psych/assignments")}`} to="/psych/assignments">
-                                Пациенттерді бөлу
-                            </Link>
-                        </>
-                    )}
-                    {t && (
-                        <Link className={`app-nav__link ${active("/groups")}`} to="/groups">
-                            Топтар
-                        </Link>
-                    )}
-
-                    {/* Admin логикасы сақталсын */}
-                    {t && role === "admin" && (
-                        <>
-                            <Link className={`app-nav__link ${active("/admin/doctors")}`} to="/admin/doctors">
-                                Дәрігерлер
-                            </Link>
-                            <Link className={`app-nav__link ${active("/admin/users")}`} to="/admin/users">
-                                Қолданушылар
-                            </Link>
-                            <Link className={`app-nav__link ${active("/admin/news")}`} to="/admin/news">
-                                Жаңалықтар
-                            </Link>
-                            <Link className={`app-nav__link ${active("/admin/ai-test")}`} to="/admin/ai-test">
-                                AI тексеру
-                            </Link>
-                        </>
-                    )}
-                    {t && role === "super_admin" && (
-                        <>
-                            <Link className={`app-nav__link ${active("/admin/dashboard")}`} to="/admin/dashboard">
-                                Басқару панелі
-                            </Link>
-                            <Link className={`app-nav__link ${active("/admin/doctors-stats")}`} to="/admin/doctors-stats">
-                                Дәрігерлер
-                            </Link>
-                            <Link className={`app-nav__link ${active("/admin/users")}`} to="/admin/users">
-                                Қолданушылар
-                            </Link>
-                            <Link className={`app-nav__link ${active("/admin/news")}`} to="/admin/news">
-                                Жаңалықтар
-                            </Link>
-                            <Link className={`app-nav__link ${active("/admin/ai-test")}`} to="/admin/ai-test">
-                                AI тексеру
-                            </Link>
-                        </>
-                    )}
+                <nav className="app-nav app-nav--desktop" aria-label="Негізгі мәзір">
+                    {renderNavLinks("app-nav__link")}
                 </nav>
 
-                {/* Right: language + auth */}
                 <div className="app-header__right">
+                    <button
+                        type="button"
+                        className="app-header__menu-btn"
+                        aria-label={mobileOpen ? "Мәзірді жабу" : "Мәзірді ашу"}
+                        aria-expanded={mobileOpen}
+                        aria-controls="mobile-nav-panel"
+                        onClick={() => setMobileOpen((v) => !v)}
+                    >
+                        <IconMenu />
+                    </button>
+
                     {t && (
                         <span className="app-header__notif-wrap">
-                            <Link to="/notifications" className="app-header__notif" title="Ескертулер" aria-label="Ескертулер">
+                            <Link
+                                to="/notifications"
+                                className="app-header__notif"
+                                title="Ескертулер"
+                                aria-label="Ескертулер"
+                            >
                                 <IconBell className="app-header__icon" />
                             </Link>
                             {showNotifBadge && <span className="app-header__notif-badge" aria-hidden="true" />}
@@ -247,7 +199,7 @@ export default function Header() {
                     )}
 
                     {!t ? (
-                        <div className="app-authlinks">
+                        <div className="app-authlinks app-authlinks--desktop">
                             <Link className={`app-authlinks__link ${active("/login")}`} to="/login">
                                 Кіру
                             </Link>
@@ -268,7 +220,6 @@ export default function Header() {
                             >
                                 {initialsFromToken(t)}
                             </button>
-
                             {profileOpen && (
                                 <div className="app-user__menu" role="menu" aria-label="Профиль мәзірі">
                                     <Link
@@ -294,6 +245,64 @@ export default function Header() {
                             )}
                         </div>
                     )}
+                </div>
+            </div>
+
+            <div
+                id="mobile-nav"
+                className={`mobile-nav ${mobileOpen ? "is-open" : ""}`}
+                aria-hidden={!mobileOpen}
+            >
+                <button
+                    type="button"
+                    className="mobile-nav__backdrop"
+                    aria-label="Мәзірді жабу"
+                    tabIndex={mobileOpen ? 0 : -1}
+                    onClick={closeMobile}
+                />
+                <div id="mobile-nav-panel" className="mobile-nav__panel" role="dialog" aria-modal="true" aria-label="Навигация">
+                    <div className="mobile-nav__head">
+                        <span className="mobile-nav__title">Мәзір</span>
+                        <button type="button" className="mobile-nav__close" aria-label="Жабу" onClick={closeMobile}>
+                            ×
+                        </button>
+                    </div>
+                    <nav className="mobile-nav__body" aria-label="Мобильді мәзір">
+                        {renderNavLinks("mobile-nav__link")}
+                        {!t && (
+                            <div className="mobile-nav__section">
+                                <div className="mobile-nav__section-title">Аккаунт</div>
+                                <div className="mobile-nav__auth">
+                                    <Link className="btn ghost" to="/login" onClick={closeMobile}>
+                                        Кіру
+                                    </Link>
+                                    <Link className="btn" to="/register" onClick={closeMobile}>
+                                        Тіркелу
+                                    </Link>
+                                </div>
+                            </div>
+                        )}
+                        {t && (
+                            <div className="mobile-nav__section">
+                                <div className="mobile-nav__section-title">Аккаунт</div>
+                                <Link className="mobile-nav__link" to="/profile" onClick={closeMobile}>
+                                    Менің деректерім
+                                </Link>
+                                <Link className="mobile-nav__link" to="/notifications" onClick={closeMobile}>
+                                    Ескертулер
+                                    {showNotifBadge && " •"}
+                                </Link>
+                                <button
+                                    type="button"
+                                    className="mobile-nav__link"
+                                    style={{ width: "100%", border: "none", background: "transparent", cursor: "pointer", textAlign: "left" }}
+                                    onClick={logout}
+                                >
+                                    Шығу
+                                </button>
+                            </div>
+                        )}
+                    </nav>
                 </div>
             </div>
         </header>

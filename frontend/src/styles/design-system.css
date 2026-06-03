@@ -1,0 +1,203 @@
+/* Janynda — HealthTech design system */
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&display=swap");
+
+:root {
+  /* Brand — medical teal + trust blue */
+  --primary: #0d9488;
+  --primary-hover: #0f766e;
+  --primary-soft: rgba(13, 148, 136, 0.12);
+  --accent: #0284c7;
+  --accent-soft: rgba(2, 132, 199, 0.1);
+
+  --success: #059669;
+  --warning: #d97706;
+  --danger: #dc2626;
+
+  /* Surfaces */
+  --bg: #f0f4f8;
+  --bg-elevated: #ffffff;
+  --text: #0f172a;
+  --text-secondary: #475569;
+  --muted: #64748b;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+
+  /* Legacy aliases (existing CSS) */
+  --card: var(--bg-elevated);
+  --primary2: var(--primary-hover);
+
+  /* Layout */
+  --container-max: 1200px;
+  --header-height: 64px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 12px 40px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 20px 50px rgba(15, 23, 42, 0.1);
+
+  /* Typography */
+  --font-sans: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-base: 15px;
+  --font-sm: 13px;
+  --font-xs: 12px;
+  --font-h1: clamp(1.75rem, 4vw, 2.5rem);
+  --font-h2: clamp(1.35rem, 3vw, 1.75rem);
+  --font-h3: 1.125rem;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 150ms;
+  --duration: 220ms;
+
+  /* Focus ring (a11y) */
+  --focus-ring: 0 0 0 3px rgba(13, 148, 136, 0.35);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--font-base);
+  color: var(--text);
+  background: var(--bg);
+  overflow-x: hidden;
+}
+
+/* Skip link */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 1000;
+  padding: 10px 16px;
+  background: var(--primary);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  text-decoration: none;
+}
+.skip-link:focus {
+  left: 12px;
+  top: 12px;
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Enhanced cards */
+.card {
+  transition: transform var(--duration) var(--ease-out),
+    box-shadow var(--duration) var(--ease-out),
+    border-color var(--duration) var(--ease-out);
+}
+.card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+}
+.card--interactive:hover {
+  transform: translateY(-2px);
+}
+
+/* Buttons — focus & touch targets */
+.btn,
+button:not(.app-header__menu-btn):not(.app-user__avatar):not(.mobile-nav__close) {
+  min-height: 44px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+}
+.btn:focus-visible,
+button:focus-visible,
+.input:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Page shell */
+.page {
+  margin-top: clamp(16px, 3vw, 28px);
+  animation: page-in 0.35s var(--ease-out);
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-header {
+  gap: 12px;
+}
+.page-header__title {
+  font-size: var(--font-h2);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+.page-header__subtitle {
+  max-width: 65ch;
+  line-height: 1.55;
+}
+
+/* Forms */
+.input,
+input.input,
+select.input,
+textarea.input {
+  width: 100%;
+  max-width: 100%;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  padding: 12px 14px;
+  font-family: var(--font-sans);
+  font-size: var(--font-base);
+  background: var(--bg-elevated);
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
+}
+.input:hover {
+  border-color: var(--border-strong);
+}
+.input::placeholder {
+  color: var(--muted);
+}
+
+/* Doctor & content cards */
+.doctor-card,
+.card.doctor-card {
+  border-radius: var(--radius-lg);
+}
+.doctor-card.card--interactive,
+article.doctor-card {
+  cursor: default;
+}
+
+/* Muted helper */
+.muted {
+  color: var(--muted);
+}
+
+/* Footer polish */
+.app-footer {
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  background: linear-gradient(180deg, #f8fafc 0%, var(--bg-elevated) 100%);
+}
+.app-footlink {
+  transition: color var(--duration-fast);
+}
+.app-footlink:hover {
+  color: var(--primary);
+}
