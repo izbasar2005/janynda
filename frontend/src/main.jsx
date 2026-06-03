@@ -8,6 +8,7 @@ import "./styles/responsive-ui.css";
 import "./styles/landing-home.css";
 import "./styles/landing-desktop.css";
 import "./styles/doctors-cards.css";
+import "./styles/groups-mobile.css";
 
 
 ReactDOM.createRoot(document.getElementById('root')).render(

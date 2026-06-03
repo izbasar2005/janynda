@@ -910,6 +910,39 @@ export default function Groups() {
 
     const totalDirectUnread = Object.values(unreadByChat).reduce((a, b) => a + Number(b || 0), 0);
 
+    const hasMobileChatOpen =
+        sideTab === "direct" ? !!activeDirect : selectedGroupId > 0;
+
+    const showChatPlaceholder =
+        sideTab === "direct" ? !activeDirect : !selectedGroup;
+
+    function backToChatList() {
+        if (sideTab === "direct") {
+            setActiveDirect(null);
+            setDirectMessages([]);
+        } else {
+            setSelectedGroupId(0);
+            setGroupInfoOpen(false);
+            setSettingsOpen(false);
+        }
+    }
+
+    function ChatBackButton() {
+        return (
+            <button
+                type="button"
+                className="groups-chat__back"
+                aria-label="Артқа"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    backToChatList();
+                }}
+            >
+                <span aria-hidden="true">←</span>
+            </button>
+        );
+    }
+
     return (
         <div className="page groups-page">
             {toastText && (
@@ -926,7 +959,12 @@ export default function Groups() {
 
             {status && <p className="groups-status">{status}</p>}
 
-            <div className="groups-chat-shell">
+            <div
+                className={
+                    "groups-chat-shell" +
+                    (hasMobileChatOpen ? " groups-chat-shell--chat-open" : "")
+                }
+            >
                 <aside className="groups-sidebar">
                     <div className="groups-sidebar__tabs">
                         <button
@@ -1182,8 +1220,12 @@ export default function Groups() {
                 </aside>
 
                 <section className="groups-chat">
-                    {!selectedGroup ? (
-                        <div className="groups-chat__placeholder">Сол жақтан топ таңдаңыз.</div>
+                    {showChatPlaceholder ? (
+                        <div className="groups-chat__placeholder">
+                            {sideTab === "direct"
+                                ? "Жеке чатты сол жақтан таңдаңыз."
+                                : "Сол жақтан топ таңдаңыз."}
+                        </div>
                     ) : (
                         <>
                             {activeDirect ? (
@@ -1193,6 +1235,7 @@ export default function Groups() {
                                         style={{ cursor: "pointer" }}
                                         onClick={() => openPeerProfile(activeDirect.peer_user_id)}
                                     >
+                                        <ChatBackButton />
                                         <div className="groups-chat__avatar">
                                             {activeDirect.photo_url ? (
                                                 <img
@@ -1264,6 +1307,7 @@ export default function Groups() {
                                     }
                                 }}
                             >
+                                <ChatBackButton />
                                 <div className="groups-chat__avatar">
                                     {selectedGroup.photo_url ? (
                                         <img
