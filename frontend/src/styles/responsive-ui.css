@@ -15,6 +15,7 @@
 
 .app-main {
   min-width: 0;
+  overflow-x: clip;
 }
 
 /* ========== Header mobile menu ========== */
