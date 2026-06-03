@@ -48,7 +48,7 @@ function DoctorPhoto({ src, alt }) {
     );
 }
 
-function CardInfo({ full_name, specialty, experience, price, avgRating, showExp = false }) {
+function CardInfo({ full_name, specialty, experience, price, avgRating }) {
     return (
         <div className="doc-card__body">
             <h3 className="doc-card__name">{full_name || "Аты көрсетілмеген"}</h3>
@@ -59,7 +59,7 @@ function CardInfo({ full_name, specialty, experience, price, avgRating, showExp 
                         ★ {avgRating}
                     </span>
                 )}
-                {showExp && <span className="doc-card__exp">{Number(experience)} жыл</span>}
+                <span className="doc-card__exp">{Number(experience)} жыл</span>
             </div>
             <p className="doc-card__price">
                 <strong>{Number(price)} ₸</strong>

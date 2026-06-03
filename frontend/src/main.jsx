@@ -6,6 +6,7 @@ import "./styles/design-system.css";
 import "./styles.css";
 import "./styles/responsive-ui.css";
 import "./styles/landing-home.css";
+import "./styles/landing-desktop.css";
 import "./styles/doctors-cards.css";
 
 

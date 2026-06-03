@@ -1,0 +1,379 @@
+/* ==========================================================================
+   Home — DESKTOP ONLY (min-width: 900px)
+   Restores original styles.css layout inside centered .container (1200px)
+   ========================================================================== */
+
+@media (min-width: 900px) {
+  /* ---- Page shell (styles.css parity, no full-viewport bleed) ---- */
+  .landing-page {
+    position: relative;
+    z-index: 0;
+    margin-top: -72px;
+    padding-top: 72px;
+    width: 100%;
+    max-width: 100%;
+    overflow: visible;
+  }
+
+  .landing-page::before {
+    left: 0;
+    right: 0;
+  }
+
+  .landing-section {
+    margin-top: 48px;
+    padding-top: 32px;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .landing-section__title {
+    font-size: 26px;
+    font-weight: 800;
+    margin: 0 0 8px;
+  }
+
+  .landing-section__subtitle {
+    margin: 0 0 24px;
+    font-size: 15px;
+    max-width: none;
+  }
+
+  .landing-section__cta {
+    margin-top: 24px;
+    text-align: center;
+  }
+
+  .btn--block-sm {
+    display: inline-flex;
+    width: auto;
+  }
+
+  /* ---- Hero: container-bound (cancel styles.css 100vw breakout) ---- */
+  .landing-hero {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 40px !important;
+    align-items: stretch !important;
+    position: relative !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    margin-top: -72px !important;
+    padding: 0 !important;
+    min-height: 72vh !important;
+    border-radius: 0 !important;
+    overflow: hidden !important;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+
+  .landing-hero__bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: 0;
+    background:
+      linear-gradient(
+        90deg,
+        rgba(15, 23, 42, 0.85) 0%,
+        rgba(15, 23, 42, 0.6) 32%,
+        rgba(15, 23, 42, 0.25) 55%,
+        rgba(15, 23, 42, 0) 78%
+      ),
+      url("/img/home-hero.jpg") center / cover no-repeat !important;
+    background-position: left top, center -40px !important;
+  }
+
+  .landing-hero__inner {
+    display: contents !important;
+    padding: 0 !important;
+  }
+
+  .landing-hero__badge {
+    display: none;
+  }
+
+  .landing-hero__content {
+    grid-column: 1;
+    align-self: center;
+    max-width: 520px;
+    margin-left: clamp(48px, 10vw, 130px) !important;
+    margin-right: 0 !important;
+    padding: 112px 24px 52px 0 !important;
+    opacity: 0;
+    transform: none;
+    animation: heroTextIn 0.7s ease-out forwards !important;
+  }
+
+  .landing-hero__title {
+    font-size: clamp(28px, 4vw, 38px);
+    font-weight: 800;
+    color: #e5f4ff;
+    margin: 0 0 16px;
+    line-height: 1.2;
+  }
+
+  .landing-hero__desc {
+    font-size: 17px;
+    color: rgba(226, 232, 240, 0.9);
+    margin: 0 0 20px;
+    line-height: 1.5;
+    max-width: none;
+  }
+
+  .landing-hero__benefits {
+    margin: 0 0 24px;
+  }
+
+  .landing-hero__benefits li {
+    font-size: 15px;
+    padding-left: 24px;
+    margin-bottom: 10px;
+  }
+
+  .landing-hero__benefits li::before {
+    top: 8px;
+    width: 8px;
+    height: 8px;
+  }
+
+  .landing-hero__actions {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 12px;
+    width: auto;
+  }
+
+  .landing-hero__actions .btn {
+    min-height: 44px;
+    width: auto;
+    box-shadow: none;
+  }
+
+  .landing-hero__actions .btn.ghost {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    color: #f8fafc;
+  }
+
+  .landing-hero__visual {
+    grid-column: 2;
+    position: relative !important;
+    align-self: stretch !important;
+    min-height: 100%;
+    height: 100%;
+    margin-right: clamp(48px, 10vw, 130px) !important;
+    margin-left: 0 !important;
+    padding: 0 !important;
+    display: block !important;
+    order: unset;
+  }
+
+  /* Doctor cutout: pinned to hero bottom edge */
+  .landing-hero__image-wrap {
+    position: absolute !important;
+    right: 0;
+    bottom: 0;
+    left: auto;
+    max-width: min(420px, 48vw);
+    width: 100%;
+    margin: 0 !important;
+    line-height: 0;
+    transform: translateY(0) !important;
+    opacity: 0;
+    animation: heroDoctorAlignDesktop 0.8s ease-out 0.05s forwards !important;
+    overflow: visible;
+    box-shadow: none;
+    border: none;
+    background: transparent;
+  }
+
+  .landing-hero__image-wrap:hover {
+    transform: translateY(0) !important;
+  }
+
+  .landing-hero__image {
+    width: 100%;
+    height: auto;
+    max-height: none;
+    display: block;
+    vertical-align: bottom;
+    object-fit: contain;
+    object-position: bottom center;
+    filter: none;
+  }
+
+  @keyframes heroDoctorAlignDesktop {
+    0% {
+      opacity: 0;
+      transform: translateY(40px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* ---- Specialties (styles.css) ---- */
+  .landing-specialties__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 20px;
+  }
+
+  .specialty-card {
+    padding: 24px;
+    border-radius: var(--radius-md, 12px);
+  }
+
+  .specialty-card__icon {
+    width: 56px;
+    height: 56px;
+    margin-bottom: 16px;
+  }
+
+  .specialty-card__title {
+    font-size: 17px;
+    font-weight: 700;
+    margin: 0 0 8px;
+  }
+
+  .specialty-card__desc,
+  .specialty-card__count {
+    font-size: 13px;
+    display: block;
+    -webkit-line-clamp: unset;
+    overflow: visible;
+  }
+
+  /* ---- Doctors on home: classic 3-col cards (not mobile compact) ---- */
+  .landing-doctors__grid.doc-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important;
+    gap: 24px !important;
+  }
+
+  .landing-doctors__grid .doc-card {
+    border-radius: var(--radius-lg, 16px);
+    text-align: center;
+    box-shadow: var(--shadow, 0 18px 50px rgba(15, 23, 42, 0.06));
+  }
+
+  .landing-doctors__grid .doc-card--compact .doc-card__media {
+    max-height: 200px;
+    aspect-ratio: auto;
+  }
+
+  .landing-doctors__grid .doc-card__media {
+    width: 100px;
+    height: 100px;
+    max-height: 100px;
+    margin: 14px auto 14px;
+    border-radius: 50%;
+    border: 3px solid var(--border, #e2e8f0);
+    aspect-ratio: 1 / 1;
+  }
+
+  .landing-doctors__grid .doc-card__img {
+    border-radius: 50%;
+  }
+
+  .landing-doctors__grid .doc-card__body {
+    padding: 0 20px 20px;
+    text-align: center;
+    align-items: center;
+  }
+
+  .landing-doctors__grid .doc-card__name {
+    font-size: 16px;
+    display: block;
+    -webkit-line-clamp: unset;
+  }
+
+  .landing-doctors__grid .doc-card__spec {
+    font-size: 13px;
+    display: block;
+  }
+
+  .landing-doctors__grid .doc-card__meta-line {
+    justify-content: center;
+    font-size: 12px;
+  }
+
+  .landing-doctors__grid .doc-card__exp {
+    display: inline;
+  }
+
+  .landing-doctors__grid .doc-card__price {
+    font-size: 14px;
+    margin: 0 0 14px;
+  }
+
+  /* ---- News ---- */
+  .landing-news__featured {
+    grid-template-columns: minmax(280px, 42%) 1fr;
+  }
+
+  .landing-news__featured-body {
+    padding: 22px 22px 22px 0 !important;
+  }
+
+  .landing-news__grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  /* ---- Testimonials: bg inside container ---- */
+  .landing-section.landing-testimonials::before {
+    left: 0;
+    right: 0;
+  }
+
+  .landing-testimonials__carousel {
+    max-width: 640px;
+    margin: 0 auto;
+    gap: 16px;
+  }
+
+  .testimonial-card {
+    padding: 24px;
+    text-align: center;
+  }
+
+  .testimonial-card__quote {
+    font-size: 17px;
+  }
+
+  .landing-testimonials__form-actions {
+    flex-direction: row;
+  }
+
+  .landing-testimonials__form-actions .btn {
+    width: auto;
+  }
+
+  .landing-heartline {
+    margin-top: 40px;
+    padding: 0;
+  }
+
+  .landing-heartline__img {
+    max-width: 980px;
+    margin: 0 auto;
+  }
+
+  .landing-diary-widget {
+    right: 32px;
+    bottom: 32px;
+    left: auto;
+    display: block !important;
+  }
+
+  .landing-diary-widget__inner {
+    min-width: 260px;
+    max-width: 320px;
+    width: auto;
+  }
+}

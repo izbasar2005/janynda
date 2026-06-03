@@ -4,8 +4,10 @@
 .container {
   width: 100%;
   max-width: var(--container-max, 1200px);
-  margin: 0 auto;
+  margin-left: auto;
+  margin-right: auto;
   padding: 0 clamp(12px, 3vw, 20px);
+  box-sizing: border-box;
 }
 
 .app-shell {
