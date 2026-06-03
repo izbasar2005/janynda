@@ -1,23 +1,25 @@
 /* ==========================================================================
    Home — DESKTOP ONLY (min-width: 900px)
-   Restores original styles.css layout inside centered .container (1200px)
+   Restores classic container-bound layout; cancels styles.css full-bleed.
+   Mobile: landing-home.css only (max-width: 899px) — do not change here.
    ========================================================================== */
 
 @media (min-width: 900px) {
-  /* ---- Page shell (styles.css parity, no full-viewport bleed) ---- */
+  /* ---- Cancel viewport bleed (styles.css 100vw / 50vw hacks) ---- */
   .landing-page {
     position: relative;
     z-index: 0;
-    margin-top: -72px;
-    padding-top: 72px;
     width: 100%;
     max-width: 100%;
+    margin-top: -72px;
+    padding-top: 72px;
     overflow: visible;
+    box-sizing: border-box;
   }
 
   .landing-page::before {
-    left: 0;
-    right: 0;
+    left: 0 !important;
+    right: 0 !important;
   }
 
   .landing-section {
@@ -49,7 +51,7 @@
     width: auto;
   }
 
-  /* ---- Hero: container-bound (cancel styles.css 100vw breakout) ---- */
+  /* ---- Hero: inside .container (1200px), not full viewport ---- */
   .landing-hero {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
@@ -61,19 +63,12 @@
     margin-left: 0 !important;
     margin-right: 0 !important;
     margin-top: -72px !important;
-    padding: 0 !important;
+    padding: 112px 96px 52px !important;
     min-height: 72vh !important;
     border-radius: 0 !important;
     overflow: hidden !important;
     box-shadow: none !important;
-    background: transparent !important;
-  }
-
-  .landing-hero__bg {
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    border-radius: 0;
+    box-sizing: border-box !important;
     background:
       linear-gradient(
         90deg,
@@ -84,6 +79,11 @@
       ),
       url("/img/home-hero.jpg") center / cover no-repeat !important;
     background-position: left top, center -40px !important;
+    background-origin: border-box !important;
+  }
+
+  .landing-hero__bg {
+    display: none !important;
   }
 
   .landing-hero__inner {
@@ -92,16 +92,16 @@
   }
 
   .landing-hero__badge {
-    display: none;
+    display: none !important;
   }
 
   .landing-hero__content {
     grid-column: 1;
-    align-self: center;
     max-width: 520px;
-    margin-left: clamp(48px, 10vw, 130px) !important;
+    align-self: center;
+    margin-left: 130px !important;
     margin-right: 0 !important;
-    padding: 112px 24px 52px 0 !important;
+    padding: 0 !important;
     opacity: 0;
     transform: none;
     animation: heroTextIn 0.7s ease-out forwards !important;
@@ -124,19 +124,28 @@
   }
 
   .landing-hero__benefits {
+    list-style: none;
+    padding: 0;
     margin: 0 0 24px;
   }
 
   .landing-hero__benefits li {
+    position: relative;
     font-size: 15px;
+    color: rgba(226, 232, 240, 0.92);
     padding-left: 24px;
     margin-bottom: 10px;
   }
 
   .landing-hero__benefits li::before {
+    content: "";
+    position: absolute;
+    left: 0;
     top: 8px;
     width: 8px;
     height: 8px;
+    border-radius: 50%;
+    background: var(--primary, #12bfae);
   }
 
   .landing-hero__actions {
@@ -154,70 +163,92 @@
   }
 
   .landing-hero__actions .btn.ghost {
+    color: #e5f4ff;
     background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.35);
-    color: #f8fafc;
+    border-color: rgba(226, 232, 240, 0.5);
   }
 
   .landing-hero__visual {
     grid-column: 2;
-    position: relative !important;
-    align-self: stretch !important;
-    min-height: 100%;
-    height: 100%;
-    margin-right: clamp(48px, 10vw, 130px) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-end !important;
+    justify-content: flex-end !important;
+    gap: 16px;
+    position: static !important;
+    order: unset !important;
+    min-height: 0 !important;
+    height: auto !important;
+    margin-right: 130px !important;
     margin-left: 0 !important;
     padding: 0 !important;
-    display: block !important;
-    order: unset;
+    width: auto;
   }
 
-  /* Doctor cutout: pinned to hero bottom edge */
   .landing-hero__image-wrap {
-    position: absolute !important;
-    right: 0;
-    bottom: 0;
-    left: auto;
-    max-width: min(420px, 48vw);
+    position: relative !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: auto !important;
+    max-width: 400px;
     width: 100%;
-    margin: 0 !important;
-    line-height: 0;
-    transform: translateY(0) !important;
-    opacity: 0;
-    animation: heroDoctorAlignDesktop 0.8s ease-out 0.05s forwards !important;
+    margin: 0 0 0 auto !important;
+    border-radius: 0;
     overflow: visible;
     box-shadow: none;
     border: none;
     background: transparent;
+    aspect-ratio: auto;
+    transform: translateY(51px) !important;
+    opacity: 0;
+    animation: heroDoctorIn 0.8s ease-out 0.05s forwards !important;
+    line-height: normal;
+  }
+
+  .landing-hero__image-wrap::before {
+    content: none;
   }
 
   .landing-hero__image-wrap:hover {
-    transform: translateY(0) !important;
+    transform: translateY(51px) !important;
+    box-shadow: none;
+  }
+
+  .landing-hero__image-wrap:hover .landing-hero__image {
+    transform: none;
   }
 
   .landing-hero__image {
     width: 100%;
-    height: auto;
+    height: 100%;
     max-height: none;
+    object-fit: cover;
+    object-position: center center;
     display: block;
-    vertical-align: bottom;
-    object-fit: contain;
-    object-position: bottom center;
+    position: relative;
+    z-index: 1;
     filter: none;
+    vertical-align: baseline;
   }
 
-  @keyframes heroDoctorAlignDesktop {
-    0% {
-      opacity: 0;
-      transform: translateY(40px);
-    }
-    100% {
-      opacity: 1;
-      transform: translateY(0);
-    }
+  .landing-hero__placeholder {
+    width: 100%;
+    height: 100%;
+    min-height: 240px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: linear-gradient(
+      160deg,
+      rgba(18, 191, 174, 0.12) 0%,
+      rgba(18, 191, 174, 0.04) 100%
+    );
+    color: var(--primary2, #0d9488);
   }
 
-  /* ---- Specialties (styles.css) ---- */
+  /* ---- Specialties ---- */
   .landing-specialties__grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -249,11 +280,13 @@
     overflow: visible;
   }
 
-  /* ---- Doctors on home: classic 3-col cards (not mobile compact) ---- */
+  /* ---- Doctors on home ---- */
   .landing-doctors__grid.doc-card-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important;
     gap: 24px !important;
+    width: 100%;
+    max-width: 100%;
   }
 
   .landing-doctors__grid .doc-card {
@@ -313,6 +346,10 @@
   }
 
   /* ---- News ---- */
+  .landing-news__header {
+    flex-wrap: nowrap;
+  }
+
   .landing-news__featured {
     grid-template-columns: minmax(280px, 42%) 1fr;
   }
@@ -325,10 +362,10 @@
     grid-template-columns: repeat(3, 1fr);
   }
 
-  /* ---- Testimonials: bg inside container ---- */
+  /* ---- Testimonials: background inside container ---- */
   .landing-section.landing-testimonials::before {
-    left: 0;
-    right: 0;
+    left: 0 !important;
+    right: 0 !important;
   }
 
   .landing-testimonials__carousel {
@@ -365,10 +402,10 @@
   }
 
   .landing-diary-widget {
+    display: block !important;
     right: 32px;
     bottom: 32px;
     left: auto;
-    display: block !important;
   }
 
   .landing-diary-widget__inner {
