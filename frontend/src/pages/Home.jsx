@@ -253,8 +253,8 @@ export default function Home() {
         <div className="landing-page">
             <Hero />
 
-            <section className="landing-section landing-specialties">
-                <h2 className="landing-section__title">Мамандықтар</h2>
+            <section className="landing-section landing-specialties" aria-labelledby="landing-specialties-title">
+                <h2 id="landing-specialties-title" className="landing-section__title">Мамандықтар</h2>
                 <p className="landing-section__subtitle muted">
                     Танымал мамандықтар бойынша дәрігерлерді таңдаңыз.
                 </p>
@@ -271,8 +271,8 @@ export default function Home() {
                 </div>
             </section>
 
-            <section className="landing-section landing-doctors">
-                <h2 className="landing-section__title">Танымал дәрігерлер</h2>
+            <section className="landing-section landing-doctors" aria-labelledby="landing-doctors-title">
+                <h2 id="landing-doctors-title" className="landing-section__title">Танымал дәрігерлер</h2>
                 <p className="landing-section__subtitle muted">
                     Тексерілген мамандар — сіздің денсаулығыңыз біздің мақсатымыз.
                 </p>
@@ -289,19 +289,19 @@ export default function Home() {
                 ) : (
                     <div className="empty-state">
                         <p className="empty-state__text">Дәрігерлер тізімі жүктелуде немесе әзірге бос.</p>
-                        <Link className="btn" to="/doctors">Барлық дәрігерлер</Link>
+                        <Link className="btn btn--block-sm" to="/doctors">Барлық дәрігерлер</Link>
                     </div>
                 )}
                 <div className="landing-section__cta">
-                    <Link className="btn ghost" to="/doctors">Барлық дәрігерлерді көру</Link>
+                    <Link className="btn ghost btn--block-sm" to="/doctors">Барлық дәрігерлерді көру</Link>
                 </div>
             </section>
 
-            <section className="landing-section landing-news">
+            <section className="landing-section landing-news" aria-labelledby="landing-news-title">
                 <div className="landing-news__header">
-                    <h2 className="landing-news__title">НОВОСТИ ЗДРАВООХРАНЕНИЯ</h2>
+                    <h2 id="landing-news-title" className="landing-news__title">Денсаулық жаңалықтары</h2>
                     <Link to="/news" className="landing-news__all">
-                        Посмотреть Все
+                        Барлығын көру
                     </Link>
                 </div>
 
@@ -353,8 +353,8 @@ export default function Home() {
                 <img src="/img/heartline.png" alt="" className="landing-heartline__img" />
             </div>
 
-            <section className="landing-section landing-testimonials">
-                <h2 className="landing-section__title">Пайдаланушылар пікірлері</h2>
+            <section className="landing-section landing-testimonials" aria-labelledby="landing-testimonials-title">
+                <h2 id="landing-testimonials-title" className="landing-section__title">Пайдаланушылар пікірлері</h2>
                 <p className="landing-section__subtitle muted">
                     Нақты пациенттердің тәжірибесі.
                 </p>
@@ -417,7 +417,7 @@ export default function Home() {
                     {!showFeedbackForm ? (
                         <button
                             type="button"
-                            className="btn landing-testimonials__feedback-btn"
+                            className="btn landing-testimonials__feedback-btn btn--block-sm"
                             onClick={() => setShowFeedbackForm(true)}
                         >
                             Пікір қалдыру
@@ -525,8 +525,8 @@ export default function Home() {
                 </div>
             )}
 
-            <section className="landing-section landing-faq">
-                <h2 className="landing-section__title">Жиі қойылатын сұрақтар</h2>
+            <section className="landing-section landing-faq" aria-labelledby="landing-faq-title">
+                <h2 id="landing-faq-title" className="landing-section__title">Жиі қойылатын сұрақтар</h2>
                 <p className="landing-section__subtitle muted">
                     Жазылу және платформа туралы жауаптар.
                 </p>

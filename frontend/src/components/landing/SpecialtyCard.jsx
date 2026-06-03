@@ -26,7 +26,7 @@ const icons = {
 export default function SpecialtyCard({ iconKey, title, description, doctorCount, to = "/doctors" }) {
     const icon = icons[iconKey] || icons.therapist;
     return (
-        <Link to={to} className="specialty-card card">
+        <Link to={to} className="specialty-card card card--interactive">
             <div className="specialty-card__icon" aria-hidden="true">
                 {icon}
             </div>

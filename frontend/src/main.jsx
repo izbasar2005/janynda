@@ -5,6 +5,7 @@ import App from './App.jsx'
 import "./styles/design-system.css";
 import "./styles.css";
 import "./styles/responsive-ui.css";
+import "./styles/landing-home.css";
 
 
 ReactDOM.createRoot(document.getElementById('root')).render(

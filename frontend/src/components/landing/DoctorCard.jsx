@@ -5,8 +5,8 @@ const NO_AVATAR =
     encodeURIComponent(`
   <svg xmlns='http://www.w3.org/2000/svg' width='256' height='256'>
     <rect width='100%' height='100%' fill='%23e2e8f0'/>
-    <circle cx='128' cy='100' r='50' fill='%2312bfae' opacity='0.3'/>
-    <rect x='68' y='160' width='120' height='60' rx='30' fill='%2312bfae' opacity='0.3'/>
+    <circle cx='128' cy='100' r='50' fill='%230d9488' opacity='0.3'/>
+    <rect x='68' y='160' width='120' height='60' rx='30' fill='%230d9488' opacity='0.3'/>
   </svg>`);
 
 function normalizePhoto(url) {
@@ -47,31 +47,43 @@ export default function DoctorCard({ doctor, reviewsData }) {
     return (
         <Link
             to={`/doctors/${Number(id)}`}
-            className="landing-doctor-card card landing-doctor-card--link"
-            style={{ textDecoration: "none", color: "inherit", display: "block" }}
+            className="landing-doctor-card card card--interactive landing-doctor-card--link"
+            aria-label={`${full_name || "Дәрігер"} — профильді көру`}
         >
-            <div className="landing-doctor-card__photo-wrap">
-                <img
-                    src={src}
-                    alt={full_name || "Дәрігер"}
-                    className="landing-doctor-card__photo"
-                    onError={(e) => {
-                        e.currentTarget.onerror = null;
-                        e.currentTarget.src = NO_AVATAR;
-                    }}
-                />
+            <div className="landing-doctor-card__layout">
+                <div className="landing-doctor-card__photo-wrap">
+                    <img
+                        src={src}
+                        alt={full_name || "Дәрігер"}
+                        className="landing-doctor-card__photo"
+                        width={96}
+                        height={96}
+                        loading="lazy"
+                        decoding="async"
+                        onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = NO_AVATAR;
+                        }}
+                    />
+                </div>
+                <div className="landing-doctor-card__body">
+                    <h3 className="landing-doctor-card__name">{full_name || "Аты көрсетілмеген"}</h3>
+                    <p className="landing-doctor-card__specialty muted">{specialty || "Мамандығы жоқ"}</p>
+                    <div className="landing-doctor-card__meta">
+                        <span className="landing-doctor-card__exp">Тәжірибе: {Number(experience)} жыл</span>
+                        <span
+                            className="landing-doctor-card__rating"
+                            aria-label={avgRating ? `Орташа рейтинг ${avgRating}` : "Рейтинг жоқ"}
+                        >
+                            ★ {avgRating ?? "—"}
+                        </span>
+                    </div>
+                    <p className="landing-doctor-card__price">
+                        Бағасы: <strong>{Number(price)} ₸</strong>
+                    </p>
+                    <span className="landing-doctor-card__cta">Профильді көру →</span>
+                </div>
             </div>
-            <h3 className="landing-doctor-card__name">{full_name || "Аты көрсетілмеген"}</h3>
-            <p className="landing-doctor-card__specialty muted">{specialty || "Мамандығы жоқ"}</p>
-            <div className="landing-doctor-card__meta">
-                <span className="landing-doctor-card__exp">Тәжірибе: {Number(experience)} жыл</span>
-                <span className="landing-doctor-card__rating" aria-label={avgRating ? `Орташа рейтинг ${avgRating}` : "Рейтинг жоқ"}>
-                    ★ {avgRating ?? "—"}
-                </span>
-            </div>
-            <p className="landing-doctor-card__price">
-                Бағасы: <strong>{Number(price)} ₸</strong>
-            </p>
             {lastReview && (
                 <div className="landing-doctor-card__last-review">
                     <div className="landing-doctor-card__last-review-head">
