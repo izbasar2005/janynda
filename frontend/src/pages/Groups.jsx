@@ -993,7 +993,7 @@ export default function Groups() {
                         <div className="groups-sidebar__actions">
                             <button
                                 type="button"
-                                className="groups-sidebar__create"
+                                className="groups-sidebar__create groups-btn groups-btn--soft"
                                 onClick={() => setCreateOpen((v) => !v)}
                             >
                                 {createOpen ? "Жабу" : "+ Жаңа топ құру"}
@@ -1003,7 +1003,7 @@ export default function Groups() {
                     {canManage && createOpen && (
                         <form className="groups-create-inline groups-form-panel" onSubmit={createGroup}>
                             <input
-                                className="input"
+                                className="input groups-field"
                                 placeholder="Топ атауы"
                                 value={newGroup.name}
                                 onChange={(e) => setNewGroup((p) => ({ ...p, name: e.target.value }))}
@@ -1130,7 +1130,9 @@ export default function Groups() {
                                     </div>
                                 </>
                             )}
-                            <button className="btn" type="submit">Топ құру</button>
+                            <button className="btn groups-btn groups-btn--primary" type="submit">
+                                Топ құру
+                            </button>
                         </form>
                     )}
                     {myGroups.length === 0 ? (
@@ -1285,12 +1287,14 @@ export default function Groups() {
                                     </div>
                                     <form onSubmit={sendDirectMessage} className="groups-chat__composer groups-composer">
                                         <input
-                                            className="input groups-chat__input"
+                                            className="input groups-field groups-chat__input"
                                             placeholder="Жеке хабарлама..."
                                             value={directText}
                                             onChange={(e) => setDirectText(e.target.value)}
                                         />
-                                        <button className="btn groups-chat__send" type="submit">Жіберу</button>
+                                        <button className="btn groups-btn groups-btn--primary groups-chat__send" type="submit">
+                                            Жіберу
+                                        </button>
                                     </form>
                                 </>
                             ) : (
@@ -1328,7 +1332,7 @@ export default function Groups() {
                                 {canEditSelected && (
                                     <button
                                         type="button"
-                                        className="groups-chat__edit-btn"
+                                        className="groups-chat__edit-btn groups-btn groups-btn--soft"
                                         onClick={(e) => {
                                             // Header click-ті триггер етпейміз.
                                             e.stopPropagation();
@@ -1563,12 +1567,14 @@ export default function Groups() {
                             {!settingsOpen && (
                                 <form onSubmit={sendMessage} className="groups-chat__composer groups-composer">
                                     <input
-                                        className="input groups-chat__input"
+                                        className="input groups-field groups-chat__input"
                                         placeholder="Хабарлама..."
                                         value={msgText}
                                         onChange={(e) => setMsgText(e.target.value)}
                                     />
-                                    <button className="btn groups-chat__send" type="submit">Жіберу</button>
+                                    <button className="btn groups-btn groups-btn--primary groups-chat__send" type="submit">
+                                        Жіберу
+                                    </button>
                                 </form>
                             )}
                                 </>
