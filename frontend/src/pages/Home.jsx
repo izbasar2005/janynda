@@ -253,6 +253,7 @@ export default function Home() {
         <div className="landing-page">
             <Hero />
 
+            <div className="container landing-page__main page">
             <section className="landing-section landing-specialties" aria-labelledby="landing-specialties-title">
                 <h2 id="landing-specialties-title" className="landing-section__title">Мамандықтар</h2>
                 <p className="landing-section__subtitle muted">
@@ -466,6 +467,25 @@ export default function Home() {
                 </div>
             </section>
 
+            <section className="landing-section landing-faq" aria-labelledby="landing-faq-title">
+                <h2 id="landing-faq-title" className="landing-section__title">Жиі қойылатын сұрақтар</h2>
+                <p className="landing-section__subtitle muted">
+                    Жазылу және платформа туралы жауаптар.
+                </p>
+                <div className="landing-faq__list">
+                    {FAQ_DATA.map((item, i) => (
+                        <FAQItem
+                            key={i}
+                            question={item.q}
+                            answer={item.a}
+                            isOpen={faqOpenIndex === i}
+                            onToggle={() => setFaqOpenIndex(faqOpenIndex === i ? null : i)}
+                        />
+                    ))}
+                </div>
+            </section>
+            </div>
+
             {me && showDiaryWidget && (
                 <div className="landing-diary-widget">
                     <div className="landing-diary-widget__inner">
@@ -524,24 +544,6 @@ export default function Home() {
                     </div>
                 </div>
             )}
-
-            <section className="landing-section landing-faq" aria-labelledby="landing-faq-title">
-                <h2 id="landing-faq-title" className="landing-section__title">Жиі қойылатын сұрақтар</h2>
-                <p className="landing-section__subtitle muted">
-                    Жазылу және платформа туралы жауаптар.
-                </p>
-                <div className="landing-faq__list">
-                    {FAQ_DATA.map((item, i) => (
-                        <FAQItem
-                            key={i}
-                            question={item.q}
-                            answer={item.a}
-                            isOpen={faqOpenIndex === i}
-                            onToggle={() => setFaqOpenIndex(faqOpenIndex === i ? null : i)}
-                        />
-                    ))}
-                </div>
-            </section>
         </div>
     );
 }

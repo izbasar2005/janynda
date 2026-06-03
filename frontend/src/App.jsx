@@ -27,6 +27,7 @@ import DoctorPatient from "./pages/DoctorPatient.jsx";
 import PsychDashboard from "./pages/PsychDashboard.jsx";
 import PsychCaseDetail from "./pages/PsychCaseDetail.jsx";
 import PsychAssignments from "./pages/PsychAssignments.jsx";
+import PageContainer from "./layouts/PageContainer.jsx";
 
 function RequireAuth({ children }) {
     const loc = useLocation();
@@ -44,9 +45,9 @@ export default function App() {
             <Header />
 
             <main id="main-content" className="app-main" tabIndex={-1}>
-                <div className="container page">
-                    <Routes>
-                        <Route path="/" element={<Home />} />
+                <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route element={<PageContainer />}>
                         <Route path="/doctors" element={<Doctors />} />
                         <Route path="/doctors/:id" element={<DoctorDetail />} />
 
@@ -77,10 +78,10 @@ export default function App() {
                         <Route path="/admin/doctors-stats" element={<RequireAuth><AdminDoctorsStats /></RequireAuth>} />
                         <Route path="/admin/news" element={<RequireAuth><AdminNews /></RequireAuth>} />
                         <Route path="/admin/ai-test" element={<RequireAuth><AdminAiTest /></RequireAuth>} />
+                    </Route>
 
-                        <Route path="*" element={<Navigate to="/" replace />} />
-                    </Routes>
-                </div>
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
             </main>
 
             <Footer />

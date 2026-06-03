@@ -15,7 +15,7 @@ export default function Hero() {
     return (
         <section className="landing-hero" aria-labelledby="landing-hero-title">
             <div className="landing-hero__bg" aria-hidden="true" />
-            <div className="landing-hero__inner">
+            <div className="landing-hero__inner container">
                 <div className="landing-hero__content">
                     <span className="landing-hero__badge">Медициналық платформа</span>
                     <h1 id="landing-hero-title" className="landing-hero__title">

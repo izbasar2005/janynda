@@ -1,16 +1,15 @@
 /* ==========================================================================
    Home — DESKTOP ONLY (min-width: 900px)
-   Restores classic container-bound layout; cancels styles.css full-bleed.
-   Mobile: landing-home.css only (max-width: 899px) — do not change here.
+   Full-width hero/backgrounds; inner content max-width 1200px centered.
+   Mobile: landing-home.css (max-width: 899px) — unchanged.
    ========================================================================== */
 
 @media (min-width: 900px) {
-  /* ---- Cancel viewport bleed (styles.css 100vw / 50vw hacks) ---- */
   .landing-page {
     position: relative;
     z-index: 0;
     width: 100%;
-    max-width: 100%;
+    max-width: none;
     margin-top: -72px;
     padding-top: 72px;
     overflow: visible;
@@ -20,6 +19,10 @@
   .landing-page::before {
     left: 0 !important;
     right: 0 !important;
+  }
+
+  .landing-page__main.container {
+    margin-top: 0;
   }
 
   .landing-section {
@@ -51,24 +54,36 @@
     width: auto;
   }
 
-  /* ---- Hero: inside .container (1200px), not full viewport ---- */
+  /* ---- Hero: full-width section (outside .container); content in .container inside ---- */
   .landing-hero {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
-    gap: 40px !important;
-    align-items: stretch !important;
+    display: block !important;
     position: relative !important;
+    left: auto !important;
+    right: auto !important;
+    transform: none !important;
     width: 100% !important;
-    max-width: 100% !important;
+    max-width: none !important;
     margin-left: 0 !important;
     margin-right: 0 !important;
     margin-top: -72px !important;
-    padding: 112px 96px 52px !important;
+    padding: 0 !important;
     min-height: 72vh !important;
     border-radius: 0 !important;
     overflow: hidden !important;
     box-shadow: none !important;
     box-sizing: border-box !important;
+    background: transparent !important;
+  }
+
+  .landing-hero__bg {
+    display: block !important;
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    width: 100%;
+    margin: 0;
+    transform: none;
+    border-radius: 0;
     background:
       linear-gradient(
         90deg,
@@ -79,16 +94,24 @@
       ),
       url("/img/home-hero.jpg") center / cover no-repeat !important;
     background-position: left top, center -40px !important;
-    background-origin: border-box !important;
   }
 
-  .landing-hero__bg {
-    display: none !important;
-  }
-
-  .landing-hero__inner {
-    display: contents !important;
-    padding: 0 !important;
+  .landing-hero__inner.container {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 40px !important;
+    align-items: stretch !important;
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: var(--container-max, 1200px);
+    margin-left: auto !important;
+    margin-right: auto !important;
+    padding-top: 112px !important;
+    padding-bottom: 52px !important;
+    padding-left: clamp(16px, 4vw, 96px) !important;
+    padding-right: clamp(16px, 4vw, 96px) !important;
+    box-sizing: border-box;
   }
 
   .landing-hero__badge {
@@ -175,10 +198,7 @@
     align-items: flex-end !important;
     justify-content: flex-end !important;
     gap: 16px;
-    position: static !important;
     order: unset !important;
-    min-height: 0 !important;
-    height: auto !important;
     margin-right: 130px !important;
     margin-left: 0 !important;
     padding: 0 !important;
@@ -187,22 +207,16 @@
 
   .landing-hero__image-wrap {
     position: relative !important;
-    right: auto !important;
-    bottom: auto !important;
-    left: auto !important;
     max-width: 400px;
     width: 100%;
     margin: 0 0 0 auto !important;
-    border-radius: 0;
+    transform: translateY(51px) !important;
+    opacity: 0;
+    animation: heroDoctorIn 0.8s ease-out 0.05s forwards !important;
     overflow: visible;
     box-shadow: none;
     border: none;
     background: transparent;
-    aspect-ratio: auto;
-    transform: translateY(51px) !important;
-    opacity: 0;
-    animation: heroDoctorIn 0.8s ease-out 0.05s forwards !important;
-    line-height: normal;
   }
 
   .landing-hero__image-wrap::before {
@@ -221,19 +235,13 @@
   .landing-hero__image {
     width: 100%;
     height: 100%;
-    max-height: none;
     object-fit: cover;
-    object-position: center center;
     display: block;
-    position: relative;
-    z-index: 1;
     filter: none;
-    vertical-align: baseline;
   }
 
   .landing-hero__placeholder {
     width: 100%;
-    height: 100%;
     min-height: 240px;
     display: flex;
     flex-direction: column;
@@ -248,7 +256,7 @@
     color: var(--primary2, #0d9488);
   }
 
-  /* ---- Specialties ---- */
+  /* ---- Specialties (container width) ---- */
   .landing-specialties__grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -280,69 +288,135 @@
     overflow: visible;
   }
 
-  /* ---- Doctors on home ---- */
+  /* ---- Doctors: classic landing-doctor-card grid (3–4 cols) ---- */
   .landing-doctors__grid.doc-card-grid {
-    display: grid;
+    display: grid !important;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important;
     gap: 24px !important;
     width: 100%;
     max-width: 100%;
   }
 
-  .landing-doctors__grid .doc-card {
-    border-radius: var(--radius-lg, 16px);
+  .landing-doctors__grid .doc-card.doc-card--landing {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    height: auto !important;
+    padding: 20px !important;
+    margin: 0 !important;
     text-align: center;
+    text-decoration: none;
+    color: inherit;
+    border-radius: var(--radius-lg, 16px);
+    border: 1px solid var(--border, #e2e8f0);
+    background: var(--card, #fff);
     box-shadow: var(--shadow, 0 18px 50px rgba(15, 23, 42, 0.06));
+    overflow: visible;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
   }
 
-  .landing-doctors__grid .doc-card--compact .doc-card__media {
-    max-height: 200px;
-    aspect-ratio: auto;
+  .landing-doctors__grid .doc-card.doc-card--landing:hover {
+    transform: translateY(-4px) !important;
+    box-shadow: 0 24px 56px rgba(15, 23, 42, 0.1) !important;
   }
 
-  .landing-doctors__grid .doc-card__media {
-    width: 100px;
-    height: 100px;
-    max-height: 100px;
-    margin: 14px auto 14px;
-    border-radius: 50%;
+  .landing-doctors__grid .doc-card--landing .doc-card__media {
+    position: relative !important;
+    width: 100px !important;
+    height: 100px !important;
+    max-height: 100px !important;
+    min-height: 0 !important;
+    aspect-ratio: 1 / 1 !important;
+    border-radius: 50% !important;
+    margin: 0 auto 14px !important;
     border: 3px solid var(--border, #e2e8f0);
-    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    background: var(--border, #e2e8f0);
+    flex-shrink: 0;
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
   }
 
-  .landing-doctors__grid .doc-card__img {
-    border-radius: 50%;
+  .landing-doctors__grid .doc-card--landing:hover .doc-card__media {
+    transform: translateY(-3px);
+    box-shadow: 0 18px 38px rgba(15, 23, 42, 0.16);
   }
 
-  .landing-doctors__grid .doc-card__body {
-    padding: 0 20px 20px;
+  .landing-doctors__grid .doc-card--landing .doc-card__img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    object-position: center center !important;
+    border-radius: 0;
+    display: block;
+  }
+
+  .landing-doctors__grid .doc-card--landing .doc-card__body {
+    display: block !important;
+    flex: none !important;
+    width: 100%;
+    padding: 0 !important;
+    gap: 0;
     text-align: center;
     align-items: center;
+    min-width: 0;
   }
 
-  .landing-doctors__grid .doc-card__name {
+  .landing-doctors__grid .doc-card--landing .doc-card__name {
+    margin: 0 0 4px;
     font-size: 16px;
+    font-weight: 700;
     display: block;
     -webkit-line-clamp: unset;
+    overflow: visible;
   }
 
-  .landing-doctors__grid .doc-card__spec {
+  .landing-doctors__grid .doc-card--landing .doc-card__spec {
+    margin: 0 0 12px;
     font-size: 13px;
     display: block;
+    -webkit-line-clamp: unset;
+    overflow: visible;
+    color: var(--muted, #64748b);
   }
 
-  .landing-doctors__grid .doc-card__meta-line {
+  .landing-doctors__grid .doc-card--landing .doc-card__meta-line {
+    display: flex;
     justify-content: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 8px;
     font-size: 12px;
+    color: var(--muted, #64748b);
   }
 
-  .landing-doctors__grid .doc-card__exp {
+  .landing-doctors__grid .doc-card--landing .doc-card__rating {
+    color: #f59e0b;
+    font-weight: 700;
+  }
+
+  .landing-doctors__grid .doc-card--landing .doc-card__exp {
     display: inline;
   }
 
-  .landing-doctors__grid .doc-card__price {
+  .landing-doctors__grid .doc-card--landing .doc-card__price {
+    margin: 0 0 0;
     font-size: 14px;
-    margin: 0 0 14px;
+  }
+
+  .landing-doctors__grid .doc-card--landing .doc-card__price strong {
+    font-weight: 700;
+  }
+
+  @media (min-width: 1400px) {
+    .landing-doctors__grid.doc-card-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    }
+  }
+
+  @media (min-width: 900px) and (max-width: 1399px) {
+    .landing-doctors__grid.doc-card-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
   }
 
   /* ---- News ---- */
@@ -362,10 +436,10 @@
     grid-template-columns: repeat(3, 1fr);
   }
 
-  /* ---- Testimonials: background inside container ---- */
+  /* ---- Testimonials: full-width background band ---- */
   .landing-section.landing-testimonials::before {
-    left: 0 !important;
-    right: 0 !important;
+    left: calc(50% - 50vw) !important;
+    right: calc(50% - 50vw) !important;
   }
 
   .landing-testimonials__carousel {
