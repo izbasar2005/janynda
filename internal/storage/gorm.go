@@ -9,6 +9,10 @@ import (
 )
 
 func NewGormFromEnv() (*gorm.DB, error) {
+	if dsn := os.Getenv("DATABASE_URL"); dsn != "" {
+		return gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	}
+
 	host := os.Getenv("DB_HOST")
 	port := os.Getenv("DB_PORT")
 	user := os.Getenv("DB_USER")

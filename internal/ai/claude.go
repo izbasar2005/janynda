@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -236,7 +237,9 @@ func assessText(ctx context.Context, text string, systemPrompt string) (DiaryAss
 	}
 	model := strings.TrimSpace(os.Getenv("ANTHROPIC_MODEL"))
 	if model == "" {
-		model = "claude-haiku-4-5"
+		// Prefer the stable Sonnet 4.5 alias (or a dated ID).
+		// See Anthropic models overview: claude-sonnet-4-5 (alias) / claude-sonnet-4-5-20250929 (dated).
+		model = "claude-sonnet-4-5"
 	}
 
 	if len(text) > 6000 {
@@ -279,6 +282,18 @@ func assessText(ctx context.Context, text string, systemPrompt string) (DiaryAss
 		return empty, fmt.Errorf("claude http error: %w", err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		b, _ := io.ReadAll(resp.Body)
+		msg := strings.TrimSpace(string(b))
+		if len(msg) > 2000 {
+			msg = msg[:2000]
+		}
+		if msg == "" {
+			msg = resp.Status
+		}
+		return empty, fmt.Errorf("anthropic http %d: %s", resp.StatusCode, msg)
+	}
 
 	var claudeResp claudeResponse
 	if err := json.NewDecoder(resp.Body).Decode(&claudeResp); err != nil {

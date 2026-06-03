@@ -21,5 +21,7 @@ type User struct {
 	Gender    string `gorm:"type:varchar(20)" json:"gender"`
 	Diagnosis string `gorm:"type:text" json:"diagnosis,omitempty"`
 
+	Email string `gorm:"type:varchar(150)" json:"email,omitempty"`
+
 	CreatedAt time.Time `json:"created_at"`
 }

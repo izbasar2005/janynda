@@ -136,11 +136,10 @@ export default function Login() {
             </form>
 
             <div className="login-links">
-              <button className="login-link" type="button">
+              <Link className="login-link" to="/forgot-password">
                 Құпия сөзді ұмыттыңыз ба?
-              </button>
+              </Link>
 
-              {/* Мынау сенің /register маршрутыңа апарады */}
               <Link className="login-link login-link--accent" to="/register">
                 Тіркелу
               </Link>

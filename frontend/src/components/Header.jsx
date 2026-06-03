@@ -209,6 +209,9 @@ export default function Header() {
                             <Link className={`app-nav__link ${active("/admin/news")}`} to="/admin/news">
                                 Жаңалықтар
                             </Link>
+                            <Link className={`app-nav__link ${active("/admin/ai-test")}`} to="/admin/ai-test">
+                                AI тексеру
+                            </Link>
                         </>
                     )}
                     {t && role === "super_admin" && (
@@ -224,6 +227,9 @@ export default function Header() {
                             </Link>
                             <Link className={`app-nav__link ${active("/admin/news")}`} to="/admin/news">
                                 Жаңалықтар
+                            </Link>
+                            <Link className={`app-nav__link ${active("/admin/ai-test")}`} to="/admin/ai-test">
+                                AI тексеру
                             </Link>
                         </>
                     )}

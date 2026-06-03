@@ -198,7 +198,7 @@ func stripAiForRole(e model.DiaryEntry, role string) map[string]any {
 		"created_at": e.CreatedAt,
 	}
 	r := strings.ToLower(strings.TrimSpace(role))
-	if r == "psychologist" {
+	if r == "psychologist" || r == "head_psychologist" {
 		if e.AiStatus != nil {
 			m["ai_status"] = *e.AiStatus
 		}
