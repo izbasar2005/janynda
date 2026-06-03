@@ -9,6 +9,7 @@ import "./styles/landing-home.css";
 import "./styles/landing-desktop.css";
 import "./styles/doctors-cards.css";
 import "./styles/groups-responsive.css";
+import "./styles/site-responsive.css";
 
 
 ReactDOM.createRoot(document.getElementById('root')).render(

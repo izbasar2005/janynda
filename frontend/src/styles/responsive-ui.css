@@ -169,7 +169,7 @@ body.mobile-nav-open {
   overflow: hidden;
 }
 
-@media (max-width: 1023px) {
+@media (max-width: 1024px) {
   .app-header__menu-btn {
     display: inline-flex;
   }
@@ -191,7 +191,7 @@ body.mobile-nav-open {
   }
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 1025px) {
   .mobile-nav {
     display: none !important;
   }
@@ -294,7 +294,7 @@ code {
 /* Doctor grids: see doctors-cards.css (mobile-first minmax(0, 1fr)) */
 
 /* Override legacy horizontal nav scroll (hamburger replaces it) */
-@media (max-width: 1023px) {
+@media (max-width: 1024px) {
   .app-nav.app-nav--desktop {
     order: unset;
     flex: unset;
