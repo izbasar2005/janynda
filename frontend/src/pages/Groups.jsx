@@ -910,7 +910,7 @@ export default function Groups() {
 
     const totalDirectUnread = Object.values(unreadByChat).reduce((a, b) => a + Number(b || 0), 0);
 
-    const hasMobileChatOpen =
+    const hasResponsiveChatOpen =
         sideTab === "direct" ? !!activeDirect : selectedGroupId > 0;
 
     const showChatPlaceholder =
@@ -962,7 +962,7 @@ export default function Groups() {
             <div
                 className={
                     "groups-chat-shell" +
-                    (hasMobileChatOpen ? " groups-chat-shell--chat-open" : "")
+                    (hasResponsiveChatOpen ? " groups-chat-shell--chat-open" : "")
                 }
             >
                 <aside className="groups-sidebar">
@@ -1001,7 +1001,7 @@ export default function Groups() {
                         </div>
                     )}
                     {canManage && createOpen && (
-                        <form className="groups-create-inline" onSubmit={createGroup}>
+                        <form className="groups-create-inline groups-form-panel" onSubmit={createGroup}>
                             <input
                                 className="input"
                                 placeholder="Топ атауы"
@@ -1283,7 +1283,7 @@ export default function Groups() {
                                         )}
                                         <div ref={directMessagesEndRef} style={{ height: 1 }} />
                                     </div>
-                                    <form onSubmit={sendDirectMessage} className="groups-chat__composer">
+                                    <form onSubmit={sendDirectMessage} className="groups-chat__composer groups-composer">
                                         <input
                                             className="input groups-chat__input"
                                             placeholder="Жеке хабарлама..."
@@ -1561,7 +1561,7 @@ export default function Groups() {
                             )}
 
                             {!settingsOpen && (
-                                <form onSubmit={sendMessage} className="groups-chat__composer">
+                                <form onSubmit={sendMessage} className="groups-chat__composer groups-composer">
                                     <input
                                         className="input groups-chat__input"
                                         placeholder="Хабарлама..."
