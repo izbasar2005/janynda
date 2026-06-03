@@ -95,7 +95,6 @@ export default function AdminUsers() {
         ? ["patient", "doctor", "psychologist", "head_psychologist", "volunteer", "admin", "super_admin"]
         : ["patient", "doctor", "psychologist", "volunteer"];
 
-    // Доступные роли-фильтры (только присутствующие в списке).
     const presentRoles = useMemo(() => {
         const set = new Set(list.map((u) => (u.role || "patient").toLowerCase()));
         const order = ["doctor", "psychologist", "head_psychologist", "admin", "super_admin", "patient", "volunteer"];
@@ -125,29 +124,34 @@ export default function AdminUsers() {
         });
     }, [list, search, roleFilter]);
 
+    const msgClass = msg.includes("Қате") ? "admin-banner admin-banner--error" : "admin-banner admin-banner--info";
+
     return (
-        <div style={S.page}>
-            <div style={S.header}>
-                <h1 style={S.title}>Қолданушылар</h1>
-                <p style={S.subtitle}>
-                    {myRole === "super_admin"
-                        ? "Барлық қолданушылар мен олардың рөлдерін басқару."
-                        : "Пациент, волонтёр, психолог және дәрігерлердің рөлдерін басқару."}
-                </p>
+        <div className="page admin-users-page">
+            <div className="page-header">
+                <div>
+                    <h2 className="page-header__title">Қолданушылар</h2>
+                    <p className="muted page-header__subtitle">
+                        {myRole === "super_admin"
+                            ? "Барлық қолданушылар мен олардың рөлдерін басқару."
+                            : "Пациент, волонтёр, психолог және дәрігерлердің рөлдерін басқару."}
+                    </p>
+                </div>
             </div>
 
-            {msg && <div style={msg.includes("Қате") ? S.errorBanner : S.infoBanner}>{msg}</div>}
+            {msg && <div className={msgClass}>{msg}</div>}
 
-            <div style={S.toolbar}>
+            <div className="admin-users-toolbar">
                 <input
-                    style={S.search}
+                    className="admin-users-search"
+                    type="search"
                     placeholder="Аты-жөні, телефон немесе ID бойынша іздеу…"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                 />
             </div>
 
-            <div style={S.pills}>
+            <div className="admin-users-pills" role="tablist" aria-label="Рөл фильтрі">
                 <Pill active={roleFilter === ""} onClick={() => setRoleFilter("")} label="Барлығы" count={list.length} color="#0f172a" />
                 {presentRoles.map((r) => (
                     <Pill
@@ -161,39 +165,38 @@ export default function AdminUsers() {
                 ))}
             </div>
 
-            {loading && <p style={S.muted}>Жүктелуде…</p>}
+            {loading && <p className="muted">Жүктелуде…</p>}
 
             {!loading && (
-                <TableWrap className="admin-users-tablewrap">
-                    <table className="table admin-users-table" style={S.table}>
-                        <thead>
-                            <tr>
-                                <th style={{ ...S.th, width: 60 }}>ID</th>
-                                <th style={S.th}>Аты-жөні</th>
-                                <th style={S.th}>Телефон</th>
-                                <th style={S.th}>Ағымдағы рөл</th>
-                                <th style={S.th}>Жаңа рөл</th>
-                                <th style={{ ...S.th, width: 120 }}>Әрекет</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filtered.map((u) => {
-                                const cur = (u.role || "patient").toLowerCase();
-                                const sel = roles[u.id] || cur;
-                                const changed = sel !== cur;
-                                return (
-                                    <tr key={u.id} style={S.tr}>
-                                        <td style={{ ...S.td, color: "#94a3b8", fontWeight: 600 }}>{u.id}</td>
-                                        <td style={{ ...S.td, fontWeight: 600 }}>{u.full_name || "—"}</td>
-                                        <td style={{ ...S.td, color: "#475569" }}>{u.phone || "—"}</td>
-                                        <td style={S.td}>
-                                            <span style={{ ...S.badge, background: (ROLE_COLORS[cur] || "#64748b") + "1a", color: ROLE_COLORS[cur] || "#64748b" }}>
-                                                {ROLE_LABELS[cur] || cur}
-                                            </span>
-                                        </td>
-                                        <td style={S.td}>
+                <>
+                    <div className="admin-mobile-cards" aria-label="Қолданушылар">
+                        {filtered.map((u) => {
+                            const cur = (u.role || "patient").toLowerCase();
+                            const sel = roles[u.id] || cur;
+                            const changed = sel !== cur;
+                            const color = ROLE_COLORS[cur] || "#64748b";
+                            return (
+                                <article key={u.id} className="card admin-mobile-card">
+                                    <header className="admin-mobile-card__head">
+                                        <div>
+                                            <h3 className="admin-mobile-card__title">{u.full_name || "—"}</h3>
+                                            <p className="admin-mobile-card__meta">
+                                                ID {u.id} · {u.phone || "—"}
+                                            </p>
+                                        </div>
+                                        <span
+                                            className="admin-mobile-card__badge"
+                                            style={{ background: `${color}1a`, color }}
+                                        >
+                                            {ROLE_LABELS[cur] || cur}
+                                        </span>
+                                    </header>
+                                    <div className="admin-mobile-card__fields">
+                                        <div className="admin-mobile-card__field">
+                                            <label htmlFor={`role-${u.id}`}>Жаңа рөл</label>
                                             <select
-                                                style={S.select}
+                                                id={`role-${u.id}`}
+                                                className="input"
                                                 value={sel}
                                                 onChange={(e) => setRoles((p) => ({ ...p, [u.id]: e.target.value }))}
                                             >
@@ -201,27 +204,92 @@ export default function AdminUsers() {
                                                     <option key={opt} value={opt}>{ROLE_LABELS[opt] || opt}</option>
                                                 ))}
                                             </select>
-                                        </td>
-                                        <td style={S.td}>
-                                            <button
-                                                style={changed ? S.btnSave : S.btnSaveDisabled}
-                                                disabled={!changed || savingId === u.id}
-                                                onClick={() => saveRole(u.id)}
-                                            >
-                                                {savingId === u.id ? "…" : "Сақтау"}
-                                            </button>
-                                        </td>
+                                        </div>
+                                    </div>
+                                    <div className="admin-mobile-card__actions">
+                                        <button
+                                            type="button"
+                                            className="btn"
+                                            disabled={!changed || savingId === u.id}
+                                            onClick={() => saveRole(u.id)}
+                                        >
+                                            {savingId === u.id ? "Сақталуда…" : "Сақтау"}
+                                        </button>
+                                    </div>
+                                </article>
+                            );
+                        })}
+                        {filtered.length === 0 && (
+                            <p className="muted">Қолданушылар табылмады.</p>
+                        )}
+                    </div>
+
+                    <div className="admin-users-table-view admin-desktop-table">
+                        <TableWrap className="admin-users-tablewrap">
+                            <table className="table admin-users-table">
+                                <thead>
+                                    <tr>
+                                        <th style={{ width: 60 }}>ID</th>
+                                        <th>Аты-жөні</th>
+                                        <th>Телефон</th>
+                                        <th>Ағымдағы рөл</th>
+                                        <th>Жаңа рөл</th>
+                                        <th style={{ width: 120 }}>Әрекет</th>
                                     </tr>
-                                );
-                            })}
-                            {filtered.length === 0 && (
-                                <tr>
-                                    <td style={S.td} colSpan={6}><span style={S.muted}>Қолданушылар табылмады.</span></td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </TableWrap>
+                                </thead>
+                                <tbody>
+                                    {filtered.map((u) => {
+                                        const cur = (u.role || "patient").toLowerCase();
+                                        const sel = roles[u.id] || cur;
+                                        const changed = sel !== cur;
+                                        const color = ROLE_COLORS[cur] || "#64748b";
+                                        return (
+                                            <tr key={u.id} className="admin-users-row">
+                                                <td style={{ color: "#94a3b8", fontWeight: 600 }}>{u.id}</td>
+                                                <td className="admin-users-name">{u.full_name || "—"}</td>
+                                                <td className="admin-users-phone">{u.phone || "—"}</td>
+                                                <td>
+                                                    <span
+                                                        className="admin-mobile-card__badge"
+                                                        style={{ background: `${color}1a`, color }}
+                                                    >
+                                                        {ROLE_LABELS[cur] || cur}
+                                                    </span>
+                                                </td>
+                                                <td className="admin-users-rolecell">
+                                                    <select
+                                                        className="input admin-users-role"
+                                                        value={sel}
+                                                        onChange={(e) => setRoles((p) => ({ ...p, [u.id]: e.target.value }))}
+                                                    >
+                                                        {roleOptions.map((opt) => (
+                                                            <option key={opt} value={opt}>{ROLE_LABELS[opt] || opt}</option>
+                                                        ))}
+                                                    </select>
+                                                </td>
+                                                <td className="admin-users-savecell">
+                                                    <button
+                                                        type="button"
+                                                        className="btn admin-users-savebtn"
+                                                        disabled={!changed || savingId === u.id}
+                                                        onClick={() => saveRole(u.id)}
+                                                    >
+                                                        {savingId === u.id ? "…" : "Сақтау"}
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                    {filtered.length === 0 && (
+                                        <tr>
+                                            <td colSpan={6} className="muted">Қолданушылар табылмады.</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </TableWrap>
+                    </div>
+                </>
             )}
         </div>
     );
@@ -232,62 +300,12 @@ function Pill({ active, onClick, label, count, color }) {
         <button
             type="button"
             onClick={onClick}
-            style={{
-                ...S.pill,
-                ...(active ? { background: color, color: "#fff", borderColor: color } : {}),
-            }}
+            className={`admin-users-pill${active ? " is-active" : ""}`}
+            style={active ? { background: color, borderColor: color } : undefined}
+            aria-pressed={active}
         >
             {label}
-            <span style={{ ...S.pillCount, ...(active ? { background: "rgba(255,255,255,0.25)", color: "#fff" } : {}) }}>
-                {count}
-            </span>
+            <span className="admin-users-pill__count">{count}</span>
         </button>
     );
 }
-
-const S = {
-    page: { maxWidth: 1040, margin: "0 auto", padding: "32px 24px 60px" },
-    header: { marginBottom: 20 },
-    title: { fontSize: 24, fontWeight: 700, color: "#0f172a", margin: 0 },
-    subtitle: { fontSize: 14, color: "#64748b", marginTop: 4 },
-    muted: { color: "#94a3b8", fontSize: 14 },
-    errorBanner: { background: "#fef2f2", color: "#dc2626", borderRadius: 10, padding: "12px 16px", fontWeight: 600, fontSize: 14, marginBottom: 16 },
-    infoBanner: { background: "#f1f5f9", color: "#475569", borderRadius: 10, padding: "12px 16px", fontSize: 14, marginBottom: 16 },
-
-    toolbar: { marginBottom: 14 },
-    search: {
-        width: "100%",
-        padding: "11px 16px",
-        borderRadius: 10,
-        border: "1px solid #cbd5e1",
-        fontSize: 14,
-        background: "#fff",
-        boxSizing: "border-box",
-    },
-
-    pills: { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 18 },
-    pill: {
-        display: "inline-flex", alignItems: "center", gap: 8,
-        padding: "7px 14px", borderRadius: 999,
-        border: "1px solid #e2e8f0", background: "#fff", color: "#475569",
-        fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.12s",
-    },
-    pillCount: {
-        minWidth: 20, padding: "1px 7px", borderRadius: 999,
-        background: "#f1f5f9", color: "#64748b", fontSize: 12, fontWeight: 700, textAlign: "center",
-    },
-
-    tableWrap: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, overflow: "hidden", overflowX: "auto" },
-    table: { width: "100%", borderCollapse: "collapse", minWidth: 720 },
-    th: {
-        textAlign: "left", padding: "12px 16px", fontSize: 12, fontWeight: 700,
-        color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em",
-        borderBottom: "1px solid #e2e8f0", background: "#f8fafc",
-    },
-    tr: { borderBottom: "1px solid #f1f5f9" },
-    td: { padding: "12px 16px", fontSize: 14, color: "#0f172a", verticalAlign: "middle" },
-    badge: { display: "inline-block", padding: "3px 10px", borderRadius: 999, fontSize: 12, fontWeight: 700 },
-    select: { padding: "7px 10px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#fff", fontSize: 13, minWidth: 130 },
-    btnSave: { padding: "7px 16px", borderRadius: 8, border: "none", background: "#0f172a", color: "#fff", fontWeight: 600, cursor: "pointer", fontSize: 13 },
-    btnSaveDisabled: { padding: "7px 16px", borderRadius: 8, border: "none", background: "#e2e8f0", color: "#94a3b8", fontWeight: 600, cursor: "default", fontSize: 13 },
-};
