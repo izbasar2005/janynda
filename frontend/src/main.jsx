@@ -6,6 +6,7 @@ import "./styles/design-system.css";
 import "./styles.css";
 import "./styles/responsive-ui.css";
 import "./styles/landing-home.css";
+import "./styles/doctors-cards.css";
 
 
 ReactDOM.createRoot(document.getElementById('root')).render(

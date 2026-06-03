@@ -277,7 +277,7 @@ export default function Home() {
                     Тексерілген мамандар — сіздің денсаулығыңыз біздің мақсатымыз.
                 </p>
                 {doctors.length > 0 ? (
-                    <div className="landing-doctors__grid">
+                    <div className="landing-doctors__grid doc-card-grid">
                         {doctors.map((d) => (
                             <DoctorCard
                                 key={`${d.id}-${d.user_id}`}

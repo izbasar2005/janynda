@@ -288,18 +288,7 @@ code {
 }
 
 /* Landing grids */
-@media (max-width: 900px) {
-  .landing-doctors__grid,
-  .doctors-grid {
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important;
-  }
-}
-@media (max-width: 480px) {
-  .landing-doctors__grid,
-  .doctors-grid {
-    grid-template-columns: 1fr !important;
-  }
-}
+/* Doctor grids: see doctors-cards.css (mobile-first minmax(0, 1fr)) */
 
 /* Override legacy horizontal nav scroll (hamburger replaces it) */
 @media (max-width: 1023px) {
