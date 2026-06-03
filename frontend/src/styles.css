@@ -3152,10 +3152,9 @@ h3{
     padding:112px 96px 52px;   /* 72px жоғары + бұрынғы 40px — hero фоны жоғарыдағы ашық көкті жабады */
     margin-top:-72px;          /* хедердің астына дейін созылу */
     border-radius:0;
-    /* full-bleed hero */
-    width:100vw;
-    margin-left:calc(50% - 50vw);
-    margin-right:calc(50% - 50vw);
+    width:100%;
+    margin-left:0;
+    margin-right:0;
     background:
         linear-gradient(90deg, rgba(15,23,42,.85) 0%, rgba(15,23,42,.6) 32%, rgba(15,23,42,.25) 55%, rgba(15,23,42,0) 78%),
         url("/img/home-hero.jpg") center/cover no-repeat;
