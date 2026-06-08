@@ -10,6 +10,7 @@ const PRESETS = [
 const PAGES = [
     { path: "/news", label: "Жаңалықтар", group: "Жария" },
     { path: "/doctors", label: "Дәрігерлер", group: "Жария" },
+    { path: "/doctors/1", label: "Дәрігер профилі", group: "Жария" },
     { path: "/groups", label: "Топтар", group: "Auth" },
     { path: "/psych", label: "Психолог кабинеті", group: "Auth" },
     { path: "/psych/assignments", label: "Пациенттерді бөлу", group: "Auth" },

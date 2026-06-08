@@ -16,6 +16,7 @@ import "./styles/admin-responsive.css";
 import "./styles/news-responsive.css";
 import "./styles/psych-responsive.css";
 import "./styles/mobile-preview.css";
+import "./styles/doctor-detail-mobile.css";
 
 
 ReactDOM.createRoot(document.getElementById('root')).render(
