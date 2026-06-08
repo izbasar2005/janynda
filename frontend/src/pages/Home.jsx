@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, token } from "../services/api";
 import Hero from "../components/landing/Hero";
@@ -14,6 +14,41 @@ const SPECIALTIES = [
     { iconKey: "dentist", title: "Тіс дәрігері", description: "Стоматология және тіс емдеу", doctorCount: 10 },
 ];
 
+function formatNewsDate(iso) {
+    if (!iso) return "";
+    try {
+        return new Date(iso).toLocaleDateString("kk-KZ", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+        });
+    } catch {
+        return "";
+    }
+}
+
+function formatFeedbackDate(iso) {
+    if (!iso) return "Расталған пікір";
+    try {
+        return new Date(iso).toLocaleDateString("kk-KZ", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+        });
+    } catch {
+        return "Расталған пікір";
+    }
+}
+
+function buildLandingNewsList(newsHome) {
+    const list = [];
+    if (newsHome?.featured) list.push(newsHome.featured);
+    for (const item of newsHome?.items || []) {
+        if (!list.some((x) => x.id === item.id)) list.push(item);
+    }
+    return list.slice(0, 3);
+}
+
 const FAQ_DATA = [
     { q: "Онлайн жазылу қалай жұмыс істейді?", a: "Сіз дәрігерді таңдап, күн мен уақытты белгілейсіз. Растау SMS арқылы келеді. Тіркелу үшін платформада тіркелу керек." },
     { q: "Жазылуды болдырмауға бола ма?", a: "Иә. Жазылуды кейінге қалдыру немесе болдырмау мүмкіндігі бар. Профиль бөлімінде өз жазылуларыңызды басқара аласыз." },
@@ -27,7 +62,9 @@ export default function Home() {
     const [newsHome, setNewsHome] = useState({ featured: null, items: [] });
     const [platformFeedbacks, setPlatformFeedbacks] = useState([]);
     const [me, setMe] = useState(null);
-    const [testimonialIndex, setTestimonialIndex] = useState(0);
+    const [testimonialPage, setTestimonialPage] = useState(0);
+    const [cardsPerPage, setCardsPerPage] = useState(3);
+    const testimonialTouchX = useRef(0);
     const [faqOpenIndex, setFaqOpenIndex] = useState(null);
     const [showFeedbackForm, setShowFeedbackForm] = useState(false);
     const [feedbackText, setFeedbackText] = useState("");
@@ -40,6 +77,9 @@ export default function Home() {
     const [diarySaving, setDiarySaving] = useState(false);
     const [diaryError, setDiaryError] = useState("");
     const [showDiaryWidget, setShowDiaryWidget] = useState(true);
+
+    const landingNewsList = useMemo(() => buildLandingNewsList(newsHome), [newsHome]);
+    const hasLandingNews = !!newsHome?.featured;
 
     useEffect(() => {
         api("/api/v1/doctors")
@@ -97,9 +137,27 @@ export default function Home() {
     }, [me]);
 
     useEffect(() => {
-        const n = platformFeedbacks.length;
-        if (n > 0 && testimonialIndex >= n) setTestimonialIndex(0);
-    }, [platformFeedbacks.length, testimonialIndex]);
+        const updateCardsPerPage = () => {
+            const w = window.innerWidth;
+            if (w <= 768) setCardsPerPage(1);
+            else if (w <= 1024) setCardsPerPage(2);
+            else setCardsPerPage(3);
+        };
+        updateCardsPerPage();
+        window.addEventListener("resize", updateCardsPerPage);
+        return () => window.removeEventListener("resize", updateCardsPerPage);
+    }, []);
+
+    const testimonialTotalPages = Math.max(1, Math.ceil(platformFeedbacks.length / cardsPerPage));
+
+    useEffect(() => {
+        if (testimonialPage >= testimonialTotalPages) setTestimonialPage(0);
+    }, [testimonialPage, testimonialTotalPages]);
+
+    const visibleTestimonials = useMemo(() => {
+        const start = testimonialPage * cardsPerPage;
+        return platformFeedbacks.slice(start, start + cardsPerPage);
+    }, [platformFeedbacks, testimonialPage, cardsPerPage]);
 
     useEffect(() => {
         if (doctors.length === 0) return;
@@ -114,9 +172,20 @@ export default function Home() {
         });
     }, [doctors]);
 
-    const feedbacksCount = platformFeedbacks.length;
-    const nextTestimonial = () => setTestimonialIndex((i) => (i + 1) % Math.max(1, feedbacksCount));
-    const prevTestimonial = () => setTestimonialIndex((i) => (i - 1 + feedbacksCount) % Math.max(1, feedbacksCount));
+    const nextTestimonialPage = () => setTestimonialPage((p) => (p + 1) % testimonialTotalPages);
+    const prevTestimonialPage = () => setTestimonialPage((p) => (p - 1 + testimonialTotalPages) % testimonialTotalPages);
+
+    function onTestimonialTouchStart(e) {
+        testimonialTouchX.current = e.changedTouches?.[0]?.clientX ?? 0;
+    }
+
+    function onTestimonialTouchEnd(e) {
+        const endX = e.changedTouches?.[0]?.clientX ?? 0;
+        const diff = endX - testimonialTouchX.current;
+        if (Math.abs(diff) < 40) return;
+        if (diff < 0) nextTestimonialPage();
+        else prevTestimonialPage();
+    }
 
     function loadFeedbacks() {
         const opts = token() ? { auth: true } : {};
@@ -306,47 +375,90 @@ export default function Home() {
                     </Link>
                 </div>
 
-                {newsHome?.featured ? (
+                {hasLandingNews ? (
                     <>
-                        <Link
-                            to={`/news/${newsHome.featured.slug}`}
-                            className="landing-news__featured card"
-                            style={{ textDecoration: "none", color: "inherit" }}
-                        >
-                            <div className="landing-news__featured-cover">
-                                {newsHome.featured.cover_url ? (
-                                    <img className="landing-news__featured-img" src={newsHome.featured.cover_url} alt="" />
-                                ) : (
-                                    <div className="landing-news__featured-placeholder" />
-                                )}
-                            </div>
-                            <div className="landing-news__featured-body">
-                                <div className="landing-news__featured-title">{newsHome.featured.title}</div>
-                                {newsHome.featured.excerpt ? (
-                                    <div className="landing-news__featured-excerpt muted">{newsHome.featured.excerpt}</div>
-                                ) : null}
-                            </div>
-                        </Link>
+                        <div className="landing-news__desktop">
+                            {newsHome?.featured ? (
+                                <Link
+                                    to={`/news/${newsHome.featured.slug}`}
+                                    className="landing-news__featured card"
+                                    style={{ textDecoration: "none", color: "inherit" }}
+                                >
+                                    <div className="landing-news__featured-cover">
+                                        {newsHome.featured.cover_url ? (
+                                            <img className="landing-news__featured-img" src={newsHome.featured.cover_url} alt="" />
+                                        ) : (
+                                            <div className="landing-news__featured-placeholder" />
+                                        )}
+                                    </div>
+                                    <div className="landing-news__featured-body">
+                                        <div className="landing-news__featured-title">{newsHome.featured.title}</div>
+                                        {newsHome.featured.excerpt ? (
+                                            <div className="landing-news__featured-excerpt muted">{newsHome.featured.excerpt}</div>
+                                        ) : null}
+                                    </div>
+                                </Link>
+                            ) : null}
 
-                        <div className="landing-news__grid">
-                            {(newsHome.items || []).slice(0, 3).map((n) => (
+                            <div className="landing-news__grid">
+                                {(newsHome.items || []).slice(0, 3).map((n) => (
+                                    <Link
+                                        key={n.id}
+                                        to={`/news/${n.slug}`}
+                                        className="landing-news__item card"
+                                        style={{ textDecoration: "none", color: "inherit" }}
+                                    >
+                                        <div className="landing-news__item-title">{n.title}</div>
+                                    </Link>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="landing-news__mobile">
+                            {landingNewsList.map((n) => (
                                 <Link
                                     key={n.id}
                                     to={`/news/${n.slug}`}
-                                    className="landing-news__item card"
-                                    style={{ textDecoration: "none", color: "inherit" }}
+                                    className="landing-news-card"
                                 >
-                                    <div className="landing-news__item-title">{n.title}</div>
+                                    <div className="landing-news-card__media">
+                                        {n.cover_url ? (
+                                            <img className="landing-news-card__img" src={n.cover_url} alt="" loading="lazy" />
+                                        ) : (
+                                            <div className="landing-news-card__placeholder" aria-hidden />
+                                        )}
+                                    </div>
+                                    <div className="landing-news-card__body">
+                                        <p className="landing-news-card__date">{formatNewsDate(n.published_at)}</p>
+                                        <h3 className="landing-news-card__title">{n.title}</h3>
+                                        {n.excerpt ? (
+                                            <p className="landing-news-card__excerpt">{n.excerpt}</p>
+                                        ) : null}
+                                    </div>
                                 </Link>
                             ))}
+                            <Link to="/news" className="landing-news__cta">
+                                Барлық жаңалықтар
+                            </Link>
                         </div>
                     </>
                 ) : (
-                    <div className="card" style={{ padding: 18 }}>
-                        <p className="muted" style={{ margin: 0 }}>
-                            Әзірге жаңалық жоқ.
-                        </p>
-                    </div>
+                    <>
+                        <div className="landing-news__desktop">
+                            <div className="card" style={{ padding: 18 }}>
+                                <p className="muted" style={{ margin: 0 }}>
+                                    Әзірге жаңалық жоқ.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="landing-news__mobile">
+                            <div className="landing-news__empty card">
+                                <p className="muted" style={{ margin: 0 }}>
+                                    Әзірге жаңалық жоқ.
+                                </p>
+                            </div>
+                        </div>
+                    </>
                 )}
             </section>
 
@@ -355,72 +467,97 @@ export default function Home() {
             </div>
 
             <section className="landing-section landing-testimonials" aria-labelledby="landing-testimonials-title">
-                <h2 id="landing-testimonials-title" className="landing-section__title">Пайдаланушылар пікірлері</h2>
-                <p className="landing-section__subtitle muted">
-                    Нақты пациенттердің тәжірибесі.
-                </p>
-                {platformFeedbacks.length === 0 ? (
-                    <div className="landing-testimonials__empty card">
-                        <p className="muted landing-testimonials__empty-text">Әзірге пікірлер жоқ. Алғашқы пікірді сіз қалдырыңыз!</p>
-                    </div>
-                ) : (
-                    <>
-                        <div className="landing-testimonials__carousel">
-                            <button type="button" className="landing-testimonials__arrow" onClick={prevTestimonial} aria-label="Алдыңғы">
-                                ‹
-                            </button>
-                            <div className="landing-testimonials__track">
-                                {platformFeedbacks.map((fb, i) => (
-                                    <div
-                                        key={fb.id}
-                                        className="landing-testimonials__slide"
-                                        style={{ display: i === testimonialIndex ? "block" : "none" }}
-                                    >
-                                        <div className="landing-testimonials__slide-inner">
+                <div className="landing-testimonials__shell">
+                    <header className="landing-testimonials__header">
+                        <h2 id="landing-testimonials-title" className="landing-testimonials__title">
+                            Пайдаланушылар пікірлері
+                        </h2>
+                        <p className="landing-testimonials__subtitle">
+                            Нақты пациенттердің тәжірибесі.
+                        </p>
+                    </header>
+
+                    {platformFeedbacks.length === 0 ? (
+                        <div className="landing-testimonials__empty">
+                            <p className="landing-testimonials__empty-text">
+                                Әзірге пікірлер жоқ. Алғашқы пікірді сіз қалдырыңыз!
+                            </p>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="landing-testimonials__viewport">
+                                <button
+                                    type="button"
+                                    className="landing-testimonials__nav landing-testimonials__nav--prev"
+                                    onClick={prevTestimonialPage}
+                                    aria-label="Алдыңғы"
+                                >
+                                    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+                                        <path d="M15 6l-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                </button>
+
+                                <div
+                                    className="landing-testimonials__track"
+                                    onTouchStart={onTestimonialTouchStart}
+                                    onTouchEnd={onTestimonialTouchEnd}
+                                >
+                                    <div className={`landing-testimonials__grid landing-testimonials__grid--${cardsPerPage}`}>
+                                        {visibleTestimonials.map((fb) => (
                                             <TestimonialCard
+                                                key={fb.id}
                                                 quote={fb.text}
                                                 author={fb.author || ""}
-                                                role=""
+                                                city="Қазақстан"
+                                                dateLabel={formatFeedbackDate(fb.created_at)}
+                                                footerLabel={formatFeedbackDate(fb.created_at)}
+                                                rating={5}
+                                                showDelete={fb.is_mine || me?.role === "admin"}
+                                                onDelete={() => handleDeleteFeedback(fb.id)}
                                             />
-                                            {(fb.is_mine || me?.role === "admin") && (
-                                                <button
-                                                    type="button"
-                                                    className="landing-testimonials__delete-btn btn ghost"
-                                                    onClick={() => handleDeleteFeedback(fb.id)}
-                                                    aria-label="Пікірді өшіру"
-                                                >
-                                                    Өшіру
-                                                </button>
-                                            )}
-                                        </div>
+                                        ))}
                                     </div>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    className="landing-testimonials__nav landing-testimonials__nav--next"
+                                    onClick={nextTestimonialPage}
+                                    aria-label="Келесі"
+                                >
+                                    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+                                        <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <div className="landing-testimonials__dots" role="tablist" aria-label="Пікір беттері">
+                                {Array.from({ length: testimonialTotalPages }, (_, i) => (
+                                    <button
+                                        key={i}
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={i === testimonialPage}
+                                        className={`landing-testimonials__dot${i === testimonialPage ? " is-active" : ""}`}
+                                        onClick={() => setTestimonialPage(i)}
+                                        aria-label={`Бет ${i + 1}`}
+                                    />
                                 ))}
                             </div>
-                            <button type="button" className="landing-testimonials__arrow" onClick={nextTestimonial} aria-label="Келесі">
-                                ›
-                            </button>
-                        </div>
-                        <div className="landing-testimonials__dots">
-                            {platformFeedbacks.map((_, i) => (
-                                <button
-                                    key={i}
-                                    type="button"
-                                    className={`landing-testimonials__dot ${i === testimonialIndex ? "is-active" : ""}`}
-                                    onClick={() => setTestimonialIndex(i)}
-                                    aria-label={`Слайд ${i + 1}`}
-                                />
-                            ))}
-                        </div>
-                    </>
-                )}
+                        </>
+                    )}
 
-                <div className="landing-testimonials__leave-feedback">
+                    <div className="landing-testimonials__leave-feedback">
                     {!showFeedbackForm ? (
                         <button
                             type="button"
-                            className="btn landing-testimonials__feedback-btn btn--block-sm"
+                            className="landing-testimonials__cta"
                             onClick={() => setShowFeedbackForm(true)}
                         >
+                            <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+                                <path d="M12 20h9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
                             Пікір қалдыру
                         </button>
                     ) : (
@@ -464,6 +601,7 @@ export default function Home() {
                             )}
                         </form>
                     )}
+                    </div>
                 </div>
             </section>
 

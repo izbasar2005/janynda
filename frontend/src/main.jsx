@@ -7,6 +7,8 @@ import "./styles.css";
 import "./styles/responsive-ui.css";
 import "./styles/landing-home.css";
 import "./styles/landing-desktop.css";
+import "./styles/landing-news-mobile.css";
+import "./styles/landing-testimonials.css";
 import "./styles/doctors-cards.css";
 import "./styles/groups-responsive.css";
 import "./styles/site-responsive.css";
