@@ -54,11 +54,13 @@
 }
 
 .app-header__glass-btn:hover,
+.app-header__glass-btn:focus-visible,
 .app-header__glass-btn[aria-expanded="true"] {
-  background: rgba(240, 253, 250, 0.88);
+  background: rgba(255, 255, 255, 0.78);
   box-shadow:
-    0 6px 18px rgba(18, 191, 174, 0.18),
+    0 4px 14px rgba(15, 23, 42, 0.09),
     inset 0 1px 0 rgba(255, 255, 255, 1);
+  color: #0f172a;
 }
 
 .app-header__glass-btn:active {
@@ -87,11 +89,12 @@
   color: #0f172a;
 }
 
-.app-header__notif:hover {
-  background: rgba(240, 253, 250, 0.88);
+.app-header__notif:hover,
+.app-header__notif:focus-visible {
+  background: rgba(255, 255, 255, 0.78);
   transform: none;
   box-shadow:
-    0 6px 18px rgba(18, 191, 174, 0.18),
+    0 4px 14px rgba(15, 23, 42, 0.09),
     inset 0 1px 0 rgba(255, 255, 255, 1);
 }
 
@@ -124,10 +127,23 @@
 
 .mobile-nav__backdrop {
   z-index: 1;
+  border: none;
+  padding: 0;
+  margin: 0;
   background: rgba(15, 23, 42, 0.28);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   transition: opacity 0.08s linear;
+}
+
+.mobile-nav__backdrop:hover,
+.mobile-nav__backdrop:focus,
+.mobile-nav__backdrop:focus-visible,
+.mobile-nav__backdrop:active {
+  background: rgba(15, 23, 42, 0.28);
+  box-shadow: none;
+  transform: none;
+  outline: none;
 }
 
 .mobile-nav__panel {
@@ -169,6 +185,12 @@
   padding: 12px 0 8px;
   cursor: grab;
   touch-action: none;
+  background: transparent;
+}
+
+.mobile-nav__drag-zone:hover,
+.mobile-nav__drag-zone:active {
+  background: transparent;
 }
 
 .mobile-nav__grabber {

@@ -40,9 +40,9 @@
   height: 22px;
 }
 .app-header__menu-btn[aria-expanded="true"] {
-  background: var(--primary-soft);
-  border-color: var(--primary);
-  color: var(--primary);
+  background: var(--bg-elevated);
+  border-color: var(--border);
+  color: var(--text);
 }
 
 .app-nav--desktop {

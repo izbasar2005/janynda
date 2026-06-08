@@ -106,7 +106,7 @@ body {
 
 /* Buttons — focus & touch targets */
 .btn,
-button:not(.app-header__menu-btn):not(.app-user__avatar):not(.mobile-nav__close):not(.mobile-nav__item) {
+button:not(.app-header__menu-btn):not(.app-user__avatar):not(.mobile-nav__close):not(.mobile-nav__item):not(.mobile-nav__backdrop):not(.app-header__glass-btn) {
   min-height: 44px;
   border-radius: var(--radius-md);
   font-family: var(--font-sans);
