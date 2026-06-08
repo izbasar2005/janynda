@@ -221,7 +221,7 @@
   }
 
   .landing-hero__image-wrap:hover .landing-hero__image {
-    transform: translateY(calc(clamp(12px, 4vw, 32px) + 6px)) !important;
+    transform: translateY(calc(clamp(12px, 4vw, 32px) + 8px)) !important;
   }
 
   .landing-hero__image {
@@ -233,7 +233,7 @@
     display: block;
     vertical-align: bottom;
     margin-bottom: 0;
-    transform: translateY(calc(clamp(12px, 4vw, 32px) + 6px));
+    transform: translateY(calc(clamp(12px, 4vw, 32px) + 8px));
     transition: none !important;
     filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.25));
   }
