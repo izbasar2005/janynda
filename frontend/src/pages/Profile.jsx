@@ -45,7 +45,11 @@ function getInitials(name) {
 function fmtDate(s) {
     if (!s) return "—";
     try {
-        return new Date(s).toLocaleDateString("kk-KZ", { day: "numeric", month: "long", year: "numeric" });
+        const d = new Date(s);
+        const year = d.getFullYear();
+        const month = d.toLocaleDateString("kk-KZ", { month: "long" });
+        const day = d.getDate();
+        return `${year} ж. ${day} ${month}`;
     } catch {
         return String(s);
     }
@@ -59,6 +63,103 @@ function genderLabel(g) {
     return g;
 }
 
+const NO_AVATAR =
+    "data:image/svg+xml;utf8," +
+    encodeURIComponent(`
+  <svg xmlns='http://www.w3.org/2000/svg' width='256' height='256'>
+    <rect width='100%' height='100%' fill='#e2e8f0'/>
+    <circle cx='128' cy='102' r='46' fill='#cbd5e1'/>
+    <rect x='52' y='160' width='152' height='64' rx='32' fill='#cbd5e1'/>
+  </svg>`);
+
+function normalizePhoto(url) {
+    if (!url) return NO_AVATAR;
+    if (url.startsWith("http") || url.startsWith("//")) return url;
+    if (url.startsWith("/")) return url;
+    return "/" + url;
+}
+
+function fmtApptDisplay(s) {
+    if (!s) return "—";
+    try {
+        const d = new Date(s);
+        const year = d.getFullYear();
+        const month = d.toLocaleDateString("kk-KZ", { month: "long" });
+        const day = d.getDate();
+        const time = d.toLocaleTimeString("kk-KZ", { hour: "2-digit", minute: "2-digit" });
+        return `${year} ж. ${day} ${month} ${time}`;
+    } catch {
+        return String(s);
+    }
+}
+
+function roleLabelKk(role) {
+    if (role === "doctor") return "Дәрігер";
+    if (role === "psychologist") return "Психолог";
+    if (role === "head_psychologist") return "Бас психолог";
+    if (role === "admin") return "Админ";
+    if (role === "super_admin") return "Сүпер админ";
+    if (role === "volunteer") return "Волонтёр";
+    return "Пациент";
+}
+
+function getMobileStatusLabel(status, isPast) {
+    const v = (status || "").toLowerCase();
+    if (v === "canceled" || v === "cancelled") return "Бас тартылды";
+    if (v === "approved" && !isPast) return "Расталған";
+    return appointmentStatusLabel(status, { isPast });
+}
+
+const PROFILE_CARE_AVATAR_FALLBACK = "/img/doctor.png";
+
+function getMobileStatusClass(status, isPast) {
+    const v = (status || "").toLowerCase();
+    if (v === "canceled" || v === "cancelled") return "prof-m__appt-status--canceled";
+    if (v === "approved" && !isPast) return "prof-m__appt-status--confirmed";
+    if (v === "pending") return "prof-m__appt-status--pending";
+    return "prof-m__appt-status--canceled";
+}
+
+function IconMenu() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+    );
+}
+
+function IconBell() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+                d="M12 3.5c-3.4 0-6 2.6-6 6v3.2c0 .8-.3 1.6-.9 2.2l-1 1.1c-.3.3-.1.8.3.8h15.2c.4 0 .6-.5.3-.8l-1-1.1c-.6-.6-.9-1.4-.9-2.2V9.5c0-3.4-2.6-6-6-6Z"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinejoin="round"
+            />
+            <path d="M9.6 19a2.4 2.4 0 0 0 4.8 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+    );
+}
+
+function IconTranslate() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 6h8M8 6v12M6 16h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            <path d="M13 8h7M16.5 8v9M14 15h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+    );
+}
+
+function IconShare() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M8 12v7a1 1 0 0 0 1 1h9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            <path d="M16 4l4 4-4 4M20 8H10a3 3 0 0 0-3 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+    );
+}
+
 export default function Profile() {
     const nav = useNavigate();
     const location = useLocation();
@@ -69,6 +170,7 @@ export default function Profile() {
     const [msg, setMsg] = useState("");
     const [cancellingId, setCancellingId] = useState(null);
     const [showAllApps, setShowAllApps] = useState(false);
+    const [menuOpen, setMenuOpen] = useState(false);
 
     const [topAlert, setTopAlert] = useState(null); // { type: "success" | "error", text: string }
     const topAlertTimer = useRef(null);
@@ -226,6 +328,11 @@ export default function Profile() {
         }
     }, [me, location.state?.fromBook]);
 
+    useEffect(() => {
+        document.body.classList.toggle("doc-detail-mobile-open", menuOpen);
+        return () => document.body.classList.remove("doc-detail-mobile-open");
+    }, [menuOpen]);
+
     async function cancelAppointment(id) {
         setCancellingId(id);
         setMsg("");
@@ -339,32 +446,46 @@ export default function Profile() {
     const hasMoreApps = sortedApps.length > 5;
     const visibleApps = showAllApps ? sortedApps : sortedApps.slice(0, 5);
 
-    /** Соңғы жазылуда (уақыт бойынша) диагноз немесе дәрігер жазбасы толтырылған жазылу */
-    const latestAppointmentWithMed = useMemo(() => {
-        if (me?.role !== "patient") return null;
-        for (const a of sortedApps) {
-            if (a.diagnosis || a.clinical_notes) return a;
-        }
-        return null;
-    }, [sortedApps, me?.role]);
+    const nextApptId = useMemo(() => {
+        const now = Date.now();
+        const future = sortedApps
+            .filter((a) => {
+                const st = (a.status ?? a.Status ?? "").toLowerCase();
+                if (st === "canceled" || st === "cancelled") return false;
+                const raw = a.start_at ?? a.startAt ?? a.StartAt;
+                const t = new Date(raw).getTime();
+                return !Number.isNaN(t) && t > now;
+            })
+            .sort((a, b) => {
+                const ta = new Date(a.start_at ?? a.startAt ?? a.StartAt).getTime();
+                const tb = new Date(b.start_at ?? b.startAt ?? b.StartAt).getTime();
+                return ta - tb;
+            });
+        return future[0]?.id ?? future[0]?.Id ?? null;
+    }, [sortedApps]);
 
-    const infoRows = [];
-    if (me) {
-        if (displayName) infoRows.push({ label: "Аты-жөні", value: displayName });
-        infoRows.push({ label: "Рөлі", value: me.role === "doctor" ? "Дәрігер" : me.role === "psychologist" ? "Психолог" : me.role === "head_psychologist" ? "Бас психолог" : me.role === "admin" ? "Админ" : me.role === "super_admin" ? "Сүпер админ" : me.role === "volunteer" ? "Волонтёр" : "Пациент" });
-        if (me.phone) infoRows.push({ label: "Телефон", value: me.phone });
-        if (me.email) infoRows.push({ label: "Email", value: me.email });
-        if (me.iin) infoRows.push({ label: "ЖСН", value: me.iin });
-        if (me.first_name) infoRows.push({ label: "Аты", value: me.first_name });
-        if (me.last_name) infoRows.push({ label: "Тегі", value: me.last_name });
-        if (me.patronymic) infoRows.push({ label: "Әкесінің аты", value: me.patronymic });
-        if (me.gender) infoRows.push({ label: "Жынысы", value: genderLabel(me.gender) });
-        if (me.diagnosis) infoRows.push({ label: "Диагноз", value: me.diagnosis });
-        if (me.created_at) infoRows.push({ label: "Тіркелген", value: fmtDate(me.created_at) });
-    }
+    const heroInitials = getInitials(displayName);
+
+    /** «Менің деректерім» картасындағы жеке аватар — келесі жазылу дәрігерінің суреті */
+    const profileCareAvatar = useMemo(() => {
+        const pickPhoto = (a) => {
+            const url = a?.doctor?.avatar_url || a?.doctor?.photo_url;
+            return url ? normalizePhoto(url) : null;
+        };
+        if (nextApptId != null) {
+            const next = sortedApps.find((a) => Number(a.id) === Number(nextApptId));
+            const photo = pickPhoto(next);
+            if (photo) return photo;
+        }
+        for (const a of sortedApps) {
+            const photo = pickPhoto(a);
+            if (photo) return photo;
+        }
+        return PROFILE_CARE_AVATAR_FALLBACK;
+    }, [sortedApps, nextApptId]);
 
     return (
-        <div className="page profile-page">
+        <div className="page profile-page-v2">
             {topAlert && (
                 <div className="doctor-save-toast" role="alert" aria-live="polite">
                     <div className="doctor-save-toast__box">
@@ -396,77 +517,122 @@ export default function Profile() {
                     </div>
                 </div>
             )}
-            <div className="page-header">
-                <div>
-                    <h2 className="page-header__title">Менің профилім</h2>
-                    <p className="muted page-header__subtitle">
-                        Жеке деректеріңіз бен дәрігерге жазылулар тізімі.
-                    </p>
+            <div className="prof-m">
+                <div className="prof-m__status" aria-hidden="true">
+                    <span>00:24</span>
+                    <div className="prof-m__status-right">
+                        <span>4G</span>
+                        <span className="prof-m__battery">
+                            <span className="prof-m__battery-icon"><span className="prof-m__battery-fill" /></span>
+                            51%
+                        </span>
+                    </div>
                 </div>
-            </div>
 
-            {msg && <p className="form-error">{msg}</p>}
-
-            {!me ? (
-                <div className="card profile-card">
-                    <p className="muted">Жүктелуде...</p>
+                <div className="prof-m__chrome" aria-hidden="true">
+                    <button type="button" className="prof-m__chrome-btn" aria-label="Аударма">
+                        <IconTranslate />
+                    </button>
+                    <div className="prof-m__url">
+                        <span className="prof-m__url-text">janynda.onrender.com</span>
+                    </div>
+                    <button type="button" className="prof-m__chrome-btn" aria-label="Бөлісу">
+                        <IconShare />
+                    </button>
                 </div>
-            ) : (
-                <>
-                    {/* Hero card */}
-                    <div style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", borderRadius: 20, padding: "32px 28px", color: "#fff", position: "relative", overflow: "hidden", marginBottom: 24 }}>
-                        <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,.08)" }} />
-                        <div style={{ position: "absolute", bottom: -20, left: -20, width: 100, height: 100, borderRadius: "50%", background: "rgba(255,255,255,.05)" }} />
-                        <div style={{ display: "flex", alignItems: "center", gap: 20, position: "relative", zIndex: 1 }}>
-                            <div style={{ width: 80, height: 80, borderRadius: "50%", background: "rgba(255,255,255,.2)", border: "3px solid rgba(255,255,255,.4)", overflow: "hidden", display: "grid", placeItems: "center", fontSize: 28, fontWeight: 700, flexShrink: 0, backdropFilter: "blur(4px)" }}>
-                                {me?.avatar_url ? (
-                                    <img src={me.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                                ) : (
-                                    getInitials(displayName)
-                                )}
-                            </div>
-                            <div>
-                                <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em" }}>{displayName}</h1>
-                                <span style={{ display: "inline-block", marginTop: 6, fontSize: 12, fontWeight: 600, background: "rgba(255,255,255,.2)", padding: "3px 12px", borderRadius: 20, backdropFilter: "blur(4px)" }}>
-                                    {me.role === "doctor" ? "Дәрігер" : me.role === "psychologist" ? "Психолог" : me.role === "head_psychologist" ? "Бас психолог" : me.role === "admin" ? "Админ" : me.role === "super_admin" ? "Сүпер админ" : me.role === "volunteer" ? "Волонтёр" : "Пациент"}
-                                </span>
-                                {me.email && (
-                                    <p style={{ margin: "8px 0 0", fontSize: 13, opacity: 0.85 }}>{me.email}</p>
-                                )}
+
+                <div className="prof-m__hero-wrap">
+                    <div className="prof-m__hero-nav">
+                        <button
+                            type="button"
+                            className="prof-m__hero-btn"
+                            aria-label={menuOpen ? "Мәзірді жабу" : "Мәзірді ашу"}
+                            aria-expanded={menuOpen}
+                            onClick={() => setMenuOpen((v) => !v)}
+                        >
+                            <IconMenu />
+                        </button>
+                        <div className="prof-m__hero-nav-right">
+                            <button type="button" className="prof-m__hero-btn" aria-label="Хабарландырулар">
+                                <IconBell />
+                            </button>
+                            <div className="prof-m__hero-btn prof-m__hero-btn--round prof-m__hero-btn--avatar" aria-hidden="true">
+                                U
                             </div>
                         </div>
                     </div>
 
-                    <div className="profile-layout">
-                        {/* Жеке деректер карточкасы */}
-                        <section className="profile-card profile-card--info">
-                            <h3 className="profile-card__title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                <span style={{ fontSize: 18 }}>📋</span> Менің деректерім
-                            </h3>
-                            <dl className="profile-info" style={{ margin: 0 }}>
-                                {infoRows.length > 0 ? (
-                                    infoRows.map((row) => (
-                                        <div key={row.label} className="profile-info__row" style={{ padding: "10px 0", borderBottom: "1px solid #f1f5f9" }}>
-                                            <dt className="profile-info__label" style={{ color: "var(--muted)", fontSize: 12, textTransform: "uppercase", letterSpacing: "0.04em" }}>{row.label}</dt>
-                                            <dd className="profile-info__value" style={{ fontWeight: 500 }}>{row.value}</dd>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className="profile-info__row">
-                                        <dt className="profile-info__label">Аты-жөні</dt>
-                                        <dd className="profile-info__value">{displayName}</dd>
-                                    </div>
-                                )}
-                            </dl>
+                    <header className="prof-m__hero">
+                        <span className="prof-m__hero-watermark" aria-hidden="true">{heroInitials}</span>
+                        <h1 className="prof-m__hero-title">
+                            {me ? `${heroInitials} | ${displayName}` : "—"}
+                        </h1>
+                    </header>
+                </div>
 
-                            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18 }}>
-                                <button type="button" onClick={() => { setEditOpen(true); setPwdOpen(false); }} style={{ padding: "10px 20px", fontSize: 13, fontWeight: 600, borderRadius: 10, background: "var(--primary)", color: "#fff", border: "none", cursor: "pointer", transition: "all .15s" }}>
-                                    Деректерді өзгерту
-                                </button>
-                                <button type="button" onClick={() => { setPwdOpen(true); setEditOpen(false); }} style={{ padding: "10px 20px", fontSize: 13, fontWeight: 500, borderRadius: 10, background: "#fff", color: "var(--text)", border: "1px solid var(--border)", cursor: "pointer", transition: "all .15s" }}>
-                                    Құпия сөз
-                                </button>
-                            </div>
+                {menuOpen && (
+                    <>
+                        <div className="prof-m__menu-overlay" onClick={() => setMenuOpen(false)} aria-hidden="true" />
+                        <nav className="prof-m__menu-panel" aria-label="Мобильді мәзір">
+                            <p className="prof-m__menu-title">Мәзір</p>
+                            <Link className="prof-m__menu-link" to="/" onClick={() => setMenuOpen(false)}>Басты бет</Link>
+                            <Link className="prof-m__menu-link" to="/doctors" onClick={() => setMenuOpen(false)}>Дәрігерлер</Link>
+                            <Link className="prof-m__menu-link" to="/news" onClick={() => setMenuOpen(false)}>Жаңалықтар</Link>
+                            <Link className="prof-m__menu-link" to="/profile" onClick={() => setMenuOpen(false)}>Жеке кабинет</Link>
+                        </nav>
+                    </>
+                )}
+
+                <div className="prof-m__body">
+                    {msg && <p className="form-error" style={{ margin: "12px 16px 0" }}>{msg}</p>}
+
+                    {!me ? (
+                        <p className="prof-m__loading">Жүктелуде...</p>
+                    ) : (
+                        <>
+                            <section className="prof-m__card">
+                                <div className="prof-m__card-layout">
+                                    <div className="prof-m__card-avatar-wrap">
+                                        <img
+                                            className="prof-m__card-avatar"
+                                            src={profileCareAvatar}
+                                            alt=""
+                                        />
+                                    </div>
+                                    <div className="prof-m__card-content">
+                                        <h2 className="prof-m__card-title">
+                                            <span className="prof-m__card-title-icon" aria-hidden="true">📝</span>
+                                            Менің деректерім
+                                        </h2>
+                                        <div className="prof-m__grid">
+                                            <div>
+                                                <p className="prof-m__field-label">Аты-жөні</p>
+                                                <p className="prof-m__field-value">{displayName}</p>
+                                            </div>
+                                            <div>
+                                                <p className="prof-m__field-label">Рөлі</p>
+                                                <p className="prof-m__field-value">{roleLabelKk(me.role)}</p>
+                                            </div>
+                                            <div>
+                                                <p className="prof-m__field-label">Телефон</p>
+                                                <p className="prof-m__field-value">{me.phone || "—"}</p>
+                                            </div>
+                                            <div>
+                                                <p className="prof-m__field-label">Тіркелген</p>
+                                                <p className="prof-m__field-value">{me.created_at ? fmtDate(me.created_at) : "—"}</p>
+                                            </div>
+                                        </div>
+                                        <div className="prof-m__actions">
+                                            <button type="button" className="prof-m__btn prof-m__btn--primary" onClick={() => { setEditOpen(true); setPwdOpen(false); }}>
+                                                Деректерді өзгерту
+                                            </button>
+                                            <button type="button" className="prof-m__btn prof-m__btn--outline" onClick={() => { setPwdOpen(true); setEditOpen(false); }}>
+                                                Құпия сөз
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
 
                             {/* MODAL: Edit profile */}
                             {editOpen && (
@@ -593,209 +759,174 @@ export default function Profile() {
                                     </div>
                                 </div>
                             )}
-                        </section>
 
-                        {/* Жазылулар / Super Admin: статистика */}
-                        <section className="profile-card profile-card--appointments">
                             {isSuperAdmin ? (
-                                <>
-                                    <h3 className="profile-card__title">Жалпы статистика</h3>
+                                <section className="prof-m__section">
+                                    <h2 className="prof-m__section-title">
+                                        <span className="prof-m__section-icon" aria-hidden="true">📊</span>
+                                        Жалпы статистика
+                                    </h2>
                                     {dashboardStats ? (
-                                        <>
-                                            <div className="admin-dashboard-cards" style={{ marginTop: 12 }}>
-                                                <div className="admin-dashboard-card card">
-                                                    <div className="admin-dashboard-card__label">Қолданушылар</div>
-                                                    <div className="admin-dashboard-card__value">{dashboardStats.users ?? 0}</div>
-                                                    <p className="admin-dashboard-card__hint">Жүйеде тіркелгендер</p>
-                                                </div>
-                                                <div className="admin-dashboard-card card">
-                                                    <div className="admin-dashboard-card__label">Дәрігерлер</div>
-                                                    <div className="admin-dashboard-card__value">{dashboardStats.doctors ?? 0}</div>
-                                                    <p className="admin-dashboard-card__hint">Барлық дәрігерлер</p>
-                                                </div>
-                                                <div className="admin-dashboard-card card">
-                                                    <div className="admin-dashboard-card__label">Жазылулар</div>
-                                                    <div className="admin-dashboard-card__value">{dashboardStats.appointments ?? 0}</div>
-                                                    <p className="admin-dashboard-card__hint">Барлық жазылулар</p>
-                                                </div>
-                                                <div className="admin-dashboard-card card">
-                                                    <div className="admin-dashboard-card__label">Пікірлер</div>
-                                                    <div className="admin-dashboard-card__value">{dashboardStats.reviews ?? 0}</div>
-                                                    <p className="admin-dashboard-card__hint">Қалдырылған пікірлер</p>
-                                                </div>
+                                        <div className="prof-m__grid">
+                                            <div className="prof-m__appt">
+                                                <p className="prof-m__field-label">Қолданушылар</p>
+                                                <p className="prof-m__field-value" style={{ fontSize: 22 }}>{dashboardStats.users ?? 0}</p>
                                             </div>
-                                        </>
+                                            <div className="prof-m__appt">
+                                                <p className="prof-m__field-label">Дәрігерлер</p>
+                                                <p className="prof-m__field-value" style={{ fontSize: 22 }}>{dashboardStats.doctors ?? 0}</p>
+                                            </div>
+                                            <div className="prof-m__appt">
+                                                <p className="prof-m__field-label">Жазылулар</p>
+                                                <p className="prof-m__field-value" style={{ fontSize: 22 }}>{dashboardStats.appointments ?? 0}</p>
+                                            </div>
+                                            <div className="prof-m__appt">
+                                                <p className="prof-m__field-label">Пікірлер</p>
+                                                <p className="prof-m__field-value" style={{ fontSize: 22 }}>{dashboardStats.reviews ?? 0}</p>
+                                            </div>
+                                        </div>
                                     ) : (
-                                        <p className="muted">Статистика жүктелуде...</p>
+                                        <p className="prof-m__loading">Статистика жүктелуде...</p>
                                     )}
-                                </>
+                                </section>
                             ) : (
-                                <>
-                            <h3 className="profile-card__title">Жазылуларым</h3>
+                                <section className="prof-m__section">
+                                    <h2 className="prof-m__section-title">
+                                        <span className="prof-m__section-icon" aria-hidden="true">📅</span>
+                                        Жазылуларым
+                                    </h2>
 
-                            {me?.role === "patient" && latestAppointmentWithMed ? (
-                                <div className="profile-latest-med">
-                                    {latestAppointmentWithMed.diagnosis ? (
-                                        <div className="profile-latest-med__block">
-                                            <div className="profile-latest-med__h">Диагноз</div>
-                                            <div className="profile-latest-med__body">{latestAppointmentWithMed.diagnosis}</div>
+                                    {isAdmin ? (
+                                        <div className="prof-m__empty">
+                                            <span className="prof-m__empty-icon" aria-hidden="true">👤</span>
+                                            <p className="prof-m__empty-title">Админ аккаунт</p>
+                                            <p className="prof-m__empty-text">Пациент жазылулары бұл аккаунтта көрсетілмейді.</p>
                                         </div>
-                                    ) : null}
-                                    {latestAppointmentWithMed.clinical_notes ? (
-                                        <div className="profile-latest-med__block">
-                                            <div className="profile-latest-med__h">Дәрігер жазбасы</div>
-                                            <div className="profile-latest-med__body">{latestAppointmentWithMed.clinical_notes}</div>
+                                    ) : apps.length === 0 ? (
+                                        <div className="prof-m__empty">
+                                            <span className="prof-m__empty-icon" aria-hidden="true">📅</span>
+                                            <p className="prof-m__empty-title">Әзірге жазылу жоқ</p>
+                                            <p className="prof-m__empty-text">
+                                                Дәрігерлер тізімінен маманды таңдап, ыңғайлы уақытты белгілеңіз.
+                                            </p>
+                                            <Link to="/doctors" className="prof-m__btn prof-m__btn--primary" style={{ display: "inline-block", textDecoration: "none" }}>
+                                                Дәрігерлерге өту
+                                            </Link>
                                         </div>
-                                    ) : null}
-                                </div>
-                            ) : null}
+                                    ) : (
+                                        <>
+                                            <ul className="prof-m__appt-list">
+                                                {visibleApps.map((a) => {
+                                                    const startAt = a.start_at ?? a.startAt ?? a.StartAt;
+                                                    const status = a.status ?? a.Status ?? "";
+                                                    const doctorName = (a.doctor?.full_name || a.doctor?.FullName) ?? "—";
+                                                    const patientName = (a.patient?.full_name || a.patient?.FullName) ?? "—";
+                                                    const isPast = isPastAppointment(startAt);
+                                                    const who = me?.role === "doctor" ? patientName : doctorName;
+                                                    const whoLabel = me?.role === "doctor" ? "Пациент" : "Дәрігер";
+                                                    const whoPhoto = me?.role === "doctor"
+                                                        ? (a.patient?.avatar_url || a.patient?.photo_url)
+                                                        : (a.doctor?.avatar_url || a.doctor?.photo_url);
+                                                    const isNext = nextApptId != null && Number(a.id) === Number(nextApptId);
+                                                    const canCancel = me?.role === "patient" && !isPast && canCancelByPatient(startAt) && status !== "canceled" && status !== "cancelled";
 
-                            {isAdmin ? (
-                                <div className="profile-empty">
-                                    <span className="profile-empty__icon" aria-hidden="true">👤</span>
-                                    <p className="profile-empty__title">Admin аккаунт</p>
-                                    <p className="profile-empty__text">Пациент жазылулары бұл аккаунтта көрсетілмейді.</p>
-                                </div>
-                            ) : apps.length === 0 ? (
-                                <div className="profile-empty">
-                                    <span className="profile-empty__icon" aria-hidden="true">📅</span>
-                                    <p className="profile-empty__title">Әзірге жазылу жоқ</p>
-                                    <p className="profile-empty__text">
-                                        Дәрігерлер тізімінен маманды таңдап, ыңғайлы уақытты белгілеңіз.
-                                    </p>
-                                    <Link to="/doctors" className="btn profile-empty__cta">Дәрігерлерге өту</Link>
-                                </div>
-                            ) : (
-                                <>
-                                    <ul className="profile-appointments">
-                                        {visibleApps.map((a) => {
-                                            const startAt = a.start_at ?? a.startAt ?? a.StartAt;
-                                            const status = a.status ?? a.Status ?? "—";
-                                            const doctorName = (a.doctor?.full_name || a.doctor?.FullName) ?? "—";
-                                            const patientName = (a.patient?.full_name || a.patient?.FullName) ?? "—";
-                                            const { date, time, full } = fmtStartAt(startAt);
-                                            const isPast = isPastAppointment(startAt);
-                                            const who = me?.role === "doctor" ? patientName : doctorName;
-                                            const whoLabel = me?.role === "doctor" ? "Пациент" : "Дәрігер";
-                                            const canCancel = me?.role === "patient" && !isPast && canCancelByPatient(startAt) && status !== "canceled" && status !== "cancelled";
-                                            const latestMedId =
-                                                latestAppointmentWithMed?.id ?? latestAppointmentWithMed?.Id;
-                                            const isLatestMedRow =
-                                                me?.role === "patient" &&
-                                                latestMedId != null &&
-                                                Number(a.id) === Number(latestMedId);
-                                            const showCompactMed =
-                                                me?.role === "patient" &&
-                                                (a.diagnosis || a.clinical_notes) &&
-                                                !isLatestMedRow;
-
-                                            return (
-                                                <li
-                                                    key={a.id}
-                                                    className={`profile-appointment ${isPast ? "profile-appointment--past" : ""}`}
-                                                    title={full}
-                                                >
-                                                    <div className="profile-appointment__main">
-                                                        <div className="profile-appointment__date-block">
-                                                            <span className="profile-appointment__date">{date}</span>
-                                                            {time && <span className="profile-appointment__time">{time}</span>}
-                                                        </div>
-                                                        <div className="profile-appointment__details">
-                                                            <p className="profile-appointment__label">{whoLabel}</p>
-                                                            <p className="profile-appointment__name">{who}</p>
-                                                            {showCompactMed ? (
-                                                                <div className="profile-appointment__med">
+                                                    return (
+                                                        <li key={a.id} className="prof-m__appt">
+                                                            <div className="prof-m__appt-top">
+                                                                <span className="prof-m__appt-time">{fmtApptDisplay(startAt)}</span>
+                                                                {isNext ? (
+                                                                    <span className="prof-m__appt-badge prof-m__appt-badge--next">Келесі жазылу</span>
+                                                                ) : null}
+                                                            </div>
+                                                            <div className="prof-m__appt-body">
+                                                                <div className="prof-m__appt-avatar-wrap">
+                                                                    <img
+                                                                        className="prof-m__appt-avatar"
+                                                                        src={normalizePhoto(whoPhoto)}
+                                                                        alt=""
+                                                                    />
+                                                                </div>
+                                                                <div className="prof-m__appt-info">
+                                                                    <p className="prof-m__appt-label">{whoLabel}</p>
+                                                                    <p className="prof-m__appt-name">{who}</p>
+                                                                </div>
+                                                                <span className={`prof-m__appt-status ${getMobileStatusClass(status, isPast)}`}>
+                                                                    {getMobileStatusLabel(status, isPast)}
+                                                                </span>
+                                                            </div>
+                                                            {(a.diagnosis || a.clinical_notes) ? (
+                                                                <div className="prof-m__appt-med">
                                                                     {a.diagnosis ? (
-                                                                        <p className="profile-appointment__med-line">
-                                                                            <span className="profile-appointment__med-k">
-                                                                                Диагноз:
-                                                                            </span>{" "}
-                                                                            {a.diagnosis}
+                                                                        <p className="prof-m__appt-med-line">
+                                                                            <span className="prof-m__appt-med-k">Диагноз:</span> {a.diagnosis}
                                                                         </p>
                                                                     ) : null}
                                                                     {a.clinical_notes ? (
-                                                                        <p className="profile-appointment__med-line">
-                                                                            <span className="profile-appointment__med-k">
-                                                                                Дәрігер жазбасы:
-                                                                            </span>{" "}
-                                                                            {a.clinical_notes}
+                                                                        <p className="prof-m__appt-note">
+                                                                            <span className="prof-m__appt-note-icon" aria-hidden="true">💬</span>
+                                                                            «{a.clinical_notes}»
                                                                         </p>
                                                                     ) : null}
                                                                 </div>
                                                             ) : null}
-                                                        </div>
-                                                        <span className={`profile-appointment__status profile-appointment__status--${isPast ? "past" : (status || "").toLowerCase()}`}>
-                                                            {appointmentStatusLabel(status, { isPast })}
-                                                        </span>
-                                                    </div>
-                                                    {canCancel && (
-                                                        <button
-                                                            type="button"
-                                                            className="btn profile-appointment__cancel"
-                                                            onClick={() => cancelAppointment(a.id)}
-                                                            disabled={cancellingId === a.id}
-                                                        >
-                                                            {cancellingId === a.id ? "..." : "Отмена"}
-                                                        </button>
+                                                            {canCancel && (
+                                                                <button
+                                                                    type="button"
+                                                                    className="prof-m__appt-cancel"
+                                                                    onClick={() => cancelAppointment(a.id)}
+                                                                    disabled={cancellingId === a.id}
+                                                                >
+                                                                    {cancellingId === a.id ? "Күтіңіз..." : "Бас тарту"}
+                                                                </button>
+                                                            )}
+                                                        </li>
+                                                    );
+                                                })}
+                                            </ul>
+                                            {hasMoreApps && (
+                                                <button
+                                                    type="button"
+                                                    className="prof-m__btn prof-m__btn--outline"
+                                                    style={{ width: "100%", marginTop: 12 }}
+                                                    onClick={() => setShowAllApps((v) => !v)}
+                                                >
+                                                    {showAllApps ? "Жасыру" : "Тағы көрсету"}
+                                                </button>
+                                            )}
+                                        </>
+                                    )}
+                                </section>
+                            )}
+
+                            {referrals.length > 0 && (
+                                <section className="prof-m__section">
+                                    <h2 className="prof-m__section-title">
+                                        <span className="prof-m__section-icon" aria-hidden="true">📄</span>
+                                        Бағыттар
+                                    </h2>
+                                    <ul className="prof-m__appt-list">
+                                        {referrals.map((ref) => {
+                                            const statusLabels = { pending: "Күтуде", booked: "Жазылды", completed: "Аяқталды", canceled: "Бас тартылған" };
+                                            return (
+                                                <li key={ref.id} className="prof-m__appt">
+                                                    <p className="prof-m__appt-name">{ref.to_specialty}</p>
+                                                    {ref.to_doctor?.full_name && (
+                                                        <p className="prof-m__field-value" style={{ marginTop: 4 }}>{ref.to_doctor.full_name}</p>
                                                     )}
+                                                    <p className="prof-m__appt-label" style={{ marginTop: 8 }}>
+                                                        {statusLabels[ref.status] || ref.status}
+                                                    </p>
+                                                    {ref.diagnosis && <p className="prof-m__field-value" style={{ marginTop: 4, fontSize: 13 }}>Диагноз: {ref.diagnosis}</p>}
                                                 </li>
                                             );
                                         })}
                                     </ul>
-                                    {hasMoreApps && (
-                                        <div className="profile-appointments__more">
-                                            <button
-                                                type="button"
-                                                className="btn"
-                                                onClick={() => setShowAllApps((v) => !v)}
-                                            >
-                                                {showAllApps ? "Жасыру" : "Еще"}
-                                            </button>
-                                        </div>
-                                    )}
-                                </>
+                                </section>
                             )}
-                                </>
-                            )}
-                        </section>
-                    </div>
-
-                    {referrals.length > 0 && (
-                        <section className="profile-card" style={{ marginTop: 20 }}>
-                            <h3 className="profile-card__title">Бағыттар (направления)</h3>
-                            <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 12 }}>
-                                {referrals.map((ref) => {
-                                    const statusColors = { pending: "#f39c12", booked: "#2980b9", completed: "#27ae60", canceled: "#95a5a6" };
-                                    const statusLabels = { pending: "Күтуде", booked: "Жазылды", completed: "Аяқталды", canceled: "Бас тартылды" };
-                                    return (
-                                        <li key={ref.id} style={{ background: "#f8f9fa", borderRadius: 10, padding: "14px 18px", borderLeft: `4px solid ${statusColors[ref.status] || "#ccc"}` }}>
-                                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-                                                <div>
-                                                    <strong>{ref.to_specialty}</strong>
-                                                    {ref.to_doctor?.full_name && <span style={{ color: "#666", marginLeft: 8 }}>— {ref.to_doctor.full_name}</span>}
-                                                </div>
-                                                <span style={{ fontSize: 13, fontWeight: 600, color: statusColors[ref.status] || "#999" }}>
-                                                    {statusLabels[ref.status] || ref.status}
-                                                </span>
-                                            </div>
-                                            {ref.diagnosis && <p style={{ margin: "6px 0 0", fontSize: 14, color: "#444" }}>Диагноз: {ref.diagnosis}</p>}
-                                            {ref.notes && <p style={{ margin: "4px 0 0", fontSize: 13, color: "#777" }}>{ref.notes}</p>}
-                                            {ref.booked_appointment?.start_at && (
-                                                <p style={{ margin: "6px 0 0", fontSize: 13, color: "#2980b9" }}>
-                                                    Жазылу: {fmtStartAt(ref.booked_appointment.start_at).full}
-                                                </p>
-                                            )}
-                                            {ref.from_doctor?.full_name && (
-                                                <p style={{ margin: "4px 0 0", fontSize: 12, color: "#999" }}>Терапевт: {ref.from_doctor.full_name}</p>
-                                            )}
-                                        </li>
-                                    );
-                                })}
-                            </ul>
-                        </section>
+                        </>
                     )}
-                </>
-            )}
+                </div>
+            </div>
         </div>
     );
 }
