@@ -40,8 +40,6 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [notRobot, setNotRobot] = useState(false);
-  const [robotVisible, setRobotVisible] = useState(false);
   const nav = useNavigate();
 
   async function doLogin() {
@@ -66,22 +64,10 @@ export default function Login() {
       setMsg("Телефон/логин және құпия сөзді толтырыңыз.");
       return;
     }
-    // Алдымен "Я не робот" модалын көрсетеміз
-    setRobotVisible(true);
-  }
-
-  async function handleRobotConfirm() {
-    if (!notRobot) {
-      // Модалдың ішінде кішкентай ескерту ретінде alert жеткілікті
-      alert('Алдымен "Мен робот емеспін" дегенді белгілеңіз.');
-      return;
-    }
-    setRobotVisible(false);
     await doLogin();
   }
 
   return (
-    <>
       <div className="login-page">
         <div className="login-center">
           <div className="login-card">
@@ -147,31 +133,5 @@ export default function Login() {
           </div>
         </div>
       </div>
-      {robotVisible && (
-        <div className="login-robot-modal">
-          <div className="login-robot-modal__card">
-            <div className="login-robot-modal__title">Қауіпсіздік тексерісі</div>
-            <p className="login-robot-modal__subtitle">
-              Кіру үшін «Мен робот емеспін» дегенді белгілеңіз.
-            </p>
-            <div className="login-robot">
-              <label className="login-robot__label">
-                <input
-                    type="checkbox"
-                    checked={notRobot}
-                    onChange={(e) => setNotRobot(e.target.checked)}
-                />
-                <span>Мен робот емеспін</span>
-              </label>
-            </div>
-            <div className="login-robot-modal__actions">
-              <button type="button" className="btn" onClick={handleRobotConfirm}>
-                Жалғастыру
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
   );
 }

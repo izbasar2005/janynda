@@ -1346,48 +1346,6 @@ hr{
     transform:translateY(-50%);
 }
 
-.login-robot{
-    margin:8px 0 0;
-}
-.login-robot__label{
-    display:inline-flex;
-    align-items:center;
-    gap:8px;
-    font-size:12px;
-    color:#0f172a;
-}
-
-.login-robot-modal{
-    position:fixed;
-    inset:0;
-    background:rgba(15,23,42,.35);
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    z-index:40;
-}
-.login-robot-modal__card{
-    background:#f9fafb;
-    border-radius:14px;
-    padding:16px 20px 18px;
-    box-shadow:0 20px 50px rgba(15,23,42,.4);
-    min-width:260px;
-}
-.login-robot-modal__title{
-    font-weight:700;
-    font-size:14px;
-    margin:0 0 6px;
-}
-.login-robot-modal__subtitle{
-    margin:0 0 10px;
-    font-size:12px;
-    color:var(--muted);
-}
-.login-robot-modal__actions{
-    margin-top:14px;
-    text-align:right;
-}
-
 /* =========================
    Peer Profile Modal
 ========================= */
