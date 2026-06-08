@@ -12,6 +12,8 @@ import "./styles/groups-responsive.css";
 import "./styles/site-responsive.css";
 import "./styles/admin-responsive.css";
 import "./styles/news-responsive.css";
+import "./styles/psych-responsive.css";
+import "./styles/mobile-preview.css";
 
 
 ReactDOM.createRoot(document.getElementById('root')).render(

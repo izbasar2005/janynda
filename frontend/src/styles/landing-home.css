@@ -101,7 +101,7 @@
     z-index: 1;
     display: flex;
     flex-direction: column;
-    gap: clamp(16px, 4vw, 24px);
+    gap: 0;
     padding: calc(var(--header-height, 64px) + 16px) clamp(16px, 4vw, 24px) clamp(24px, 6vw, 36px);
   }
 
@@ -110,6 +110,7 @@
     margin-left: 0 !important;
     margin-right: 0 !important;
     align-self: stretch;
+    padding-top: clamp(12px, 3vw, 20px);
     opacity: 1 !important;
     transform: none !important;
     animation: landing-hero-in 0.45s ease-out both;
@@ -192,20 +193,26 @@
     margin: 0 !important;
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-end;
+    align-self: stretch;
     position: static;
     min-height: 0;
-    width: auto;
+    width: 100%;
+    padding-bottom: 0;
   }
 
   .landing-hero__image-wrap {
     position: relative;
-    max-width: min(220px, 72vw);
+    width: 100%;
+    max-width: min(280px, 82vw);
     margin: 0 auto;
     transform: none !important;
     opacity: 1 !important;
     animation: landing-hero-in 0.5s ease-out 0.06s both;
-    line-height: normal;
+    line-height: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
   }
 
   .landing-hero__image-wrap:hover {
@@ -215,9 +222,13 @@
   .landing-hero__image {
     width: 100%;
     height: auto;
-    max-height: 200px;
+    max-height: min(280px, 56vw);
     object-fit: contain;
-    object-position: center center;
+    object-position: center bottom;
+    display: block;
+    vertical-align: bottom;
+    margin-bottom: 0;
+    transform: translateY(calc(clamp(12px, 4vw, 32px) + 5px));
     filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.25));
   }
 

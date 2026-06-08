@@ -22,9 +22,9 @@ export default function PsychAssignments() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [msg, setMsg] = useState("");
-    const [assignFilter, setAssignFilter] = useState(""); // "" | "0" | "1"
+    const [assignFilter, setAssignFilter] = useState("");
     const [zoneFilter, setZoneFilter] = useState("");
-    const [selected, setSelected] = useState({}); // { patientId: psychologistId }
+    const [selected, setSelected] = useState({});
     const [busy, setBusy] = useState(0);
 
     const role = useMemo(() => {
@@ -107,37 +107,43 @@ export default function PsychAssignments() {
     }
 
     if (error) {
-        return <div style={S.page}><div style={S.errorBanner}>{error}</div></div>;
+        return (
+            <div className="page psych-assignments-page">
+                <div className="admin-banner admin-banner--error">{error}</div>
+            </div>
+        );
     }
 
     return (
-        <div style={S.page}>
-            <div style={S.headerRow}>
+        <div className="page psych-assignments-page">
+            <div className="page-header">
                 <div>
-                    <h1 style={S.title}>Пациенттерді бөлу</h1>
-                    <p style={S.subtitle}>Пациенттерді психологтарға бекітіңіз. Қызыл кейстер автоматты түрде бекітілген психологқа жіберіледі.</p>
+                    <h2 className="page-header__title">Пациенттерді бөлу</h2>
+                    <p className="muted page-header__subtitle">
+                        Пациенттерді психологтарға бекітіңіз. Қызыл кейстер автоматты түрде бекітілген психологқа жіберіледі.
+                    </p>
                 </div>
             </div>
 
-            {msg && <div style={S.msgBanner}>{msg}</div>}
+            {msg && <div className="psych-msg-banner">{msg}</div>}
 
-            <div style={S.psychRow}>
+            <div className="psych-assign-psychologists">
                 {psychologists.map((p) => (
-                    <div key={p.id} style={S.psychCard}>
-                        <span style={S.psychName}>{p.full_name}</span>
-                        <span style={S.psychCount}>{p.patient_count} пациент</span>
+                    <div key={p.id} className="psych-assign-psych-card">
+                        <span className="psych-assign-psych-card__name">{p.full_name}</span>
+                        <span className="psych-assign-psych-card__count">{p.patient_count} пациент</span>
                     </div>
                 ))}
-                {psychologists.length === 0 && <span style={S.muted}>Психологтар жоқ.</span>}
+                {psychologists.length === 0 && <span className="muted">Психологтар жоқ.</span>}
             </div>
 
-            <div style={S.filters}>
-                <select style={S.select} value={assignFilter} onChange={(e) => setAssignFilter(e.target.value)}>
+            <div className="psych-assign-filters">
+                <select className="input" value={assignFilter} onChange={(e) => setAssignFilter(e.target.value)} aria-label="Бекіту фильтрі">
                     <option value="">Барлығы</option>
                     <option value="0">Бекітілмегендер</option>
                     <option value="1">Бекітілгендер</option>
                 </select>
-                <select style={S.select} value={zoneFilter} onChange={(e) => setZoneFilter(e.target.value)}>
+                <select className="input" value={zoneFilter} onChange={(e) => setZoneFilter(e.target.value)} aria-label="Аймақ фильтрі">
                     <option value="">Барлық аймақ</option>
                     <option value="red">Қызыл</option>
                     <option value="yellow">Сары</option>
@@ -146,107 +152,159 @@ export default function PsychAssignments() {
             </div>
 
             {loading ? (
-                <p style={S.muted}>Жүктелуде…</p>
+                <p className="muted">Жүктелуде…</p>
             ) : (
-                <div style={S.tableWrap}>
-                    <table style={S.table}>
-                        <thead>
-                            <tr>
-                                <th style={S.th}>Пациент</th>
-                                <th style={S.th}>Аймақ</th>
-                                <th style={S.th}>Балл</th>
-                                <th style={S.th}>Ашық кейс</th>
-                                <th style={S.th}>Психолог</th>
-                                <th style={S.th}>Әрекет</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {patients.map((p) => (
-                                <tr key={p.patient_id} style={S.tr}>
-                                    <td style={S.td}>{p.patient_name || `#${p.patient_id}`}</td>
-                                    <td style={S.td}>
-                                        <span style={{ ...S.zoneTag, background: ZONE_COLORS[p.zone] || "#64748b" }}>
-                                            {ZONE_LABELS[p.zone] || p.zone}
-                                        </span>
-                                    </td>
-                                    <td style={S.td}>{p.score}</td>
-                                    <td style={S.td}>{p.open_cases || 0}</td>
-                                    <td style={S.td}>
-                                        {p.psychologist_id ? (
-                                            <span style={S.assignedName}>{p.psychologist_name || `#${p.psychologist_id}`}</span>
-                                        ) : (
-                                            <span style={S.unassigned}>— бекітілмеген —</span>
-                                        )}
-                                    </td>
-                                    <td style={S.td}>
-                                        <div style={S.actions}>
-                                            <select
-                                                style={S.selectSmall}
-                                                value={selected[p.patient_id] || ""}
-                                                onChange={(e) => setSelected((s) => ({ ...s, [p.patient_id]: e.target.value }))}
-                                            >
-                                                <option value="">Психолог таңдаңыз…</option>
-                                                {psychologists.map((ps) => (
-                                                    <option key={ps.id} value={ps.id}>{ps.full_name}</option>
-                                                ))}
-                                            </select>
-                                            <button
-                                                style={S.btnPrimary}
-                                                disabled={busy === p.patient_id || !selected[p.patient_id]}
-                                                onClick={() => handleAssign(p.patient_id)}
-                                            >
-                                                Бекіту
-                                            </button>
-                                            {p.psychologist_id && (
-                                                <button
-                                                    style={S.btnGhost}
-                                                    disabled={busy === p.patient_id}
-                                                    onClick={() => handleUnassign(p.patient_id)}
-                                                >
-                                                    Алу
-                                                </button>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                            {patients.length === 0 && (
+                <>
+                    <div className="psych-mobile-cards" aria-label="Пациенттер">
+                        {patients.map((p) => (
+                            <article
+                                key={p.patient_id}
+                                className={`psych-assign-card psych-mobile-card--${p.zone || "green"}`}
+                            >
+                                <header className="psych-assign-card__head">
+                                    <h3 className="psych-assign-card__name">{p.patient_name || `#${p.patient_id}`}</h3>
+                                    <span
+                                        className="psych-zone-pill"
+                                        style={{ background: ZONE_COLORS[p.zone] || "#64748b" }}
+                                    >
+                                        {ZONE_LABELS[p.zone] || p.zone}
+                                    </span>
+                                    {p.psychologist_id ? (
+                                        <p className="psych-assign-card__assigned">
+                                            {p.psychologist_name || `#${p.psychologist_id}`}
+                                        </p>
+                                    ) : (
+                                        <p className="psych-assign-card__unassigned">— бекітілмеген —</p>
+                                    )}
+                                </header>
+                                <dl className="psych-mobile-card__grid">
+                                    <div className="psych-mobile-card__cell">
+                                        <dt>Балл</dt>
+                                        <dd>{p.score}</dd>
+                                    </div>
+                                    <div className="psych-mobile-card__cell">
+                                        <dt>Ашық кейс</dt>
+                                        <dd>{p.open_cases || 0}</dd>
+                                    </div>
+                                </dl>
+                                <div className="psych-assign-card__fields">
+                                    <select
+                                        className="input"
+                                        value={selected[p.patient_id] || ""}
+                                        onChange={(e) => setSelected((s) => ({ ...s, [p.patient_id]: e.target.value }))}
+                                    >
+                                        <option value="">Психолог таңдаңыз…</option>
+                                        {psychologists.map((ps) => (
+                                            <option key={ps.id} value={ps.id}>{ps.full_name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="psych-assign-card__actions">
+                                    <button
+                                        type="button"
+                                        className="btn"
+                                        disabled={busy === p.patient_id || !selected[p.patient_id]}
+                                        onClick={() => handleAssign(p.patient_id)}
+                                    >
+                                        Бекіту
+                                    </button>
+                                    {p.psychologist_id ? (
+                                        <button
+                                            type="button"
+                                            className="btn ghost"
+                                            disabled={busy === p.patient_id}
+                                            onClick={() => handleUnassign(p.patient_id)}
+                                        >
+                                            Бекітуді алу
+                                        </button>
+                                    ) : null}
+                                </div>
+                            </article>
+                        ))}
+                        {patients.length === 0 && <p className="muted">Пациенттер жоқ.</p>}
+                    </div>
+
+                    <div className="psych-assign-desktop">
+                        <table className="psych-assign-table">
+                            <thead>
                                 <tr>
-                                    <td style={S.td} colSpan={6}><span style={S.muted}>Пациенттер жоқ.</span></td>
+                                    <th>Пациент</th>
+                                    <th>Аймақ</th>
+                                    <th>Балл</th>
+                                    <th>Ашық кейс</th>
+                                    <th>Психолог</th>
+                                    <th>Әрекет</th>
                                 </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                            </thead>
+                            <tbody>
+                                {patients.map((p) => (
+                                    <tr key={p.patient_id}>
+                                        <td>{p.patient_name || `#${p.patient_id}`}</td>
+                                        <td>
+                                            <span
+                                                className="psych-zone-pill"
+                                                style={{ background: ZONE_COLORS[p.zone] || "#64748b" }}
+                                            >
+                                                {ZONE_LABELS[p.zone] || p.zone}
+                                            </span>
+                                        </td>
+                                        <td>{p.score}</td>
+                                        <td>{p.open_cases || 0}</td>
+                                        <td>
+                                            {p.psychologist_id ? (
+                                                <span style={{ color: "#6d28d9", fontWeight: 600 }}>
+                                                    {p.psychologist_name || `#${p.psychologist_id}`}
+                                                </span>
+                                            ) : (
+                                                <span className="muted" style={{ fontStyle: "italic" }}>— бекітілмеген —</span>
+                                            )}
+                                        </td>
+                                        <td>
+                                            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                                                <select
+                                                    className="input"
+                                                    style={{ maxWidth: 180, minHeight: 36, fontSize: 13 }}
+                                                    value={selected[p.patient_id] || ""}
+                                                    onChange={(e) => setSelected((s) => ({ ...s, [p.patient_id]: e.target.value }))}
+                                                >
+                                                    <option value="">Психолог таңдаңыз…</option>
+                                                    {psychologists.map((ps) => (
+                                                        <option key={ps.id} value={ps.id}>{ps.full_name}</option>
+                                                    ))}
+                                                </select>
+                                                <button
+                                                    type="button"
+                                                    className="btn"
+                                                    style={{ background: "#7c3aed", borderColor: "#7c3aed" }}
+                                                    disabled={busy === p.patient_id || !selected[p.patient_id]}
+                                                    onClick={() => handleAssign(p.patient_id)}
+                                                >
+                                                    Бекіту
+                                                </button>
+                                                {p.psychologist_id ? (
+                                                    <button
+                                                        type="button"
+                                                        className="btn ghost"
+                                                        disabled={busy === p.patient_id}
+                                                        onClick={() => handleUnassign(p.patient_id)}
+                                                    >
+                                                        Алу
+                                                    </button>
+                                                ) : null}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {patients.length === 0 && (
+                                    <tr>
+                                        <td colSpan={6} className="muted">Пациенттер жоқ.</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </>
             )}
         </div>
     );
 }
-
-const S = {
-    page: { maxWidth: 1100, margin: "0 auto", padding: "24px 16px" },
-    headerRow: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 },
-    title: { fontSize: 26, fontWeight: 700, margin: 0, color: "#0f172a" },
-    subtitle: { color: "#64748b", marginTop: 6, fontSize: 14 },
-    muted: { color: "#94a3b8" },
-    errorBanner: { background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b", padding: "12px 16px", borderRadius: 10 },
-    msgBanner: { background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#166534", padding: "10px 14px", borderRadius: 10, marginBottom: 12 },
-    psychRow: { display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 },
-    psychCard: { display: "flex", flexDirection: "column", padding: "10px 14px", background: "#faf5ff", border: "1px solid #e9d5ff", borderRadius: 10, minWidth: 150 },
-    psychName: { fontWeight: 600, color: "#6d28d9" },
-    psychCount: { fontSize: 12, color: "#7c3aed" },
-    filters: { display: "flex", gap: 10, marginBottom: 14 },
-    select: { padding: "8px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#fff" },
-    selectSmall: { padding: "6px 8px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#fff", maxWidth: 180 },
-    tableWrap: { overflowX: "auto", border: "1px solid #e2e8f0", borderRadius: 12 },
-    table: { width: "100%", borderCollapse: "collapse", minWidth: 760 },
-    th: { textAlign: "left", padding: "12px 14px", fontSize: 13, color: "#64748b", borderBottom: "1px solid #e2e8f0", background: "#f8fafc" },
-    tr: { borderBottom: "1px solid #f1f5f9" },
-    td: { padding: "12px 14px", fontSize: 14, color: "#0f172a", verticalAlign: "middle" },
-    zoneTag: { color: "#fff", padding: "2px 10px", borderRadius: 999, fontSize: 12, fontWeight: 600 },
-    assignedName: { color: "#6d28d9", fontWeight: 600 },
-    unassigned: { color: "#94a3b8", fontStyle: "italic" },
-    actions: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" },
-    btnPrimary: { padding: "6px 14px", borderRadius: 8, border: "none", background: "#7c3aed", color: "#fff", cursor: "pointer", fontWeight: 600 },
-    btnGhost: { padding: "6px 12px", borderRadius: 8, border: "1px solid #fca5a5", background: "#fff", color: "#dc2626", cursor: "pointer" },
-};

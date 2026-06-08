@@ -27,6 +27,7 @@ import DoctorPatient from "./pages/DoctorPatient.jsx";
 import PsychDashboard from "./pages/PsychDashboard.jsx";
 import PsychCaseDetail from "./pages/PsychCaseDetail.jsx";
 import PsychAssignments from "./pages/PsychAssignments.jsx";
+import MobilePreview from "./pages/MobilePreview.jsx";
 import PageContainer from "./layouts/PageContainer.jsx";
 
 function RequireAuth({ children }) {
@@ -37,15 +38,21 @@ function RequireAuth({ children }) {
 }
 
 export default function App() {
+    const loc = useLocation();
+    const isMobilePreview = loc.pathname === "/mobile-preview";
+
     return (
-        <div className="app-shell">
-            <a href="#main-content" className="skip-link">
-                Негізгі мазмұнға өту
-            </a>
-            <Header />
+        <div className={`app-shell${isMobilePreview ? " app-shell--mobile-preview" : ""}`}>
+            {!isMobilePreview && (
+                <a href="#main-content" className="skip-link">
+                    Негізгі мазмұнға өту
+                </a>
+            )}
+            {!isMobilePreview && <Header />}
 
             <main id="main-content" className="app-main" tabIndex={-1}>
                 <Routes>
+                    <Route path="/mobile-preview" element={<MobilePreview />} />
                     <Route path="/" element={<Home />} />
                     <Route element={<PageContainer />}>
                         <Route path="/doctors" element={<Doctors />} />
@@ -84,7 +91,7 @@ export default function App() {
                 </Routes>
             </main>
 
-            <Footer />
+            {!isMobilePreview && <Footer />}
         </div>
     );
 }
