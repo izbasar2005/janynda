@@ -4,22 +4,25 @@ export function getNavLinks({ token, role, active }) {
         { to: "/", label: "Басты бет", show: true },
     ];
 
-    if (token && (role === "patient" || role === "volunteer")) {
+    const normalizedRole = String(role || "").toLowerCase();
+    const staffRoles = new Set(["doctor", "psychologist", "head_psychologist", "admin", "super_admin"]);
+
+    if (token && !staffRoles.has(normalizedRole)) {
         links.push(
             { to: "/doctors", label: "Дәрігерге жазылу", show: true },
             { to: "/diary", label: "Күнделік", show: true },
         );
     }
 
-    if (token && role === "doctor") {
+    if (token && normalizedRole === "doctor") {
         links.push({ to: "/doctor", label: "Дәрігер кабинеті", show: true });
     }
 
-    if (token && role === "psychologist") {
+    if (token && normalizedRole === "psychologist") {
         links.push({ to: "/psych", label: "Психолог кабинеті", show: true });
     }
 
-    if (token && role === "head_psychologist") {
+    if (token && normalizedRole === "head_psychologist") {
         links.push(
             { to: "/psych", label: "Психолог кабинеті", show: true },
             { to: "/psych/assignments", label: "Пациенттерді бөлу", show: true },
@@ -30,7 +33,7 @@ export function getNavLinks({ token, role, active }) {
         links.push({ to: "/groups", label: "Топтар", show: true });
     }
 
-    if (token && role === "admin") {
+    if (token && normalizedRole === "admin") {
         links.push(
             { to: "/admin/doctors", label: "Дәрігерлер", show: true },
             { to: "/admin/users", label: "Қолданушылар", show: true },
@@ -39,7 +42,7 @@ export function getNavLinks({ token, role, active }) {
         );
     }
 
-    if (token && role === "super_admin") {
+    if (token && normalizedRole === "super_admin") {
         links.push(
             { to: "/admin/dashboard", label: "Басқару панелі", show: true },
             { to: "/admin/doctors-stats", label: "Дәрігерлер", show: true },

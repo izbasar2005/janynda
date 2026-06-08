@@ -5,11 +5,6 @@
 
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
 
-.app-shell:has(.doctor-detail-page-v2 .doc-m) .app-header,
-.app-shell:has(.doctor-detail-page-v2 .doc-m) .app-footer {
-  display: none !important;
-}
-
 .container.page:has(.doctor-detail-page-v2 .doc-m) {
   padding: 0;
   margin: 0;

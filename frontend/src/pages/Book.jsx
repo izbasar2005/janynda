@@ -18,14 +18,6 @@ function normalizePhoto(url) {
     return "/" + url;
 }
 
-function getInitials(name) {
-    const parts = (name || "").trim().split(/\s+/).filter(Boolean);
-    if (!parts.length) return "U";
-    const a = (parts[0]?.[0] || "U").toUpperCase();
-    const b = (parts[1]?.[0] || parts[0]?.[1] || "").toUpperCase();
-    return (a + b).slice(0, 2);
-}
-
 function buildDateOptions(count = 21) {
     const dates = [];
     const start = new Date();
@@ -42,28 +34,6 @@ function buildDateOptions(count = 21) {
         });
     }
     return dates;
-}
-
-function IconMenu() {
-    return (
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        </svg>
-    );
-}
-
-function IconBell() {
-    return (
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path
-                d="M12 3.5c-3.4 0-6 2.6-6 6v3.2c0 .8-.3 1.6-.9 2.2l-1 1.1c-.3.3-.1.8.3.8h15.2c.4 0 .6-.5.3-.8l-1-1.1c-.6-.6-.9-1.4-.9-2.2V9.5c0-3.4-2.6-6-6-6Z"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinejoin="round"
-            />
-            <path d="M9.6 19a2.4 2.4 0 0 0 4.8 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        </svg>
-    );
 }
 
 function IconCheck() {
@@ -152,7 +122,6 @@ export default function Book() {
     const [slotsLoading, setSlotsLoading] = useState(false);
     const [msg, setMsg] = useState("");
     const [submitting, setSubmitting] = useState(false);
-    const [menuOpen, setMenuOpen] = useState(false);
     const dateCarouselRef = useRef(null);
     const timeCarouselRef = useRef(null);
 
@@ -170,11 +139,6 @@ export default function Book() {
             .then(setMe)
             .catch(() => setMe(null));
     }, [doctorId, nav]);
-
-    useEffect(() => {
-        document.body.classList.toggle("doc-detail-mobile-open", menuOpen);
-        return () => document.body.classList.remove("doc-detail-mobile-open");
-    }, [menuOpen]);
 
     useEffect(() => {
         if (!date && dateOptions.length) {
@@ -238,7 +202,6 @@ export default function Book() {
         }
     }
 
-    const userInitials = getInitials(me?.full_name || me?.phone || "U");
     const selectedDateLabel = dateOptions.find((d) => d.value === date)?.full || "";
     const price = Number(doc?.price || 0);
 
@@ -255,47 +218,6 @@ export default function Book() {
     return (
         <div className="page book-page-v2">
             <div className="doc-m doc-m--book">
-                <header className="doc-m__topbar">
-                    <Link className="doc-m__brand" to="/" onClick={() => setMenuOpen(false)}>
-                        <img src="/img/logo.png" alt="" className="doc-m__logo" />
-                        <span className="doc-m__app-name">Janynda</span>
-                    </Link>
-                    <div className="doc-m__actions">
-                        <button
-                            type="button"
-                            className="doc-m__icon-btn doc-m__icon-btn--menu"
-                            aria-label={menuOpen ? "Мәзірді жабу" : "Мәзірді ашу"}
-                            aria-expanded={menuOpen}
-                            onClick={() => setMenuOpen((v) => !v)}
-                        >
-                            <IconMenu />
-                        </button>
-                        <Link to="/notifications" className="doc-m__icon-btn doc-m__icon-btn--bell" aria-label="Ескертулер">
-                            <IconBell />
-                        </Link>
-                        <Link to="/profile" className="doc-m__avatar" aria-label="Профиль">
-                            {me?.avatar_url ? (
-                                <img src={normalizePhoto(me.avatar_url)} alt="" />
-                            ) : (
-                                userInitials
-                            )}
-                        </Link>
-                    </div>
-                </header>
-
-                {menuOpen && (
-                    <>
-                        <div className="doc-m__menu-overlay" onClick={() => setMenuOpen(false)} aria-hidden="true" />
-                        <nav className="doc-m__menu-panel" aria-label="Мобильді мәзір">
-                            <p className="doc-m__menu-title">Мәзір</p>
-                            <Link className="doc-m__menu-link" to="/" onClick={() => setMenuOpen(false)}>Басты бет</Link>
-                            <Link className="doc-m__menu-link" to="/doctors" onClick={() => setMenuOpen(false)}>Дәрігерлер</Link>
-                            <Link className="doc-m__menu-link" to="/news" onClick={() => setMenuOpen(false)}>Жаңалықтар</Link>
-                            <Link className="doc-m__menu-link" to="/profile" onClick={() => setMenuOpen(false)}>Профиль</Link>
-                        </nav>
-                    </>
-                )}
-
                 <div className="doc-m__body doc-m__body--book">
                     <section className="doc-m__hero" aria-label="Жазылу">
                         <HeroWave />

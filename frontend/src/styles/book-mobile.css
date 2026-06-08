@@ -2,11 +2,6 @@
    Book appointment — extends doc-m shell (same style as doctor profile)
    ========================================================================== */
 
-.app-shell:has(.book-page-v2 .doc-m) .app-header,
-.app-shell:has(.book-page-v2 .doc-m) .app-footer {
-  display: none !important;
-}
-
 .container.page:has(.book-page-v2 .doc-m) {
   padding: 0;
   margin: 0;

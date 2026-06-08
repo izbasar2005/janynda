@@ -27,36 +27,6 @@ function fmtDate(s) {
     }
 }
 
-function getInitials(name) {
-    const parts = (name || "").trim().split(/\s+/).filter(Boolean);
-    if (!parts.length) return "U";
-    const a = (parts[0]?.[0] || "U").toUpperCase();
-    const b = (parts[1]?.[0] || parts[0]?.[1] || "").toUpperCase();
-    return (a + b).slice(0, 2);
-}
-
-function IconMenu() {
-    return (
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        </svg>
-    );
-}
-
-function IconBell() {
-    return (
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path
-                d="M12 3.5c-3.4 0-6 2.6-6 6v3.2c0 .8-.3 1.6-.9 2.2l-1 1.1c-.3.3-.1.8.3.8h15.2c.4 0 .6-.5.3-.8l-1-1.1c-.6-.6-.9-1.4-.9-2.2V9.5c0-3.4-2.6-6-6-6Z"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinejoin="round"
-            />
-            <path d="M9.6 19a2.4 2.4 0 0 0 4.8 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        </svg>
-    );
-}
-
 function IconCheck() {
     return (
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -237,8 +207,6 @@ export default function DoctorDetail() {
     const [reviewRating, setReviewRating] = useState(5);
     const [reviewText, setReviewText] = useState("");
     const [submitMsg, setSubmitMsg] = useState("");
-    const [menuOpen, setMenuOpen] = useState(false);
-
     useEffect(() => {
         if (!id) return;
         api(`/api/v1/doctors/${id}`)
@@ -269,11 +237,6 @@ export default function DoctorDetail() {
             })
             .catch(() => setMe(null));
     }, []);
-
-    useEffect(() => {
-        document.body.classList.toggle("doc-detail-mobile-open", menuOpen);
-        return () => document.body.classList.remove("doc-detail-mobile-open");
-    }, [menuOpen]);
 
     const hasAppointment = doc && me?.role === "patient" && appointments.some((a) => Number(a.doctor_user_id) === Number(doc.user_id));
     const alreadyReviewed = doc && myReviewIds.includes(Number(doc.user_id));
@@ -322,7 +285,6 @@ export default function DoctorDetail() {
     const avg = reviews.average_rating != null ? Number(reviews.average_rating).toFixed(1) : "0";
     const price = Number(doc.price || 0);
     const doctorName = doc.full_name || "Аты көрсетілмеген";
-    const userInitials = getInitials(me?.full_name || me?.phone || "");
     const t = token();
 
     const tabProps = {
@@ -342,7 +304,6 @@ export default function DoctorDetail() {
     };
 
     const heroName = (doc.full_name || "ДӘРІГЕР").toUpperCase();
-    const avatarLetter = t ? userInitials : "U";
 
     const bookAction = !t ? (
         <Link to="/login" className="doc-m__cta">
@@ -359,55 +320,6 @@ export default function DoctorDetail() {
     return (
         <div className="page doctor-detail-page-v2">
             <div className="doc-m">
-                <header className="doc-m__topbar">
-                    <Link className="doc-m__brand" to="/" onClick={() => setMenuOpen(false)}>
-                        <img src="/img/logo.png" alt="" className="doc-m__logo" />
-                        <span className="doc-m__app-name">Janynda</span>
-                    </Link>
-                    <div className="doc-m__actions">
-                        <button
-                            type="button"
-                            className="doc-m__icon-btn doc-m__icon-btn--menu"
-                            aria-label={menuOpen ? "Мәзірді жабу" : "Мәзірді ашу"}
-                            aria-expanded={menuOpen}
-                            onClick={() => setMenuOpen((v) => !v)}
-                        >
-                            <IconMenu />
-                        </button>
-                        <Link
-                            to={t ? "/notifications" : "/login"}
-                            className="doc-m__icon-btn doc-m__icon-btn--bell"
-                            aria-label="Ескертулер"
-                        >
-                            <IconBell />
-                        </Link>
-                        <Link to={t ? "/profile" : "/login"} className="doc-m__avatar" aria-label="Профиль">
-                            {t && me?.avatar_url ? (
-                                <img src={normalizePhoto(me.avatar_url)} alt="" />
-                            ) : (
-                                avatarLetter
-                            )}
-                        </Link>
-                    </div>
-                </header>
-
-                {menuOpen && (
-                    <>
-                        <div className="doc-m__menu-overlay" onClick={() => setMenuOpen(false)} aria-hidden="true" />
-                        <nav className="doc-m__menu-panel" aria-label="Мобильді мәзір">
-                            <p className="doc-m__menu-title">Мәзір</p>
-                            <Link className="doc-m__menu-link" to="/" onClick={() => setMenuOpen(false)}>Басты бет</Link>
-                            <Link className="doc-m__menu-link" to="/doctors" onClick={() => setMenuOpen(false)}>Дәрігерлер</Link>
-                            <Link className="doc-m__menu-link" to="/news" onClick={() => setMenuOpen(false)}>Жаңалықтар</Link>
-                            {t ? (
-                                <Link className="doc-m__menu-link" to="/profile" onClick={() => setMenuOpen(false)}>Профиль</Link>
-                            ) : (
-                                <Link className="doc-m__menu-link" to="/login" onClick={() => setMenuOpen(false)}>Кіру</Link>
-                            )}
-                        </nav>
-                    </>
-                )}
-
                 <div className="doc-m__body">
                     <section className="doc-m__hero" aria-label="Дәрігер">
                         <HeroWave />

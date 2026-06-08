@@ -2,11 +2,6 @@
    Profile / Dashboard — premium mobile patient cabinet
    ========================================================================== */
 
-.app-shell:has(.profile-page-v2 .prof-m) .app-header,
-.app-shell:has(.profile-page-v2 .prof-m) .app-footer {
-  display: none !important;
-}
-
 .container.page:has(.profile-page-v2 .prof-m) {
   padding: 0;
   margin: 0;
@@ -50,109 +45,10 @@
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--prof-space) * 3);
 }
 
-/* Status + URL chrome */
-.prof-m__status {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: calc(var(--prof-space) * 0.75) calc(var(--prof-space) * 2.5);
-  padding-top: calc(var(--prof-space) * 0.75 + env(safe-area-inset-top, 0px));
-  font-size: 12px;
-  font-weight: 600;
-  background: #fff;
-  color: #0f172a;
-}
-
-.prof-m__status-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.prof-m__battery {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-}
-
-.prof-m__battery-icon {
-  width: 22px;
-  height: 11px;
-  border: 1.5px solid #334155;
-  border-radius: 3px;
-  position: relative;
-}
-
-.prof-m__battery-icon::after {
-  content: "";
-  position: absolute;
-  right: -4px;
-  top: 2px;
-  width: 2px;
-  height: 5px;
-  background: #334155;
-  border-radius: 0 1px 1px 0;
-}
-
-.prof-m__battery-fill {
-  display: block;
-  height: 100%;
-  width: 51%;
-  background: #6366f1;
-  border-radius: 1px;
-}
-
-.prof-m__chrome {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: #fff;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.prof-m__chrome-btn {
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: #64748b;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  cursor: pointer;
-}
-
-.prof-m__chrome-btn svg {
-  width: 18px;
-  height: 18px;
-  display: block;
-}
-
-.prof-m__url {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 7px 12px;
-  background: #f1f5f9;
-  border-radius: 12px;
-  font-size: 11px;
-  color: #64748b;
-  min-width: 0;
-}
-
-.prof-m__url-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* Hero banner */
 .prof-m__hero-wrap {
   position: relative;
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 .prof-m__hero-nav {
@@ -215,7 +111,7 @@
 
 .prof-m__hero {
   position: relative;
-  padding: 48px 20px 56px;
+  padding: 28px 20px 56px;
   background: var(--prof-grad);
   overflow: hidden;
   border-radius: 0 0 24px 24px;

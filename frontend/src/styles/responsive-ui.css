@@ -75,20 +75,11 @@
   opacity: 1;
 }
 .mobile-nav__panel {
-  position: relative;
-  width: min(100%, 320px);
-  max-width: 100%;
-  height: 100%;
-  background: var(--bg-elevated);
-  box-shadow: var(--shadow-lg);
   display: flex;
   flex-direction: column;
-  transform: translateX(100%);
-  transition: transform var(--duration) var(--ease-out);
   overflow: hidden;
-}
-.mobile-nav.is-open .mobile-nav__panel {
-  transform: translateX(0);
+  /* Төменнен шығатын bottom sheet — transform JS арқылы басқарылады */
+  transform: translateY(100%);
 }
 .mobile-nav__head {
   display: flex;

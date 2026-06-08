@@ -120,46 +120,6 @@ function getMobileStatusClass(status, isPast) {
     return "prof-m__appt-status--canceled";
 }
 
-function IconMenu() {
-    return (
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        </svg>
-    );
-}
-
-function IconBell() {
-    return (
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path
-                d="M12 3.5c-3.4 0-6 2.6-6 6v3.2c0 .8-.3 1.6-.9 2.2l-1 1.1c-.3.3-.1.8.3.8h15.2c.4 0 .6-.5.3-.8l-1-1.1c-.6-.6-.9-1.4-.9-2.2V9.5c0-3.4-2.6-6-6-6Z"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinejoin="round"
-            />
-            <path d="M9.6 19a2.4 2.4 0 0 0 4.8 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        </svg>
-    );
-}
-
-function IconTranslate() {
-    return (
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M4 6h8M8 6v12M6 16h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            <path d="M13 8h7M16.5 8v9M14 15h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        </svg>
-    );
-}
-
-function IconShare() {
-    return (
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M8 12v7a1 1 0 0 0 1 1h9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            <path d="M16 4l4 4-4 4M20 8H10a3 3 0 0 0-3 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-    );
-}
-
 export default function Profile() {
     const nav = useNavigate();
     const location = useLocation();
@@ -170,8 +130,6 @@ export default function Profile() {
     const [msg, setMsg] = useState("");
     const [cancellingId, setCancellingId] = useState(null);
     const [showAllApps, setShowAllApps] = useState(false);
-    const [menuOpen, setMenuOpen] = useState(false);
-
     const [topAlert, setTopAlert] = useState(null); // { type: "success" | "error", text: string }
     const topAlertTimer = useRef(null);
 
@@ -327,11 +285,6 @@ export default function Profile() {
             nav(location.pathname, { replace: true, state: {} });
         }
     }, [me, location.state?.fromBook]);
-
-    useEffect(() => {
-        document.body.classList.toggle("doc-detail-mobile-open", menuOpen);
-        return () => document.body.classList.remove("doc-detail-mobile-open");
-    }, [menuOpen]);
 
     async function cancelAppointment(id) {
         setCancellingId(id);
@@ -518,50 +471,7 @@ export default function Profile() {
                 </div>
             )}
             <div className="prof-m">
-                <div className="prof-m__status" aria-hidden="true">
-                    <span>00:24</span>
-                    <div className="prof-m__status-right">
-                        <span>4G</span>
-                        <span className="prof-m__battery">
-                            <span className="prof-m__battery-icon"><span className="prof-m__battery-fill" /></span>
-                            51%
-                        </span>
-                    </div>
-                </div>
-
-                <div className="prof-m__chrome" aria-hidden="true">
-                    <button type="button" className="prof-m__chrome-btn" aria-label="Аударма">
-                        <IconTranslate />
-                    </button>
-                    <div className="prof-m__url">
-                        <span className="prof-m__url-text">janynda.onrender.com</span>
-                    </div>
-                    <button type="button" className="prof-m__chrome-btn" aria-label="Бөлісу">
-                        <IconShare />
-                    </button>
-                </div>
-
                 <div className="prof-m__hero-wrap">
-                    <div className="prof-m__hero-nav">
-                        <button
-                            type="button"
-                            className="prof-m__hero-btn"
-                            aria-label={menuOpen ? "Мәзірді жабу" : "Мәзірді ашу"}
-                            aria-expanded={menuOpen}
-                            onClick={() => setMenuOpen((v) => !v)}
-                        >
-                            <IconMenu />
-                        </button>
-                        <div className="prof-m__hero-nav-right">
-                            <button type="button" className="prof-m__hero-btn" aria-label="Хабарландырулар">
-                                <IconBell />
-                            </button>
-                            <div className="prof-m__hero-btn prof-m__hero-btn--round prof-m__hero-btn--avatar" aria-hidden="true">
-                                U
-                            </div>
-                        </div>
-                    </div>
-
                     <header className="prof-m__hero">
                         <span className="prof-m__hero-watermark" aria-hidden="true">{heroInitials}</span>
                         <h1 className="prof-m__hero-title">
@@ -569,19 +479,6 @@ export default function Profile() {
                         </h1>
                     </header>
                 </div>
-
-                {menuOpen && (
-                    <>
-                        <div className="prof-m__menu-overlay" onClick={() => setMenuOpen(false)} aria-hidden="true" />
-                        <nav className="prof-m__menu-panel" aria-label="Мобильді мәзір">
-                            <p className="prof-m__menu-title">Мәзір</p>
-                            <Link className="prof-m__menu-link" to="/" onClick={() => setMenuOpen(false)}>Басты бет</Link>
-                            <Link className="prof-m__menu-link" to="/doctors" onClick={() => setMenuOpen(false)}>Дәрігерлер</Link>
-                            <Link className="prof-m__menu-link" to="/news" onClick={() => setMenuOpen(false)}>Жаңалықтар</Link>
-                            <Link className="prof-m__menu-link" to="/profile" onClick={() => setMenuOpen(false)}>Жеке кабинет</Link>
-                        </nav>
-                    </>
-                )}
 
                 <div className="prof-m__body">
                     {msg && <p className="form-error" style={{ margin: "12px 16px 0" }}>{msg}</p>}
