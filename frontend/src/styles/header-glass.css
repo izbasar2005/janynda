@@ -127,6 +127,7 @@
   background: rgba(15, 23, 42, 0.28);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
+  transition: opacity 0.08s linear;
 }
 
 .mobile-nav__panel {
@@ -156,11 +157,16 @@
 
 .mobile-nav__panel.is-sheet-dragging {
   cursor: grabbing;
+  user-select: none;
+}
+
+.mobile-nav__panel.is-sheet-dragging .mobile-nav__body {
+  touch-action: none;
 }
 
 .mobile-nav__drag-zone {
   flex-shrink: 0;
-  padding: 10px 0 6px;
+  padding: 12px 0 8px;
   cursor: grab;
   touch-action: none;
 }
@@ -229,8 +235,31 @@
   color: #12bfae;
 }
 
-.mobile-nav__item:hover:not(.is-active) {
-  background: rgba(241, 245, 249, 0.85);
+/* Глобалды button:hover жасыл фонын өшіру */
+.mobile-nav__item:hover,
+.mobile-nav__item:focus,
+.mobile-nav__item:focus-visible,
+.mobile-nav__item:active {
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+  color: #0f172a;
+}
+
+.mobile-nav__item.is-active:hover,
+.mobile-nav__item.is-active:focus,
+.mobile-nav__item.is-active:focus-visible,
+.mobile-nav__item.is-active:active {
+  background: linear-gradient(
+    135deg,
+    rgba(18, 191, 174, 0.22) 0%,
+    rgba(45, 212, 191, 0.14) 50%,
+    rgba(255, 255, 255, 0.5) 100%
+  );
+  box-shadow:
+    0 4px 16px rgba(18, 191, 174, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  color: #0f766e;
 }
 
 .mobile-nav__item--danger {
@@ -241,8 +270,14 @@
   color: #e57373;
 }
 
-.mobile-nav__item--danger:hover {
-  background: rgba(254, 226, 226, 0.55);
+.mobile-nav__item--danger:hover,
+.mobile-nav__item--danger:focus,
+.mobile-nav__item--danger:focus-visible,
+.mobile-nav__item--danger:active {
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+  color: #e57373;
 }
 
 .mobile-nav__divider {

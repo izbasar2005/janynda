@@ -1074,7 +1074,7 @@ button{
 }
 
 .btn:hover,
-button:hover{
+button:hover:not(.mobile-nav__item):not(.app-header__menu-btn):not(.app-user__avatar){
     background:var(--primary2);
     box-shadow:0 14px 30px rgba(15,23,42,.09);
     transform:translateY(-1px);

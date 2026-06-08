@@ -1,8 +1,9 @@
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 
-const SPRING_CLOSE_MS = 380;
+const SPRING_CLOSE_MS = 340;
 const CLOSE_EASING = "cubic-bezier(0.32, 0.72, 0, 1)";
 const OPEN_EASING = "cubic-bezier(0.32, 0.72, 0, 1)";
+const DRAG_START_PX = 2;
 
 /**
  * Интерактивті bottom sheet: төменнен ашу + төмен қарай тартып жабу.
@@ -17,12 +18,17 @@ export function useBottomSheetDrag({ open, onClose }) {
         startY: 0,
         offset: 0,
         moved: false,
+        fromHandle: false,
+        lastY: 0,
+        lastTime: 0,
+        velocityY: 0,
     });
     const blockClickRef = useRef(false);
 
     const [translatePx, setTranslatePx] = useState(null);
     const [animating, setAnimating] = useState(false);
     const [dragging, setDragging] = useState(false);
+    const [backdropOpacity, setBackdropOpacity] = useState(0);
 
     const getPanelHeight = useCallback(() => {
         const el = panelRef.current;
@@ -40,8 +46,15 @@ export function useBottomSheetDrag({ open, onClose }) {
     const resetClosed = useCallback(() => {
         const h = getPanelHeight();
         setTranslatePx(h);
+        setBackdropOpacity(0);
         applyTransform(h, "none");
     }, [applyTransform, getPanelHeight]);
+
+    const syncBackdrop = useCallback((offset) => {
+        const h = getPanelHeight();
+        const progress = Math.min(1, Math.max(0, offset / h));
+        setBackdropOpacity(1 - progress * 0.85);
+    }, [getPanelHeight]);
 
     useLayoutEffect(() => {
         if (!open) {
@@ -57,6 +70,7 @@ export function useBottomSheetDrag({ open, onClose }) {
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
                 setTranslatePx(0);
+                setBackdropOpacity(1);
                 applyTransform(0, `transform ${OPEN_EASING} 0.38s`);
                 window.setTimeout(() => setAnimating(false), 400);
             });
@@ -67,6 +81,7 @@ export function useBottomSheetDrag({ open, onClose }) {
         setAnimating(true);
         const h = getPanelHeight();
         setTranslatePx(h);
+        setBackdropOpacity(0);
         applyTransform(h, `transform ${CLOSE_EASING} ${SPRING_CLOSE_MS}ms`);
         window.setTimeout(() => {
             setAnimating(false);
@@ -77,12 +92,13 @@ export function useBottomSheetDrag({ open, onClose }) {
     const snapBack = useCallback(() => {
         setAnimating(true);
         setTranslatePx(0);
+        setBackdropOpacity(1);
         applyTransform(0, `transform ${CLOSE_EASING} ${SPRING_CLOSE_MS}ms`);
         window.setTimeout(() => setAnimating(false), SPRING_CLOSE_MS);
     }, [applyTransform]);
 
     const onPointerDown = useCallback((e) => {
-        if (!open || animating) return;
+        if (!open) return;
         const target = e.target;
         const onHandle = target.closest?.("[data-sheet-handle]");
         const onPanel = panelRef.current?.contains(target);
@@ -95,6 +111,7 @@ export function useBottomSheetDrag({ open, onClose }) {
         const fromBody = body?.contains(target) && !onHandle;
         if (fromBody && body && body.scrollTop > 0) return;
 
+        const now = Date.now();
         blockClickRef.current = false;
         dragRef.current = {
             active: true,
@@ -102,25 +119,37 @@ export function useBottomSheetDrag({ open, onClose }) {
             startY: e.clientY,
             offset: 0,
             moved: false,
+            fromHandle: Boolean(onHandle),
+            lastY: e.clientY,
+            lastTime: now,
+            velocityY: 0,
         };
         setDragging(true);
         panelRef.current?.setPointerCapture(e.pointerId);
-    }, [open, animating]);
+    }, [open]);
 
     const onPointerMove = useCallback((e) => {
         const d = dragRef.current;
         if (!d.active || e.pointerId !== d.pointerId) return;
 
+        const now = Date.now();
+        const dt = Math.max(now - d.lastTime, 1);
+        d.velocityY = (e.clientY - d.lastY) / dt;
+        d.lastY = e.clientY;
+        d.lastTime = now;
+
         const dy = e.clientY - d.startY;
-        if (!d.moved && Math.abs(dy) < 10) return;
+        const startThreshold = d.fromHandle ? DRAG_START_PX : 4;
+
+        if (!d.moved && Math.abs(dy) < startThreshold) return;
 
         d.moved = true;
-        const rubber = dy < 0 ? dy * 0.18 : dy;
-        const offset = Math.max(0, rubber);
+        const offset = dy <= 0 ? 0 : dy;
         d.offset = offset;
         setTranslatePx(offset);
+        syncBackdrop(offset);
         applyTransform(offset, "none");
-    }, [applyTransform]);
+    }, [applyTransform, syncBackdrop]);
 
     const onPointerUp = useCallback((e) => {
         const d = dragRef.current;
@@ -138,8 +167,13 @@ export function useBottomSheetDrag({ open, onClose }) {
         blockClickRef.current = true;
 
         const h = getPanelHeight();
-        const threshold = Math.min(110, h * 0.22);
-        if (d.offset > threshold) {
+        const threshold = Math.max(48, h * 0.14);
+        const shouldClose =
+            d.offset >= threshold ||
+            d.offset >= h * 0.38 ||
+            d.velocityY > 0.45;
+
+        if (shouldClose) {
             finishClose();
         } else {
             snapBack();
@@ -168,5 +202,6 @@ export function useBottomSheetDrag({ open, onClose }) {
         },
         closeSheet: finishClose,
         shouldBlockClick: () => blockClickRef.current,
+        backdropOpacity,
     };
 }

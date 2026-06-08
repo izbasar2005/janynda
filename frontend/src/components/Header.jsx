@@ -167,6 +167,7 @@ export default function Header() {
         sheetProps,
         closeSheet,
         shouldBlockClick,
+        backdropOpacity,
     } = useBottomSheetDrag({ open: mobileOpen, onClose: closeMobile });
 
     useEffect(() => {
@@ -296,6 +297,7 @@ export default function Header() {
                 aria-label="Жабу"
                 tabIndex={mobileOpen ? 0 : -1}
                 onClick={closeSheet}
+                style={{ opacity: mobileOpen ? backdropOpacity : 0 }}
             />
             <div
                 id="mobile-nav-panel"
@@ -304,11 +306,12 @@ export default function Header() {
                 role="dialog"
                 aria-modal="true"
                 aria-label="Навигация"
+                {...sheetProps}
             >
-                <div className="mobile-nav__drag-zone" data-sheet-handle {...sheetProps}>
+                <div className="mobile-nav__drag-zone" data-sheet-handle>
                     <span className="mobile-nav__grabber" aria-hidden="true" />
                 </div>
-                <nav ref={bodyRef} className="mobile-nav__body" aria-label="Негізгі навигация" {...sheetProps}>
+                <nav ref={bodyRef} className="mobile-nav__body" aria-label="Негізгі навигация">
                     {navLinks.map(({ to, label }) => renderMobileNavItem(to, label))}
 
                     <hr className="mobile-nav__divider" />
