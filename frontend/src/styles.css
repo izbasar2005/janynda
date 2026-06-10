@@ -1721,13 +1721,20 @@ hr{
     gap:12px;
 }
 .app-user__avatar{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
     width:44px;
     height:44px;
+    padding:0;
     border-radius:999px;
     border:none;
     background:#12bfae;
     color:#fff;
     font-weight:800;
+    font-size:15px;
+    line-height:1;
+    letter-spacing:0;
     cursor:pointer;
 }
 .app-user__avatar:focus{

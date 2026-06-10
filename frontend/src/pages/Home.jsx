@@ -320,7 +320,7 @@ export default function Home() {
 
     return (
         <div className="landing-page">
-            <Hero />
+            <Hero isLoggedIn={!!me} />
 
             <div className="container landing-page__main page">
             <section className="landing-section landing-specialties" aria-labelledby="landing-specialties-title">

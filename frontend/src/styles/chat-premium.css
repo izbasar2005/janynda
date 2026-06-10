@@ -1,0 +1,485 @@
+/* ==========================================================================
+   Meeting Chat — premium medical consultation UI
+   ========================================================================== */
+
+.container.page:has(.meet-chat) {
+  background: transparent;
+}
+
+.container.page:has(.meet-chat)::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 90% 55% at 20% 0%, rgba(191, 219, 254, 0.45), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 90% 30%, rgba(167, 243, 208, 0.28), transparent 50%),
+    linear-gradient(180deg, #eef3f8 0%, #f4f7fb 100%);
+}
+
+.meet-chat {
+  --meet-max: 720px;
+  width: 100%;
+  max-width: var(--meet-max);
+  margin: 0 auto;
+  padding: 0 0 clamp(24px, 4vw, 40px);
+  box-sizing: border-box;
+}
+
+.card-glass {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  border-radius: 22px;
+  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.06);
+}
+
+/* Header */
+.meet-chat__header {
+  margin-bottom: 18px;
+}
+
+.meet-chat__back {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #64748b;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.meet-chat__back:hover {
+  color: #0f172a;
+}
+
+.meet-chat__title {
+  margin: 0 0 8px;
+  font-size: clamp(1.65rem, 4vw, 2rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #0d1b3e;
+  line-height: 1.15;
+}
+
+/* Doctor profile card */
+.meet-chat__profile {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  margin-bottom: 14px;
+}
+
+.meet-chat__avatar-wrap {
+  flex-shrink: 0;
+}
+
+.meet-chat__avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+}
+
+.meet-chat__avatar--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #7cacf8, #5eead4);
+  color: #fff;
+  font-weight: 800;
+  font-size: 20px;
+}
+
+.meet-chat__profile-info {
+  min-width: 0;
+}
+
+.meet-chat__profile-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.3;
+}
+
+.meet-chat__profile-spec {
+  margin-top: 2px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.meet-chat__profile-badge {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #e3f2fd;
+  color: #1565c0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Video card */
+.meet-chat__video {
+  padding: 16px 18px;
+  margin-bottom: 14px;
+}
+
+.meet-chat__video-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 12px;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #3b82f6, #38bdf8);
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.28);
+}
+
+.meet-chat__video-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.meet-chat__video-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.meet-chat__video-text strong {
+  font-size: 15px;
+  color: #0f172a;
+}
+
+.meet-chat__video-text span {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.meet-chat__video-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 18px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #38bdf8 0%, #12bfae 100%);
+  color: #fff !important;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  text-align: center;
+  box-shadow: 0 10px 28px rgba(56, 189, 248, 0.32);
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+}
+
+.meet-chat__video-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 32px rgba(56, 189, 248, 0.38);
+}
+
+/* Chat panel */
+.meet-chat__panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: clamp(380px, 55vh, 560px);
+  max-height: min(72vh, 640px);
+}
+
+.meet-chat__messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 16px 12px;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.meet-chat__day {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 18px;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.meet-chat__day::before,
+.meet-chat__day::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
+}
+
+.meet-chat__day span {
+  flex-shrink: 0;
+}
+
+.meet-chat__bubble-wrap {
+  display: flex;
+  margin-bottom: 12px;
+}
+
+.meet-chat__bubble-wrap.is-mine {
+  justify-content: flex-end;
+}
+
+.meet-chat__bubble-wrap.is-theirs {
+  justify-content: flex-start;
+}
+
+.meet-chat__bubble {
+  max-width: min(82%, 420px);
+  padding: 12px 14px 10px;
+  border-radius: 18px;
+  font-size: 14px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.meet-chat__bubble p {
+  margin: 0;
+}
+
+.meet-chat__bubble-img {
+  display: block;
+  max-width: min(240px, 100%);
+  max-height: 200px;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+.meet-chat__bubble.is-mine {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: #fff;
+  border-bottom-right-radius: 6px;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.22);
+}
+
+.meet-chat__bubble.is-theirs {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-bottom-left-radius: 6px;
+}
+
+.meet-chat__bubble-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.meet-chat__bubble-meta time {
+  font-size: 11px;
+  opacity: 0.75;
+}
+
+.meet-chat__bubble.is-theirs .meet-chat__bubble-meta {
+  justify-content: flex-start;
+}
+
+.meet-chat__checks {
+  width: 16px;
+  height: 12px;
+  opacity: 0.85;
+}
+
+.meet-chat__end-anchor {
+  height: 1px;
+}
+
+/* Composer */
+.meet-chat__composer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-top: 1px solid rgba(226, 232, 240, 0.9);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.meet-chat__file-input {
+  display: none;
+}
+
+.meet-chat__attach {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.meet-chat__attach:hover:not(:disabled) {
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.meet-chat__attach:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.meet-chat__attach svg {
+  width: 20px;
+  height: 20px;
+}
+
+.meet-chat__input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #fff;
+  font-size: 14px;
+  font-family: inherit;
+  color: #0f172a;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.meet-chat__input::placeholder {
+  color: #94a3b8;
+}
+
+.meet-chat__input:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.meet-chat__send {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.28);
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.meet-chat__send:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.meet-chat__send:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Empty & skeleton */
+.meet-chat__empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: #64748b;
+}
+
+.meet-chat__empty-btn {
+  display: inline-flex;
+  margin-top: 16px;
+  min-height: 44px;
+  padding: 0 20px;
+  align-items: center;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: #fff !important;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.meet-chat__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.meet-chat__sk-head,
+.meet-chat__sk-card {
+  border-radius: 18px;
+  background: linear-gradient(90deg, #e8edf2 0%, #f4f7fa 50%, #e8edf2 100%);
+  background-size: 200% 100%;
+  animation: meet-chat-shimmer 1.4s ease infinite;
+}
+
+.meet-chat__sk-head {
+  height: 88px;
+}
+
+.meet-chat__sk-card {
+  height: 96px;
+}
+
+.meet-chat__sk-card--sm {
+  height: 320px;
+}
+
+@keyframes meet-chat-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Desktop */
+@media (min-width: 1024px) {
+  .meet-chat {
+    --meet-max: 680px;
+  }
+
+  .meet-chat__panel {
+    min-height: 480px;
+  }
+}
+
+@media (min-width: 1440px) {
+  .meet-chat {
+    --meet-max: 720px;
+  }
+}
+
+@media (max-width: 768px) {
+  .meet-chat__send {
+    padding: 0 14px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .meet-chat__profile {
+    padding: 14px;
+  }
+
+  .meet-chat__composer {
+    padding: 12px;
+    gap: 8px;
+  }
+}

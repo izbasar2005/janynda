@@ -20,6 +20,8 @@ import "./styles/mobile-preview.css";
 import "./styles/doctor-detail-mobile.css";
 import "./styles/book-mobile.css";
 import "./styles/profile-mobile.css";
+import "./styles/notifications.css";
+import "./styles/chat-premium.css";
 
 
 ReactDOM.createRoot(document.getElementById('root')).render(

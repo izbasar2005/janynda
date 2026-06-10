@@ -1,80 +1,70 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import NotificationCard from "../components/notifications/NotificationCard";
+import { IconRefresh } from "../components/notifications/NotificationIcons";
 import { api, token } from "../services/api";
 
-function fmtDate(d) {
-    if (!d) return "";
-    try {
-        return new Date(d).toLocaleString("kk-KZ", { dateStyle: "short", timeStyle: "short" });
-    } catch {
-        return String(d);
-    }
-}
-
-function notificationTypeLabel(type) {
-    switch (type) {
-        case "15min_reminder":
-            return "⏰ 15 мин қалды";
-        case "5min_choice":
-            return "📋 5 мин — таңдау";
-        case "doctor_incomplete_1h":
-            return "📝 Жазылуды аяқтаңыз";
-        case "appointment_done":
-            return "✅ Қабылдау аяқталды";
-        case "role_change":
-            return "👤 Аккаунт";
-        default:
-            return "📬 Хабарлама";
-    }
-}
-
-function notificationBodyText(n) {
-    switch (n.type) {
-        case "15min_reminder":
-            return `Сіздің жазылымыңыз бар: ${n.doctor_name || "Дәрігер"} — ${fmtDate(n.start_at)}. Ұмытпаңыз.`;
-        case "5min_choice":
-            return n.patient_choice !== undefined
-                ? "Кездесу жақындады. Пациенттің таңдауы төменде."
-                : "Кездесу жақындады. Қалай сөйлескіңіз келеді?";
-        case "doctor_incomplete_1h":
-            return (
-                n.message ||
-                "Толтырылмаған жазылымыңыз бар: «Қабылдау аяқталды» күйін қойып, диагноз/жазбаны тексеріңіз."
-            );
-        case "appointment_done":
-            return (
-                n.message ||
-                "Қабылдау аяқталды. Диагноз бен дәрігер жазбасын «Менің профилім» → жазылулардан қараңыз."
-            );
-        case "role_change":
-            return n.message || "Аккаунт рөлі жаңартылды.";
-        default:
-            return n.message || "Қосымша мәлімет көрсетілмеген.";
-    }
+function NotificationSkeleton() {
+    return (
+        <div className="notif-skeleton" aria-hidden="true">
+            {[1, 2, 3].map((i) => (
+                <div key={i} className="notif-skeleton__card">
+                    <div className="notif-skeleton__row">
+                        <span className="notif-skeleton__pill" />
+                        <span className="notif-skeleton__date" />
+                    </div>
+                    <span className="notif-skeleton__line notif-skeleton__line--lg" />
+                    <span className="notif-skeleton__line" />
+                    <span className="notif-skeleton__line notif-skeleton__line--sm" />
+                </div>
+            ))}
+        </div>
+    );
 }
 
 export default function Notifications() {
     const nav = useNavigate();
     const [list, setList] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [sending, setSending] = useState(null);
+    const [pullDistance, setPullDistance] = useState(0);
+    const touchStartY = useRef(0);
+    const listRef = useRef(null);
+
+    const loadNotifications = useCallback(async (silent = false) => {
+        if (!silent) setLoading(true);
+        else setRefreshing(true);
+        try {
+            const data = await api("/api/v1/notifications", { auth: true });
+            setList(Array.isArray(data) ? data : []);
+        } catch {
+            setList([]);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+            setPullDistance(0);
+        }
+    }, []);
 
     useEffect(() => {
         if (!token()) {
             nav("/login");
             return;
         }
-        api("/api/v1/notifications", { auth: true })
-            .then((data) => {
-                const arr = Array.isArray(data) ? data : [];
-                setList(arr);
-                arr.filter((n) => !n.read_at).forEach((n) => {
-                    api(`/api/v1/notifications/${n.id}/read`, { method: "POST", auth: true }).catch(() => {});
-                });
-            })
-            .catch(() => setList([]))
-            .finally(() => setLoading(false));
-    }, [nav]);
+        loadNotifications();
+    }, [nav, loadNotifications]);
+
+    async function markRead(id) {
+        setList((prev) =>
+            prev.map((n) => (n.id === id ? { ...n, read_at: n.read_at || new Date().toISOString() } : n))
+        );
+        try {
+            await api(`/api/v1/notifications/${id}/read`, { method: "POST", auth: true });
+        } catch {
+            loadNotifications(true);
+        }
+    }
 
     async function setChoice(notifId, choice) {
         setSending(notifId);
@@ -84,7 +74,10 @@ export default function Notifications() {
                 auth: true,
                 body: { choice },
             });
-            setList((prev) => prev.map((n) => (n.id === notifId ? { ...n, choice } : n)));
+            const now = new Date().toISOString();
+            setList((prev) =>
+                prev.map((n) => (n.id === notifId ? { ...n, choice, read_at: now } : n))
+            );
             if (choice === "chat" || choice === "video") {
                 const appId = list.find((x) => x.id === notifId)?.appointment_id;
                 if (appId) nav(`/chat/${appId}`);
@@ -96,124 +89,80 @@ export default function Notifications() {
         }
     }
 
-    if (loading) {
-        return (
-            <div className="page">
-                <p className="muted">Жүктелуде...</p>
-            </div>
-        );
+    function onTouchStart(e) {
+        if (window.scrollY > 0) return;
+        touchStartY.current = e.touches[0].clientY;
+    }
+
+    function onTouchMove(e) {
+        if (window.scrollY > 0 || refreshing) return;
+        const delta = e.touches[0].clientY - touchStartY.current;
+        if (delta > 0) setPullDistance(Math.min(delta, 96));
+    }
+
+    async function onTouchEnd() {
+        if (pullDistance > 64) await loadNotifications(true);
+        else setPullDistance(0);
     }
 
     return (
-        <div className="page">
-            <div className="page-header">
-                <h2 className="page-header__title">Хабарламалар</h2>
-                <p className="muted page-header__subtitle">
-                    Жазылу туралы еске салулар, кездесу тәсілін таңдау және дәрігерге жазба ескертулері.
-                </p>
+        <div
+            className="notif-page"
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+        >
+            <div
+                className={`notif-page__pull${pullDistance > 0 || refreshing ? " is-visible" : ""}`}
+                style={{ height: refreshing ? 48 : pullDistance }}
+                aria-hidden="true"
+            >
+                <span className={`notif-page__pull-icon${refreshing ? " is-spinning" : ""}`}>
+                    <IconRefresh />
+                </span>
             </div>
 
-            {list.length === 0 ? (
-                <div className="card" style={{ padding: 24 }}>
-                    <p className="muted">Ескертулер әзірге жоқ.</p>
+            <header className="notif-page__header">
+                <h1 className="notif-page__title">Хабарламалар</h1>
+                <p className="notif-page__subtitle">
+                    Жазылу туралы еске салулар, кездесу тәсілін таңдау және дәрігерге жазба ескертулері.
+                </p>
+            </header>
+
+            {loading ? (
+                <NotificationSkeleton />
+            ) : list.length === 0 ? (
+                <div className="notif-empty">
+                    <h2 className="notif-empty__title">Ескертулер әзірге жоқ</h2>
+                    <p className="notif-empty__text">
+                        Жаңа жазылу немесе кездесу туралы хабарламалар осында пайда болады.
+                    </p>
                 </div>
             ) : (
-                <ul className="notif-list">
-                    {list.map((n) => (
-                        <li
-                            key={n.id}
-                            className={`card notif-card ${n.read_at ? "notif-card--read" : ""} ${
-                                n.type === "appointment_done" ? "notif-card--appointment-done" : ""
-                            }`}
-                        >
-                            <div className="notif-card__head">
-                                <span className="notif-card__type">{notificationTypeLabel(n.type)}</span>
-                                <span className="muted notif-card__date">{fmtDate(n.created_at)}</span>
-                            </div>
-                            <p className="notif-card__text">{notificationBodyText(n)}</p>
-                            {n.type === "appointment_done" ? (
-                                <Link className="btn notif-card__action-btn" to="/profile">
-                                    Жазылуларға өту
-                                </Link>
-                            ) : null}
-                            {n.type === "doctor_incomplete_1h" && n.patient_id ? (
-                                <Link className="btn notif-card__action-btn" to={`/doctor/patients/${n.patient_id}`}>
-                                    Жазылуға өту
-                                </Link>
-                            ) : null}
-                            {n.type === "5min_choice" && n.patient_choice !== undefined && n.patient_choice !== null && (
-                                <>
-                                <p className="notif-card__patient-choice">
-                                    {n.patient_choice ? (
-                                        <>
-                                            <strong>Пациент таңдады:</strong>{" "}
-                                            {n.patient_choice === "in_person" ? "Жүзбе-жүз кездесу" : n.patient_choice === "chat" ? "Чат арқылы" : "Видео консультация"}
-                                        </>
-                                    ) : (
-                                        <span className="muted">Пациент әзірге таңдамады.</span>
-                                    )}
-                                </p>
-                                {(n.patient_choice === "chat" || n.patient_choice === "video") && n.appointment_id && (
-                                    <Link
-                                        to={`/chat/${n.appointment_id}`}
-                                        className="btn notif-card__action-btn"
-                                    >
-                                        {n.patient_choice === "video" ? "Чат пен видеосілтемесін ашу" : "Чатты ашу"}
-                                    </Link>
-                                )}
-                                </>
-                            )}
-                            {n.type === "5min_choice" && (n.patient_choice === undefined || n.patient_choice === null) && !n.choice && (
-                                <div className="notif-card__choices">
-                                    <button
-                                        type="button"
-                                        className="btn ghost notif-choice-btn"
-                                        onClick={() => setChoice(n.id, "in_person")}
-                                        disabled={sending === n.id}
-                                    >
-                                        Жүзбе-жүз кездесу
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="btn notif-choice-btn"
-                                        onClick={() => setChoice(n.id, "chat")}
-                                        disabled={sending === n.id}
-                                    >
-                                        Чат арқылы
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="btn notif-choice-btn"
-                                        onClick={() => setChoice(n.id, "video")}
-                                        disabled={sending === n.id}
-                                    >
-                                        Видео консультация
-                                    </button>
-                                </div>
-                            )}
-                            {n.type === "5min_choice" && (n.patient_choice === undefined || n.patient_choice === null) && n.choice && (
-                                <>
-                                <p className="muted notif-card__chosen">
-                                    Таңдауыңыз:{" "}
-                                    {n.choice === "in_person"
-                                        ? "Жүзбе-жүз"
-                                        : n.choice === "chat"
-                                        ? "Чат"
-                                        : "Видео"}
-                                </p>
-                                {(n.choice === "chat" || n.choice === "video") && n.appointment_id && (
-                                    <Link
-                                        to={`/chat/${n.appointment_id}`}
-                                        className="btn notif-card__action-btn"
-                                    >
-                                        {n.choice === "video" ? "Чат пен видеосілтемесін ашу" : "Чатты ашу"}
-                                    </Link>
-                                )}
-                                </>
-                            )}
-                        </li>
-                    ))}
-                </ul>
+                <div className="notif-page__list-wrap" ref={listRef}>
+                    <ul className="notif-list">
+                        {list.map((n, index) => (
+                            <li
+                                key={n.id}
+                                className="notif-list__item"
+                                style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}
+                            >
+                                <NotificationCard
+                                    notification={n}
+                                    sending={sending}
+                                    onChoice={setChoice}
+                                    onMarkRead={markRead}
+                                />
+                            </li>
+                        ))}
+                    </ul>
+                    <p className="notif-page__end">
+                        <span className={`notif-page__end-icon${refreshing ? " is-spinning" : ""}`} aria-hidden="true">
+                            <IconRefresh />
+                        </span>
+                        All caught up
+                    </p>
+                </div>
             )}
         </div>
     );

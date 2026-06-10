@@ -9,7 +9,7 @@ const benefits = [
 
 const HERO_IMAGE = "/img/doctor.png";
 
-export default function Hero() {
+export default function Hero({ isLoggedIn = false }) {
     const [imgError, setImgError] = useState(false);
 
     return (
@@ -34,9 +34,11 @@ export default function Hero() {
                         <Link className="btn btn--block-sm" to="/doctors">
                             Дәрігерді таңдау
                         </Link>
-                        <Link className="btn ghost btn--block-sm" to="/register">
-                            Тіркелу
-                        </Link>
+                        {!isLoggedIn && (
+                            <Link className="btn ghost btn--block-sm" to="/register">
+                                Тіркелу
+                            </Link>
+                        )}
                     </div>
                 </div>
                 <div className="landing-hero__visual" aria-hidden={imgError}>
