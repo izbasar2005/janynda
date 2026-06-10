@@ -74,6 +74,7 @@ export default function Groups() {
     const membersRef = useRef([]);
     const sideTabRef = useRef("groups");
     const activeDirectIdRef = useRef(0);
+    const myGroupsRef = useRef([]);
 
     function scrollToBottom(container, end, behavior = "auto") {
         if (!container || !end) return;
@@ -209,6 +210,23 @@ export default function Groups() {
         [myGroups, selectedGroupId]
     );
 
+    const lastOwnGroupMessageId = useMemo(() => {
+        for (let i = messages.length - 1; i >= 0; i--) {
+            const m = messages[i];
+            if (m?.is_system) continue;
+            if (Number(m?.sender_id) === myUserId) return Number(m.id || 0);
+        }
+        return 0;
+    }, [messages, myUserId]);
+
+    const lastOwnDirectMessageId = useMemo(() => {
+        for (let i = directMessages.length - 1; i >= 0; i--) {
+            const m = directMessages[i];
+            if (Number(m?.sender_id) === myUserId) return Number(m.id || 0);
+        }
+        return 0;
+    }, [directMessages, myUserId]);
+
     function fmtChatWhen(dt) {
         if (!dt) return "";
         try {
@@ -293,6 +311,59 @@ export default function Groups() {
         if (mid && next.some((m) => Number(m.id) === mid)) return next;
         next.push(msg);
         return next;
+    }
+
+    function groupMessagesNeedRefresh(prev, next) {
+        if (!Array.isArray(next) || next.length === 0) return false;
+        if (!Array.isArray(prev) || prev.length === 0) return true;
+        if (prev.length !== next.length) return true;
+        for (let i = 0; i < prev.length; i++) {
+            if (Number(prev[i]?.id) !== Number(next[i]?.id)) return true;
+            if (JSON.stringify(prev[i]?.readers || []) !== JSON.stringify(next[i]?.readers || [])) return true;
+        }
+        return false;
+    }
+
+    function directMessagesNeedRefresh(prev, next) {
+        if (!Array.isArray(next) || next.length === 0) return false;
+        if (!Array.isArray(prev) || prev.length === 0) return true;
+        if (prev.length !== next.length) return true;
+        for (let i = 0; i < prev.length; i++) {
+            if (Number(prev[i]?.id) !== Number(next[i]?.id)) return true;
+            if (Number(prev[i]?.sender_id) === myUserId) {
+                if (Boolean(prev[i]?.is_read_by_peer) !== Boolean(next[i]?.is_read_by_peer)) return true;
+                if (String(prev[i]?.read_at_by_peer || "") !== String(next[i]?.read_at_by_peer || "")) return true;
+            }
+        }
+        return false;
+    }
+
+    function bumpGroupInList(list, groupId, patch) {
+        const gid = Number(groupId || 0);
+        if (!gid) return list || [];
+        let updated = null;
+        const rest = [];
+        for (const g of list || []) {
+            if (Number(g.id) === gid) updated = { ...g, ...patch };
+            else rest.push(g);
+        }
+        if (!updated) return list || [];
+        return [updated, ...rest];
+    }
+
+    function groupNameById(groupId) {
+        const gid = Number(groupId || 0);
+        return (myGroupsRef.current || []).find((g) => Number(g.id) === gid)?.name || "Топ";
+    }
+
+    function notifyIncomingGroupMessage(groupId, payload, senderId) {
+        if (!senderId || senderId === myUserId) return;
+        if (isGroupChatOpen(groupId)) return;
+        const preview = String(payload?.body || "").trim().slice(0, 80);
+        const groupName = groupNameById(groupId);
+        const sender = String(payload?.sender_name || "").trim();
+        const who = sender ? `${groupName} · ${sender}` : groupName;
+        setToastText(`${who}: ${preview || "Жаңа хабарлама"}`);
     }
 
     function applyGroupReadReceipt(list, readerId, lastMessageId, readAt) {
@@ -473,15 +544,16 @@ export default function Groups() {
                                 : g
                         )));
                     } else {
-                        setMyGroups((prev) => (prev || []).map((g) => (
-                            Number(g.id) === gid
-                                ? {
-                                    ...g,
-                                    last_message: p.body || g.last_message || "",
-                                    unread_count: Number(g.unread_count || 0) + (senderId && senderId !== myUserId ? 1 : 0),
-                                }
-                                : g
-                        )));
+                        setMyGroups((prev) =>
+                            bumpGroupInList(prev, gid, {
+                                last_message: p.body || "",
+                                last_at: p.created_at || new Date().toISOString(),
+                                unread_count:
+                                    Number((prev || []).find((g) => Number(g.id) === gid)?.unread_count || 0) +
+                                    (senderId && senderId !== myUserId ? 1 : 0),
+                            })
+                        );
+                        notifyIncomingGroupMessage(gid, p, senderId);
                     }
                 }
                 if (evt.type === "message:read" && evt.payload) {
@@ -489,7 +561,7 @@ export default function Groups() {
                     const rid = Number(reader_user_id || 0);
                     const lastId = Number(last_message_id || 0);
                     if (!rid || !lastId) return;
-                    if (isGroupChatOpen(gid)) {
+                    if (Number(selectedGroupIdRef.current) === gid && Number(activeDirectIdRef.current) === 0) {
                         setMessages((prev) => applyGroupReadReceipt(prev, rid, lastId, read_at));
                         resolveReaderName(rid);
                     }
@@ -584,6 +656,10 @@ export default function Groups() {
     useEffect(() => {
         membersRef.current = members;
     }, [members]);
+
+    useEffect(() => {
+        myGroupsRef.current = myGroups;
+    }, [myGroups]);
 
     useEffect(() => {
         if (!toastText) return;
@@ -838,9 +914,9 @@ export default function Groups() {
             const data = await api(`/api/v1/direct-chats/${cid}/messages?ts=${Date.now()}`, { auth: true });
             const arr = Array.isArray(data) ? data : [];
             setDirectMessages((prev) => {
+                if (!directMessagesNeedRefresh(prev, arr)) return prev;
                 const prevLast = Number(prev[prev.length - 1]?.id || 0);
                 const nextLast = Number(arr[arr.length - 1]?.id || 0);
-                if (prev.length === arr.length && prevLast === nextLast) return prev;
                 if (nextLast > prevLast) directAutoScrollOnceRef.current = true;
                 return arr;
             });
@@ -888,11 +964,36 @@ export default function Groups() {
             const data = await api(`/api/v1/groups/${gid}/messages?ts=${Date.now()}`, { auth: true });
             const arr = Array.isArray(data) ? data : [];
             setMessages((prev) => {
+                if (!groupMessagesNeedRefresh(prev, arr)) return prev;
                 const prevLast = Number(prev[prev.length - 1]?.id || 0);
                 const nextLast = Number(arr[arr.length - 1]?.id || 0);
-                if (prev.length === arr.length && prevLast === nextLast) return prev;
                 if (nextLast > prevLast) groupAutoScrollOnceRef.current = true;
                 return arr;
+            });
+        } catch {
+            /* ignore */
+        }
+    }
+
+    async function refreshMyGroupsQuiet() {
+        try {
+            const data = await api("/api/v1/groups/my", { auth: true });
+            const arr = Array.isArray(data) ? data : [];
+            setMyGroups((prev) => {
+                const prevMap = new Map((prev || []).map((g) => [Number(g.id), g]));
+                let changed = prev?.length !== arr.length;
+                const next = arr.map((g) => {
+                    const old = prevMap.get(Number(g.id));
+                    if (
+                        !old ||
+                        Number(old.unread_count || 0) !== Number(g.unread_count || 0) ||
+                        String(old.last_message || "") !== String(g.last_message || "")
+                    ) {
+                        changed = true;
+                    }
+                    return g;
+                });
+                return changed ? next : prev;
             });
         } catch {
             /* ignore */
@@ -907,11 +1008,12 @@ export default function Groups() {
             const did = Number(activeDirectIdRef.current || 0);
             if (did) {
                 refreshDirectMessagesQuiet(did);
-            } else if (gid) {
-                refreshGroupMessagesQuiet(gid);
+            } else {
+                if (gid) refreshGroupMessagesQuiet(gid);
+                refreshMyGroupsQuiet();
             }
         };
-        const id = setInterval(tick, 3000);
+        const id = setInterval(tick, 2500);
         return () => clearInterval(id);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [t]);
@@ -1551,9 +1653,9 @@ export default function Groups() {
                                         {directMessages.length === 0 ? (
                                             <p className="muted">Әзірге хабарламалар жоқ.</p>
                                         ) : (
-                                            directMessages.map((m, idx) => {
-                                                const isLast = idx === directMessages.length - 1;
+                                            directMessages.map((m) => {
                                                 const isMine = Number(m.sender_id) === myUserId;
+                                                const showRead = isMine && Number(m.id) === lastOwnDirectMessageId;
                                                 return (
                                                     <div
                                                         key={m.id}
@@ -1563,13 +1665,21 @@ export default function Groups() {
                                                             {m.sender_name || "—"} · {new Date(m.created_at).toLocaleString("kk-KZ")}
                                                         </div>
                                                         <div className="groups-msg__body">{m.body}</div>
-                                                        {!m.is_system && isLast && isMine && m.is_read_by_peer && m.read_at_by_peer ? (
-                                                            <div className="groups-msg__read">
-                                                                Көрілді:{" "}
-                                                                {new Date(m.read_at_by_peer).toLocaleString("kk-KZ", {
-                                                                    hour: "2-digit",
-                                                                    minute: "2-digit",
-                                                                })}
+                                                        {!m.is_system && showRead ? (
+                                                            <div
+                                                                className={`groups-msg__read${!m.is_read_by_peer ? " groups-msg__read--pending" : ""}`}
+                                                            >
+                                                                {m.is_read_by_peer && m.read_at_by_peer ? (
+                                                                    <>
+                                                                        Көрілді:{" "}
+                                                                        {new Date(m.read_at_by_peer).toLocaleString("kk-KZ", {
+                                                                            hour: "2-digit",
+                                                                            minute: "2-digit",
+                                                                        })}
+                                                                    </>
+                                                                ) : (
+                                                                    "Оқылмады"
+                                                                )}
                                                             </div>
                                                         ) : null}
                                                     </div>
@@ -1818,9 +1928,9 @@ export default function Groups() {
                                     {messages.length === 0 ? (
                                         <p className="muted">Әзірге хабарламалар жоқ.</p>
                                     ) : (
-                                        messages.map((m, idx) => {
-                                            const isLast = idx === messages.length - 1;
+                                        messages.map((m) => {
                                             const isMine = Number(m.sender_id) === myUserId;
+                                            const showRead = !m.is_system && isMine && Number(m.id) === lastOwnGroupMessageId;
                                             const peerReaders = groupPeerReaders(m.readers);
                                             return (
                                             <div
@@ -1837,7 +1947,7 @@ export default function Groups() {
                                                 <div className="groups-msg__body">{m.body}</div>
                                                 </>
                                                 )}
-                                                {!m.is_system && isLast && isMine ? (
+                                                {!m.is_system && showRead ? (
                                                     <div
                                                         className={`groups-msg__read${peerReaders.length === 0 ? " groups-msg__read--pending" : ""}`}
                                                     >

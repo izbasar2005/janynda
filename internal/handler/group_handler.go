@@ -379,18 +379,24 @@ func (h *GroupHandler) MarkRead(w http.ResponseWriter, r *http.Request, groupID 
 		return
 	}
 	var read model.GroupChatRead
+	changed := false
 	if err := h.db.Where("user_id = ? AND group_id = ?", userID, groupID).First(&read).Error; err != nil {
 		read = model.GroupChatRead{
 			UserID:        userID,
 			GroupID:       groupID,
 			LastMessageID: lastID,
 		}
-		_ = h.db.Create(&read).Error
+		if err2 := h.db.Create(&read).Error; err2 == nil {
+			changed = true
+		}
 	} else if read.LastMessageID < lastID {
 		read.LastMessageID = lastID
-		_ = h.db.Save(&read).Error
+		if err2 := h.db.Save(&read).Error; err2 == nil {
+			changed = true
+		}
 	}
-	if h.hub != nil {
+	if changed && h.hub != nil {
+		_ = h.db.First(&read, read.ID).Error
 		h.hub.Broadcast(realtime.RoomKey("group", groupID), map[string]any{
 			"type":    "message:read",
 			"channel": "group",
