@@ -16,6 +16,7 @@ class WSClient {
   constructor() {
     this.ws = null;
     this.handlers = new Set();
+    this.connectHandlers = new Set();
     this.subs = new Set(); // `${channel}:${id}`
     this.backoffMs = 400;
     this.maxBackoffMs = 8000;
@@ -28,14 +29,52 @@ class WSClient {
     return () => this.handlers.delete(fn);
   }
 
+  onConnect(fn) {
+    this.connectHandlers.add(fn);
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      try {
+        fn();
+      } catch {
+        /* ignore */
+      }
+    }
+    return () => this.connectHandlers.delete(fn);
+  }
+
   emit(evt) {
     for (const fn of this.handlers) {
-      try { fn(evt); } catch { /* ignore */ }
+      try {
+        fn(evt);
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  emitConnect() {
+    for (const fn of this.connectHandlers) {
+      try {
+        fn();
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  resubscribeAll() {
+    for (const key of this.subs) {
+      const [channel, idStr] = key.split(":");
+      const id = Number(idStr);
+      if (channel && id) {
+        this.send({ type: "subscribe", channel, id });
+      }
     }
   }
 
   ensureConnected() {
-    if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) return;
+    if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
     if (this.connecting) return;
     this.connecting = true;
     this.closedByUser = false;
@@ -52,12 +91,8 @@ class WSClient {
     ws.onopen = () => {
       this.connecting = false;
       this.backoffMs = 400;
-      // re-subscribe
-      for (const key of this.subs) {
-        const [channel, idStr] = key.split(":");
-        const id = Number(idStr);
-        if (channel && id) this.send({ type: "subscribe", channel, id });
-      }
+      this.resubscribeAll();
+      this.emitConnect();
     };
 
     ws.onmessage = (e) => {
@@ -71,6 +106,7 @@ class WSClient {
 
     ws.onclose = () => {
       this.connecting = false;
+      this.ws = null;
       if (this.closedByUser) return;
       const wait = this.backoffMs;
       this.backoffMs = Math.min(this.backoffMs * 2, this.maxBackoffMs);
@@ -78,21 +114,33 @@ class WSClient {
     };
 
     ws.onerror = () => {
-      // close triggers reconnect
-      try { ws.close(); } catch { /* ignore */ }
+      try {
+        ws.close();
+      } catch {
+        /* ignore */
+      }
     };
   }
 
   close() {
     this.closedByUser = true;
-    try { this.ws?.close(); } catch { /* ignore */ }
+    try {
+      this.ws?.close();
+    } catch {
+      /* ignore */
+    }
     this.ws = null;
   }
 
   send(obj) {
     const ws = this.ws;
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    try { ws.send(JSON.stringify(obj)); } catch { /* ignore */ }
+    if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+    try {
+      ws.send(JSON.stringify(obj));
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   subscribe(channel, id) {
@@ -101,7 +149,9 @@ class WSClient {
     const key = `${channel}:${cid}`;
     this.subs.add(key);
     this.ensureConnected();
-    this.send({ type: "subscribe", channel, id: cid });
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.send({ type: "subscribe", channel, id: cid });
+    }
   }
 
   unsubscribe(channel, id) {
@@ -114,4 +164,3 @@ class WSClient {
 }
 
 export const wsClient = new WSClient();
-

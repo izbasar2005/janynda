@@ -153,7 +153,7 @@ func (h *WSHandler) ServeWS(w http.ResponseWriter, r *http.Request) {
 	client := &realtime.Client{
 		UserID: claims.UserID,
 		Role:   claims.Role,
-		Send:   make(chan []byte, 64),
+		Send:   make(chan []byte, 256),
 		Subs:   make(map[string]struct{}),
 	}
 
