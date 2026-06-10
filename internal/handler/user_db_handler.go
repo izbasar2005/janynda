@@ -84,10 +84,7 @@ func (h *UserDBHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	photoURL := ""
-	if strings.EqualFold(u.Role, "doctor") {
-		photoURL = strings.TrimSpace(u.AvatarURL)
-	}
+	photoURL := strings.TrimSpace(u.AvatarURL)
 
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"id":         u.ID,

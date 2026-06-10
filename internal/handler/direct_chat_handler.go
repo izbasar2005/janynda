@@ -46,6 +46,7 @@ func (h *DirectChatHandler) List(w http.ResponseWriter, r *http.Request) {
 		ID            uint   `json:"id"`
 		PeerUserID    uint   `json:"peer_user_id"`
 		PeerName      string `json:"peer_name"`
+		PhotoURL      string `json:"photo_url"`
 		LastMessageID uint   `json:"last_message_id"`
 		LastSenderID  uint   `json:"last_sender_id"`
 		LastMessage   string `json:"last_message"`
@@ -58,6 +59,7 @@ func (h *DirectChatHandler) List(w http.ResponseWriter, r *http.Request) {
 			dc.id,
 			CASE WHEN dc.user1_id = ? THEN dc.user2_id ELSE dc.user1_id END AS peer_user_id,
 			u.full_name AS peer_name,
+			COALESCE(NULLIF(TRIM(u.avatar_url), ''), '') AS photo_url,
 			COALESCE((
 				SELECT id
 				FROM direct_messages

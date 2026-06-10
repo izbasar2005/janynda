@@ -177,8 +177,14 @@
 }
 
 .groups-page--premium .groups-msg.is-own .groups-msg__read {
-  opacity: 0.82;
+  opacity: 0.9;
   font-weight: 600;
+}
+
+.groups-page--premium .groups-msg.is-own .groups-msg__read--pending {
+  opacity: 0.72;
+  font-weight: 500;
+  font-style: italic;
 }
 
 /* Premium group cards */

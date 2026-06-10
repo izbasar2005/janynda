@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, token } from "../services/api";
 import { wsClient } from "../services/ws";
-
-const DIRECT_AVATAR_FALLBACK = "/img/doctor.png";
+import { normalizePhoto as normalizeAvatarPhoto } from "../utils/doctorPhoto";
 
 function parseJwt(t) {
     try {
@@ -72,6 +71,7 @@ export default function Groups() {
     const [peerProfile, setPeerProfile] = useState(null);
 
     const peerAvatarReqIdRef = useRef(0);
+    const membersRef = useRef([]);
 
     function scrollToBottom(container, end, behavior = "auto") {
         if (!container || !end) return;
@@ -104,10 +104,28 @@ export default function Groups() {
     }
 
     function normalizePhoto(url) {
-        if (!url) return "";
-        if (url.startsWith("http://") || url.startsWith("https://")) return url;
-        if (url.startsWith("/")) return url;
-        return "/" + url;
+        return normalizeAvatarPhoto(url);
+    }
+
+    function directChatTime(c) {
+        const t = Date.parse(c?.last_at || "");
+        return Number.isFinite(t) ? t : 0;
+    }
+
+    function sortDirectChats(list) {
+        return [...(list || [])].sort((a, b) => directChatTime(b) - directChatTime(a));
+    }
+
+    function patchDirectChat(list, chatId, patch) {
+        const cid = Number(chatId || 0);
+        if (!cid) return sortDirectChats(list);
+        return sortDirectChats(
+            (list || []).map((c) => (Number(c.id) === cid ? { ...c, ...patch } : c))
+        );
+    }
+
+    function directAvatarSrc(chat) {
+        return normalizePhoto(chat?.photo_url || "");
     }
 
     async function uploadFileToServer(file) {
@@ -202,6 +220,22 @@ export default function Groups() {
         return "Топтық чат";
     }
 
+    function memberName(userId, fallback = "") {
+        const uid = Number(userId || 0);
+        if (!uid) return fallback || "Қатысушы";
+        const fromList = (membersRef.current || []).find((m) => Number(m.user_id) === uid);
+        return (fromList?.full_name || fallback || "").trim() || "Қатысушы";
+    }
+
+    function groupPeerReaders(readers) {
+        return (Array.isArray(readers) ? readers : [])
+            .filter((r) => Number(r.user_id) !== myUserId)
+            .map((r) => ({
+                ...r,
+                full_name: memberName(r.user_id, r.full_name),
+            }));
+    }
+
     function groupMemberInitials(name) {
         const parts = String(name || "Т").split(/\s+/).filter(Boolean);
         return parts.slice(0, 3).map((p) => (p[0] || "").toUpperCase()).filter(Boolean);
@@ -254,7 +288,7 @@ export default function Groups() {
     useEffect(() => {
         if (!t) return;
         const stored = readStoredDirectChats();
-        if (stored.length) setDirectChats(stored);
+        if (stored.length) setDirectChats(sortDirectChats(stored));
         seenDirectRef.current = readSeenDirectMap();
         loadMyGroups();
         loadDirectChats();
@@ -323,13 +357,19 @@ export default function Groups() {
                     if (!rid || !lastId) return;
                     // Update readers list in current messages if group is open.
                     if (!activeDirect?.id && Number(selectedGroupIdRef.current) === gid) {
-                        const name = (members || []).find((m) => Number(m.user_id) === rid)?.full_name || "";
+                        const name = memberName(rid);
                         setMessages((prev) => (Array.isArray(prev) ? prev : []).map((m) => {
                             const mid = Number(m.id || 0);
                             if (!mid || mid > lastId) return m;
                             const cur = Array.isArray(m.readers) ? m.readers : [];
                             const exists = cur.some((x) => Number(x.user_id) === rid);
-                            const nextReaders = exists ? cur : [...cur, { user_id: rid, full_name: name, read_at, read_by_me: rid === myUserId }];
+                            const nextReaders = exists
+                                ? cur.map((x) =>
+                                      Number(x.user_id) === rid
+                                          ? { ...x, full_name: name || x.full_name, read_at: read_at || x.read_at }
+                                          : x
+                                  )
+                                : [...cur, { user_id: rid, full_name: name, read_at, read_by_me: rid === myUserId }];
                             return { ...m, readers: nextReaders };
                         }));
                     }
@@ -370,13 +410,24 @@ export default function Groups() {
                         directAutoScrollOnceRef.current = true;
                         setUnreadByChat((u) => ({ ...u, [cid]: 0 }));
                         lastNotifiedUnreadRef.current = { ...lastNotifiedUnreadRef.current, [cid]: 0 };
+                        setDirectChats((prev) => {
+                            const next = patchDirectChat(prev, cid, {
+                                last_message: p.body || "",
+                                last_at: p.created_at || new Date().toISOString(),
+                            });
+                            writeStoredDirectChats(next);
+                            return next;
+                        });
                     } else {
                         // update list + unread
-                        setDirectChats((prev) => (prev || []).map((c) => (
-                            Number(c.id) === cid
-                                ? { ...c, last_message: p.body || c.last_message || "", last_at: p.created_at || c.last_at }
-                                : c
-                        )));
+                        setDirectChats((prev) => {
+                            const next = patchDirectChat(prev, cid, {
+                                last_message: p.body || "",
+                                last_at: p.created_at || new Date().toISOString(),
+                            });
+                            writeStoredDirectChats(next);
+                            return next;
+                        });
                         setUnreadByChat((u) => {
                             const prevCnt = Number(u[cid] || 0);
                             const nextCnt = prevCnt + (senderId && senderId !== myUserId ? 1 : 0);
@@ -411,7 +462,11 @@ export default function Groups() {
             }
         });
         return () => off();
-    }, [t, myUserId, activeDirect?.id, members]);
+    }, [t, myUserId, activeDirect?.id]);
+
+    useEffect(() => {
+        membersRef.current = members;
+    }, [members]);
 
     useEffect(() => {
         if (!toastText) return;
@@ -578,6 +633,7 @@ export default function Groups() {
                 if (activeDirect?.id && !next.some((c) => Number(c.id) === Number(activeDirect.id))) {
                     next = [activeDirect, ...next];
                 }
+                next = sortDirectChats(next);
                 writeStoredDirectChats(next);
                 return next;
             });
@@ -644,13 +700,9 @@ export default function Groups() {
                 const last = arr[arr.length - 1];
                 const cid = Number(chatID);
                 setDirectChats((prev) => {
-                    const next = (prev || []).map((c) => {
-                        if (Number(c.id) !== cid) return c;
-                        return {
-                            ...c,
-                            last_message: last.body || c.last_message || "",
-                            last_at: last.created_at || c.last_at,
-                        };
+                    const next = patchDirectChat(prev, cid, {
+                        last_message: last.body || "",
+                        last_at: last.created_at || new Date().toISOString(),
                     });
                     writeStoredDirectChats(next);
                     return next;
@@ -863,15 +915,21 @@ export default function Groups() {
             api(`/api/v1/users/${peerID}`, { auth: true })
                 .then((u) => {
                     if (!u || reqID !== peerAvatarReqIdRef.current) return;
+                    const photo = u.photo_url || "";
                     setActiveDirect((prev) => {
                         if (!prev || Number(prev.peer_user_id) !== peerID) return prev;
-                        return { ...prev, photo_url: u.photo_url || "" };
+                        return { ...prev, photo_url: photo };
+                    });
+                    setDirectChats((prev) => {
+                        const updated = patchDirectChat(prev, cid, { photo_url: photo });
+                        writeStoredDirectChats(updated);
+                        return updated;
                     });
                 })
                 .catch(() => {});
             setDirectChats((prev) => {
                 const exists = prev.some((c) => Number(c.id) === cid);
-                const result = exists ? prev : [next, ...prev];
+                const result = sortDirectChats(exists ? prev : [next, ...prev]);
                 writeStoredDirectChats(result);
                 return result;
             });
@@ -901,10 +959,7 @@ export default function Groups() {
             setDirectChats((prev) => {
                 const cid = Number(activeDirect.id);
                 const now = new Date().toISOString();
-                const next = (prev || []).map((c) => {
-                    if (Number(c.id) !== cid) return c;
-                    return { ...c, last_message: text, last_at: now };
-                });
+                const next = patchDirectChat(prev, cid, { last_message: text, last_at: now });
                 writeStoredDirectChats(next);
                 return next;
             });
@@ -1192,7 +1247,6 @@ export default function Groups() {
                                                 String(g.name || "Г")?.slice(0, 1)?.toUpperCase()
                                             )}
                                         </span>
-                                        <span className="groups-card__online" aria-hidden="true" />
                                     </span>
                                     <span className="groups-list__titleBlock">
                                         <span className="groups-list__name">{g.name}</span>
@@ -1242,12 +1296,11 @@ export default function Groups() {
                                     <span className="groups-card__avatar-wrap">
                                         <span className="groups-list__avatar">
                                             <img
-                                                src={c.photo_url ? normalizePhoto(c.photo_url) : DIRECT_AVATAR_FALLBACK}
+                                                src={directAvatarSrc(c)}
                                                 alt=""
                                                 style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                                             />
                                         </span>
-                                        <span className="groups-card__online" aria-hidden="true" />
                                     </span>
                                     <span className="groups-list__left">
                                         <span className="groups-list__name">{c.peer_name || "Қатысушы"}</span>
@@ -1290,11 +1343,7 @@ export default function Groups() {
                                         <ChatBackButton />
                                         <div className="groups-chat__avatar">
                                             <img
-                                                src={
-                                                    activeDirect.photo_url
-                                                        ? normalizePhoto(activeDirect.photo_url)
-                                                        : DIRECT_AVATAR_FALLBACK
-                                                }
+                                                src={directAvatarSrc(activeDirect)}
                                                 alt=""
                                                 style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                                             />
@@ -1578,8 +1627,7 @@ export default function Groups() {
                                         messages.map((m, idx) => {
                                             const isLast = idx === messages.length - 1;
                                             const isMine = Number(m.sender_id) === myUserId;
-                                            const readers = Array.isArray(m.readers) ? m.readers : [];
-                                            const peerReaders = readers.filter((r) => !r.read_by_me);
+                                            const peerReaders = groupPeerReaders(m.readers);
                                             return (
                                             <div
                                                 key={m.id}
@@ -1595,15 +1643,23 @@ export default function Groups() {
                                                 <div className="groups-msg__body">{m.body}</div>
                                                 </>
                                                 )}
-                                                {!m.is_system && isLast && isMine && peerReaders.length > 0 ? (
-                                                    <div className="groups-msg__read">
-                                                        Көрілді:{" "}
-                                                        {peerReaders
-                                                            .slice(0, 4)
-                                                            .map((r) => r.full_name)
-                                                            .filter(Boolean)
-                                                            .join(", ")}
-                                                        {peerReaders.length > 4 ? ` +${peerReaders.length - 4}` : ""}
+                                                {!m.is_system && isLast && isMine ? (
+                                                    <div
+                                                        className={`groups-msg__read${peerReaders.length === 0 ? " groups-msg__read--pending" : ""}`}
+                                                    >
+                                                        {peerReaders.length === 0 ? (
+                                                            "Оқылмады"
+                                                        ) : (
+                                                            <>
+                                                                Көрілді:{" "}
+                                                                {peerReaders
+                                                                    .slice(0, 5)
+                                                                    .map((r) => r.full_name)
+                                                                    .filter(Boolean)
+                                                                    .join(", ")}
+                                                                {peerReaders.length > 5 ? ` +${peerReaders.length - 5}` : ""}
+                                                            </>
+                                                        )}
                                                     </div>
                                                 ) : null}
                                             </div>
@@ -1668,11 +1724,7 @@ export default function Groups() {
                                 <div className="peer-profile-modal__hero">
                                     <div className="peer-profile-modal__avatar" aria-hidden="true">
                                         <img
-                                            src={
-                                                peerProfile.photo_url
-                                                    ? normalizePhoto(peerProfile.photo_url)
-                                                    : DIRECT_AVATAR_FALLBACK
-                                            }
+                                            src={normalizePhoto(peerProfile.photo_url || "")}
                                             alt=""
                                             style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", borderRadius: "999px" }}
                                         />
