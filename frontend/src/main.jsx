@@ -12,6 +12,7 @@ import "./styles/landing-news-mobile.css";
 import "./styles/landing-testimonials.css";
 import "./styles/doctors-cards.css";
 import "./styles/groups-responsive.css";
+import "./styles/groups-premium.css";
 import "./styles/site-responsive.css";
 import "./styles/admin-responsive.css";
 import "./styles/news-responsive.css";

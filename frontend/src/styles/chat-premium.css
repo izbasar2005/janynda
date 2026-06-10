@@ -206,6 +206,7 @@
   padding: 18px 16px 12px;
   min-height: 0;
   -webkit-overflow-scrolling: touch;
+  background: url("/img/chat-wallpaper.png") center center / cover no-repeat;
 }
 
 .meet-chat__day {

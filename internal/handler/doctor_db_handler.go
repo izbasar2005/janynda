@@ -174,30 +174,29 @@ func (h *DoctorDBHandler) Slots(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Жұмыс уақыты: 09:00–17:00, қадам: 10 минут
-	start := time.Date(day.Year(), day.Month(), day.Day(), 9, 0, 0, 0, loc)
-	end := time.Date(day.Year(), day.Month(), day.Day(), 17, 0, 0, 0, loc)
+	// Толық тәулік, қадам: 5 минут (00:00 – 23:55)
+	const slotStep = 5 * time.Minute
+	start := startOfDay
+	end := startOfDay.Add(24*time.Hour - slotStep)
 
 	// Егер бүгін болса — өткен уақыттарды слот ретінде бермейміз.
 	if startOfDay.Equal(todayStart) {
-		// next10 = now дөңгелету (келесі 10 минут)
-		next10 := time.Date(day.Year(), day.Month(), day.Day(), now.Hour(), now.Minute(), 0, 0, loc)
-		if mod := next10.Minute() % 10; mod != 0 {
-			next10 = next10.Add(time.Duration(10-mod) * time.Minute)
+		next := time.Date(day.Year(), day.Month(), day.Day(), now.Hour(), now.Minute(), 0, 0, loc)
+		if mod := next.Minute() % 5; mod != 0 {
+			next = next.Add(time.Duration(5-mod) * time.Minute)
 		}
-		// Егер секундтар бар болса, бір қадам алға (көрінетін слот "өтіп кетті" болып қалмасын)
 		if now.Second() > 0 || now.Nanosecond() > 0 {
-			if next10.Before(now) || next10.Equal(now) {
-				next10 = next10.Add(10 * time.Minute)
+			if !next.After(now) {
+				next = next.Add(slotStep)
 			}
 		}
-		if next10.After(start) {
-			start = next10
+		if next.After(start) {
+			start = next
 		}
 	}
 
 	var slots []string
-	for t := start; !t.After(end); t = t.Add(10 * time.Minute) {
+	for t := start; !t.After(end); t = t.Add(slotStep) {
 		slots = append(slots, t.Format("15:04"))
 	}
 

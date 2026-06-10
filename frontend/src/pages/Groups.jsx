@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api, token } from "../services/api";
 import { wsClient } from "../services/ws";
 
+const DIRECT_AVATAR_FALLBACK = "/img/doctor.png";
+
 function parseJwt(t) {
     try {
         const base = t.split(".")[1];
@@ -190,6 +192,19 @@ export default function Groups() {
         } catch {
             return "";
         }
+    }
+
+    function groupSubtitle(g) {
+        const msg = (g.last_message || "").trim();
+        if (msg && !msg.startsWith("📎") && msg.length <= 90) return msg;
+        if (g.diagnosis_type) return g.diagnosis_type;
+        if (g.description) return g.description;
+        return "Топтық чат";
+    }
+
+    function groupMemberInitials(name) {
+        const parts = String(name || "Т").split(/\s+/).filter(Boolean);
+        return parts.slice(0, 3).map((p) => (p[0] || "").toUpperCase()).filter(Boolean);
     }
 
     function readStoredDirectChats() {
@@ -944,7 +959,7 @@ export default function Groups() {
     }
 
     return (
-        <div className="page groups-page">
+        <div className="page groups-page groups-page--premium">
             {toastText && (
                 <div className="groups-toast" onClick={() => setToastText("")}>
                     {toastText}
@@ -971,16 +986,25 @@ export default function Groups() {
                             type="button"
                             className={`groups-sidebar__tab ${sideTab === "groups" ? "is-active" : ""}`}
                             onClick={() => setSideTab("groups")}
+                            aria-label="Топтар"
                         >
-                            Топтар
+                            <svg className="groups-tab-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <circle cx="9" cy="9" r="3" stroke="currentColor" strokeWidth="1.8" />
+                                <circle cx="17" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.8" />
+                                <path d="M4 19c0-2.8 2.2-5 5-5s5 2.2 5 5M14.5 19c0-1.8 1.3-3.2 3-3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                            </svg>
                             <span className="groups-sidebar__tab-count">{myGroups.length}</span>
                         </button>
                         <button
                             type="button"
                             className={`groups-sidebar__tab ${sideTab === "direct" ? "is-active" : ""}`}
                             onClick={() => setSideTab("direct")}
+                            aria-label="Жеке чаттар"
                         >
-                            Жеке чаттар
+                            <svg className="groups-tab-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <circle cx="12" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.8" />
+                                <path d="M5 20c0-3.5 3.1-6 7-6s7 2.5 7 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                            </svg>
                             {totalDirectUnread > 0 && (
                                 <span className="groups-sidebar__tab-badge">{totalDirectUnread}</span>
                             )}
@@ -1139,7 +1163,9 @@ export default function Groups() {
                         <p className="muted groups-sidebar__empty">Әзірге топқа қосылмағансыз.</p>
                     ) : (
                         <div className="groups-list">
-                            {myGroups.map((g) => (
+                            {myGroups.map((g) => {
+                                const initials = groupMemberInitials(g.name);
+                                return (
                                 <button
                                     key={g.id}
                                     className={`groups-list__item ${selectedGroupId === g.id ? "is-active" : ""}`}
@@ -1149,7 +1175,7 @@ export default function Groups() {
                                         setSelectedGroupId(g.id);
                                     }}
                                 >
-                                    <span className="groups-list__row">
+                                    <span className="groups-card__avatar-wrap">
                                         <span className="groups-list__avatar">
                                             {g.photo_url ? (
                                                 <img
@@ -1166,16 +1192,28 @@ export default function Groups() {
                                                 String(g.name || "Г")?.slice(0, 1)?.toUpperCase()
                                             )}
                                         </span>
-                                        <span className="groups-list__titleBlock">
-                                            <span className="groups-list__name">{g.name}</span>
-                                            <span className="groups-list__meta">{g.last_message || "Топтық чат"}</span>
+                                        <span className="groups-card__online" aria-hidden="true" />
+                                    </span>
+                                    <span className="groups-list__titleBlock">
+                                        <span className="groups-list__name">{g.name}</span>
+                                        <span className="groups-list__meta">{groupSubtitle(g)}</span>
+                                        <span className="groups-card__members" aria-hidden="true">
+                                            {initials.map((ch, i) => (
+                                                <span key={i} className="groups-card__member-dot">{ch}</span>
+                                            ))}
+                                            <span className="groups-card__member-more">+{Math.max(0, initials.length * 8)}</span>
                                         </span>
                                     </span>
-                                    {Number(g.unread_count || 0) > 0 && (
-                                        <span className="groups-list__badge">{Number(g.unread_count || 0)}</span>
-                                    )}
+                                    <span className="groups-list__right">
+                                        <span className="groups-list__time">{fmtChatWhen(g.created_at)}</span>
+                                        {Number(g.unread_count || 0) > 0 ? (
+                                            <span className="groups-list__badge">{Number(g.unread_count || 0)}</span>
+                                        ) : (
+                                            <span className="groups-card__chev" aria-hidden="true">›</span>
+                                        )}
+                                    </span>
                                 </button>
-                            ))}
+                            );})}
                         </div>
                     )}
                     </>
@@ -1201,6 +1239,16 @@ export default function Groups() {
                                         loadDirectMessages(c.id);
                                     }}
                                 >
+                                    <span className="groups-card__avatar-wrap">
+                                        <span className="groups-list__avatar">
+                                            <img
+                                                src={c.photo_url ? normalizePhoto(c.photo_url) : DIRECT_AVATAR_FALLBACK}
+                                                alt=""
+                                                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                                            />
+                                        </span>
+                                        <span className="groups-card__online" aria-hidden="true" />
+                                    </span>
                                     <span className="groups-list__left">
                                         <span className="groups-list__name">{c.peer_name || "Қатысушы"}</span>
                                         <span className="groups-list__meta">
@@ -1209,8 +1257,10 @@ export default function Groups() {
                                     </span>
                                     <span className="groups-list__right">
                                         <span className="groups-list__time">{fmtChatWhen(c.last_at)}</span>
-                                        {Number(unreadByChat[c.id] || 0) > 0 && (
+                                        {Number(unreadByChat[c.id] || 0) > 0 ? (
                                             <span className="groups-list__badge">{Number(unreadByChat[c.id] || 0)}</span>
+                                        ) : (
+                                            <span className="groups-card__chev" aria-hidden="true">›</span>
                                         )}
                                     </span>
                                 </button>
@@ -1239,15 +1289,15 @@ export default function Groups() {
                                     >
                                         <ChatBackButton />
                                         <div className="groups-chat__avatar">
-                                            {activeDirect.photo_url ? (
-                                                <img
-                                                    src={normalizePhoto(activeDirect.photo_url)}
-                                                    alt=""
-                                                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                                                />
-                                            ) : (
-                                                (activeDirect.peer_name || "Қ").slice(0, 1).toUpperCase()
-                                            )}
+                                            <img
+                                                src={
+                                                    activeDirect.photo_url
+                                                        ? normalizePhoto(activeDirect.photo_url)
+                                                        : DIRECT_AVATAR_FALLBACK
+                                                }
+                                                alt=""
+                                                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                                            />
                                         </div>
                                         <div className="groups-chat__identity">
                                             <div className="groups-chat__title-btn">{activeDirect.peer_name || "Қатысушы"}</div>
@@ -1617,15 +1667,15 @@ export default function Groups() {
                             <>
                                 <div className="peer-profile-modal__hero">
                                     <div className="peer-profile-modal__avatar" aria-hidden="true">
-                                        {peerProfile.photo_url ? (
-                                            <img
-                                                src={normalizePhoto(peerProfile.photo_url)}
-                                                alt=""
-                                                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", borderRadius: "999px" }}
-                                            />
-                                        ) : (
-                                            (peerProfile.full_name || "П").slice(0, 1).toUpperCase()
-                                        )}
+                                        <img
+                                            src={
+                                                peerProfile.photo_url
+                                                    ? normalizePhoto(peerProfile.photo_url)
+                                                    : DIRECT_AVATAR_FALLBACK
+                                            }
+                                            alt=""
+                                            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", borderRadius: "999px" }}
+                                        />
                                     </div>
                                     <div className="peer-profile-modal__info">
                                         <div className="peer-profile-modal__name">{peerProfile.full_name || "—"}</div>

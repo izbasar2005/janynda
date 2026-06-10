@@ -1073,8 +1073,8 @@ button{
     box-shadow:0 10px 22px rgba(15,23,42,.06);
 }
 
-.btn:hover,
-button:hover:not(.mobile-nav__item):not(.mobile-nav__backdrop):not(.app-header__menu-btn):not(.app-user__avatar):not(.app-header__glass-btn){
+.btn:hover:not([class*="groups-"]),
+button:hover:not(.mobile-nav__item):not(.mobile-nav__backdrop):not(.app-header__menu-btn):not(.app-user__avatar):not(.app-header__glass-btn):not(.password-field__toggle):not([class*="groups-"]){
     background:var(--primary2);
     box-shadow:0 14px 30px rgba(15,23,42,.09);
     transform:translateY(-1px);
@@ -1339,7 +1339,9 @@ hr{
     transform:translateY(-50%);
     transition:background-color .12s ease, color .12s ease;
 }
-.password-field__toggle:hover{
+.password-field__toggle:hover,
+.password-field__toggle:active,
+.password-field__toggle:focus{
     color:#0f172a;
     background:rgba(148,163,184,.12);
     box-shadow:none;
@@ -4785,7 +4787,13 @@ h3{
 
 .chat-page{ max-width:700px; margin-left:auto; margin-right:auto; }
 .chat-card{ padding:0; overflow:hidden; display:flex; flex-direction:column; max-height:70vh; }
-.chat-messages{ flex:1; overflow-y:auto; padding:16px; min-height:0; }
+.chat-messages{
+    flex:1;
+    overflow-y:auto;
+    padding:16px;
+    min-height:0;
+    background:url("/img/chat-wallpaper.png") center center / cover no-repeat;
+}
 .chat-msg{ margin-bottom:14px; }
 .chat-msg__sender{ font-weight:700; font-size:12px; color:var(--muted); display:block; margin-bottom:2px; }
 .chat-msg__body{ margin:0; font-size:14px; line-height:1.45; }
@@ -5593,5 +5601,6 @@ h3{
     background:#e0e7ff;
 }
 .groups-sidebar .groups-list{
+    overflow-x:hidden;
     overflow-y:auto;
 }

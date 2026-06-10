@@ -85,7 +85,7 @@ func (h *AppointmentHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Slot rules: 09:00–17:00, step 10 minutes (Asia/Almaty / +05)
+	// Slot rules: тәулік бойы, қадам 5 минут (Asia/Almaty / +05)
 	loc := time.FixedZone("+05", 5*3600)
 	startAt = startAt.In(loc)
 	now := time.Now().In(loc)
@@ -93,14 +93,12 @@ func (h *AppointmentHandler) Create(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Өткен уақытқа жазылуға болмайды", http.StatusBadRequest)
 		return
 	}
-	hour := startAt.Hour()
-	min := startAt.Minute()
-	if hour < 9 || hour > 17 || (hour == 17 && min != 0) {
-		http.Error(w, "Жазылу уақыты 09:00–17:00 аралығында болуы керек", http.StatusBadRequest)
+	if startAt.Second() != 0 || startAt.Nanosecond() != 0 {
+		http.Error(w, "Жазылу уақыты минутпен көрсетілуі керек", http.StatusBadRequest)
 		return
 	}
-	if min%10 != 0 {
-		http.Error(w, "Жазылу уақыты 10 минуттық қадаммен болуы керек", http.StatusBadRequest)
+	if startAt.Minute()%5 != 0 {
+		http.Error(w, "Жазылу уақыты 5 минуттық қадаммен болуы керек", http.StatusBadRequest)
 		return
 	}
 
