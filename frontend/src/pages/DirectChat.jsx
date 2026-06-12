@@ -37,6 +37,20 @@ export default function DirectChat() {
     const messagesEndRef = useRef(null);
     const initialScrollDoneRef = useRef(false);
     const autoScrollOnceRef = useRef(false);
+    const nearBottomRef = useRef(true);
+
+    function isNearBottom(container, threshold = 100) {
+        if (!container) return true;
+        return container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
+    }
+
+    const lastOwnMessageId = useMemo(() => {
+        for (let i = messages.length - 1; i >= 0; i--) {
+            const m = messages[i];
+            if (Number(m?.sender_id) === me) return Number(m.id || 0);
+        }
+        return 0;
+    }, [messages, me]);
 
     useEffect(() => {
         // When switching to another direct chat, scroll to bottom again.
@@ -77,7 +91,7 @@ export default function DirectChat() {
                     });
                     return next;
                 });
-                // If I'm inside this chat and a peer sent a message, mark as read immediately.
+                autoScrollOnceRef.current = nearBottomRef.current || Number(evt.payload?.sender_id || 0) === me;
                 if (Number(evt.payload?.sender_id || 0) && Number(evt.payload?.sender_id || 0) !== me) {
                     api(`/api/v1/direct-chats/${cid}/read`, {
                         method: "POST",
@@ -107,6 +121,17 @@ export default function DirectChat() {
             wsClient.unsubscribe("direct", cid);
         };
     }, [chatId, me]);
+
+    useEffect(() => {
+        nearBottomRef.current = true;
+        const el = messagesScrollRef.current;
+        if (!el) return;
+        const onScroll = () => {
+            nearBottomRef.current = isNearBottom(el);
+        };
+        el.addEventListener("scroll", onScroll, { passive: true });
+        return () => el.removeEventListener("scroll", onScroll);
+    }, [chatId]);
 
     useEffect(() => {
         if (loading) return;
@@ -143,8 +168,6 @@ export default function DirectChat() {
             });
             setBody("");
             autoScrollOnceRef.current = true;
-            const data = await api(`/api/v1/direct-chats/${chatId}/messages`, { auth: true });
-            setMessages(Array.isArray(data) ? data : []);
         } catch (err) {
             alert(err.message || "Қате");
         } finally {
@@ -170,9 +193,9 @@ export default function DirectChat() {
                     {messages.length === 0 ? (
                         <p className="muted">Хабарлама жоқ.</p>
                     ) : (
-                        messages.map((m, idx) => {
-                            const isLast = idx === messages.length - 1;
+                        messages.map((m) => {
                             const isMine = Number(m.sender_id) === me;
+                            const showRead = isMine && Number(m.id) === lastOwnMessageId;
                             return (
                             <div
                                 key={m.id}
@@ -181,7 +204,7 @@ export default function DirectChat() {
                                 <span className="chat-msg__sender">{m.sender_name || "—"}</span>
                                 <p className="chat-msg__body">{m.body}</p>
                                 <span className="chat-msg__time muted">{fmtTime(m.created_at)}</span>
-                                {!m.is_system && isLast && isMine && m.is_read_by_peer && m.read_at_by_peer ? (
+                                {!m.is_system && showRead && m.is_read_by_peer && m.read_at_by_peer ? (
                                     <span className="chat-msg__read muted">
                                         Көрілді:{" "}
                                         {new Date(m.read_at_by_peer).toLocaleString("kk-KZ", { hour: "2-digit", minute: "2-digit" })}

@@ -367,19 +367,33 @@ func (h *DirectChatHandler) SendMessage(w http.ResponseWriter, r *http.Request) 
 		if err := h.db.First(&u, me).Error; err == nil {
 			senderName = u.FullName
 		}
+		payload := map[string]any{
+			"id":              msgModel.ID,
+			"conversation_id": conv.ID,
+			"direct_id":       msgModel.DirectConversationID,
+			"sender_id":       msgModel.SenderUserID,
+			"sender_name":     senderName,
+			"body":            msgModel.Body,
+			"created_at":      msgModel.CreatedAt,
+		}
 		h.hub.Broadcast(realtime.RoomKey("direct", conv.ID), map[string]any{
 			"type":    "message:new",
 			"channel": "direct",
 			"id":      conv.ID,
-			"payload": map[string]any{
-				"id":          msgModel.ID,
-				"direct_id":   msgModel.DirectConversationID,
-				"sender_id":   msgModel.SenderUserID,
-				"sender_name": senderName,
-				"body":        msgModel.Body,
-				"created_at":  msgModel.CreatedAt,
-			},
+			"payload": payload,
 		})
+		// User room: list sync even when client is not subscribed to this direct room yet.
+		for _, uid := range []uint{conv.User1ID, conv.User2ID} {
+			if uid == 0 {
+				continue
+			}
+			h.hub.Broadcast(realtime.RoomKey("user", uid), map[string]any{
+				"type":    "direct:message",
+				"channel": "user",
+				"id":      uid,
+				"payload": payload,
+			})
+		}
 	}
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(msgModel)

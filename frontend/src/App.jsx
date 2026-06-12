@@ -40,9 +40,16 @@ function RequireAuth({ children }) {
 export default function App() {
     const loc = useLocation();
     const isMobilePreview = loc.pathname === "/mobile-preview";
+    const isGroupsPage = loc.pathname === "/groups";
 
     return (
-        <div className={`app-shell${isMobilePreview ? " app-shell--mobile-preview" : ""}`}>
+        <div
+            className={
+                "app-shell" +
+                (isMobilePreview ? " app-shell--mobile-preview" : "") +
+                (isGroupsPage ? " app-shell--groups" : "")
+            }
+        >
             {!isMobilePreview && (
                 <a href="#main-content" className="skip-link">
                     Негізгі мазмұнға өту
@@ -50,7 +57,11 @@ export default function App() {
             )}
             {!isMobilePreview && <Header />}
 
-            <main id="main-content" className="app-main" tabIndex={-1}>
+            <main
+                id="main-content"
+                className={"app-main" + (isGroupsPage ? " app-main--groups" : "")}
+                tabIndex={-1}
+            >
                 <Routes>
                     <Route path="/mobile-preview" element={<MobilePreview />} />
                     <Route path="/" element={<Home />} />
@@ -91,7 +102,7 @@ export default function App() {
                 </Routes>
             </main>
 
-            {!isMobilePreview && <Footer />}
+            {!isMobilePreview && !isGroupsPage && <Footer />}
         </div>
     );
 }

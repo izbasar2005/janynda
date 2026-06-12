@@ -243,8 +243,7 @@ body{
     gap:0;
     border:1px solid var(--wa-border);
     border-radius:14px;
-    overflow-x:hidden;
-    overflow-y:auto;
+    overflow:hidden;
     background:#fff;
     height:min(720px, calc(100vh - 180px));
     min-height:520px;
@@ -580,11 +579,19 @@ body{
     flex-direction:column;
     height:100%;
     min-height:0;
+    min-width:0;
+    width:100%;
+    max-width:100%;
+    overflow:hidden;
     position:relative;
     background:var(--wa-bg);
+    box-sizing:border-box;
 }
 .groups-chat__placeholder{
     margin:auto;
+    width:100%;
+    max-width:100%;
+    box-sizing:border-box;
     background:#fff;
     border:1px solid var(--wa-border);
     border-radius:10px;
@@ -869,14 +876,64 @@ body{
     background:#1d4ed8;
 }
 .groups-chat__messages{
-    flex:1;
+    flex:1 1 0%;
     overflow-y:auto;
     overflow-x:hidden;
-    min-height:0; /* flex ішінде scroll дұрыс жұмыс істеуі үшін */
+    min-height:0;
     padding:14px;
     display:flex;
     flex-direction:column;
     gap:8px;
+    align-self:stretch;
+    width:100%;
+    box-sizing:border-box;
+}
+
+.groups-chat__body{
+    flex:1 1 0%;
+    min-height:0;
+    min-width:0;
+    width:100%;
+    max-width:100%;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+    box-sizing:border-box;
+}
+
+.groups-chat__messages--empty{
+    justify-content:center;
+    align-items:stretch;
+    flex:1 1 0%;
+    min-height:0;
+}
+
+.groups-chat__empty{
+    flex:0 0 auto;
+    align-self:center;
+    width:auto;
+    max-width:min(320px, 90%);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    padding:32px 20px;
+}
+
+.groups-chat__empty-title{
+    margin:0 0 8px;
+    font-size:17px;
+    font-weight:600;
+    color:#475569;
+}
+
+.groups-chat__empty-hint{
+    margin:0;
+    font-size:14px;
+    color:#94a3b8;
+    line-height:1.45;
+    max-width:280px;
 }
 .groups-msg{
     max-width:min(78%, 640px);
@@ -5351,13 +5408,12 @@ h3{
     color:#0f172a;
 }
 
-/* Хабарламалар */
+/* Хабарламалар — premium wallpaper overrides background below */
 .groups-chat__messages{
+    flex:1 1 0%;
+    min-height:0;
     padding:18px 16px;
     gap:6px;
-    background:
-        radial-gradient(circle at 20% 10%, rgba(99,102,241,.04), transparent 40%),
-        #f8fafc;
 }
 .groups-msg{
     border:1px solid #eef2f6;
