@@ -249,6 +249,10 @@ body{
     min-height:520px;
     box-shadow:0 18px 45px rgba(15,23,42,.08);
 }
+.groups-page--premium.groups-page--wa .groups-chat-shell {
+    min-height: 0;
+    height: auto;
+}
 .groups-sidebar{
     background:var(--wa-panel);
     border-right:1px solid var(--wa-border);
@@ -1011,18 +1015,18 @@ body{
     }
 }
 @media (max-width: 860px){
-    .groups-chat-shell{
+    .groups-page:not(.groups-page--wa) .groups-chat-shell{
         grid-template-columns:1fr;
         height:auto;
         min-height:unset;
     }
-    .groups-sidebar{
+    .groups-page:not(.groups-page--wa) .groups-sidebar{
         border-right:none;
         border-bottom:1px solid var(--wa-border);
         max-height:220px;
         overflow:auto;
     }
-    .groups-chat{
+    .groups-page:not(.groups-page--wa) .groups-chat{
         min-height:520px;
     }
     .groups-inline-settings{

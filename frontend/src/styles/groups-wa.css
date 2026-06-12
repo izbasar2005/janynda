@@ -539,12 +539,29 @@
   border: 1px solid var(--wa-border);
 }
 
-/* ----- Mobile (≤768px) — lock page scroll, scroll only inside list/chat ----- */
-@media (max-width: 768px) {
-  html:has(.app-shell--groups),
-  body:has(.app-shell--groups) {
-    overflow: hidden;
+/* ----- Mobile (≤860px) — lock page scroll, scroll only inside list/chat ----- */
+@media (max-width: 860px) {
+  html.route-groups,
+  body.route-groups {
+    overflow: hidden !important;
+    height: 100%;
+    max-height: 100dvh;
     overscroll-behavior: none;
+    touch-action: manipulation;
+  }
+
+  html.route-groups #root,
+  body.route-groups #root {
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+  }
+
+  .app-shell--groups {
+    height: 100dvh;
+    max-height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
   }
 
   .app-shell--groups .container.page:has(> .groups-page) {
@@ -553,11 +570,23 @@
     overflow: hidden;
   }
 
+  .groups-page--wa .groups-chat-shell {
+    display: flex !important;
+    flex-direction: column !important;
+    grid-template-columns: none !important;
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: 100% !important;
+  }
+
   .groups-page--wa .groups-sidebar {
-    flex: 1 1 0%;
-    min-height: 0;
-    height: auto;
-    max-height: none;
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    height: auto !important;
+    overflow: hidden !important;
+    border-bottom: none !important;
   }
 
   .groups-page--wa .groups-sidebar__panel {
@@ -568,12 +597,15 @@
   .groups-page--wa .groups-sidebar__scroll {
     flex: 1 1 0%;
     min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
     overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
 
   .groups-page--wa .groups-chat {
-    flex: 1 1 0%;
-    min-height: 0;
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
     margin-top: 0;
     border-radius: 0;
   }
@@ -586,7 +618,10 @@
   .groups-page--wa .groups-chat__messages {
     flex: 1 1 0%;
     min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
     overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
 
   .groups-page--wa .groups-status {

@@ -49,6 +49,16 @@ export default function App() {
         return initChatRealtime();
     }, [isMobilePreview]);
 
+    useEffect(() => {
+        if (!isGroupsPage) return undefined;
+        document.documentElement.classList.add("route-groups");
+        document.body.classList.add("route-groups");
+        return () => {
+            document.documentElement.classList.remove("route-groups");
+            document.body.classList.remove("route-groups");
+        };
+    }, [isGroupsPage]);
+
     return (
         <div
             className={
