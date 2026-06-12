@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import NotificationCard from "../components/notifications/NotificationCard";
 import { IconRefresh } from "../components/notifications/NotificationIcons";
 import { api, token } from "../services/api";
+import { dispatchNotificationsUpdated, markUnreadPageViewNotifications } from "../services/notifications";
 
 function NotificationSkeleton() {
     return (
@@ -52,7 +53,11 @@ export default function Notifications() {
             nav("/login");
             return;
         }
-        loadNotifications();
+        (async () => {
+            await loadNotifications();
+            await markUnreadPageViewNotifications();
+            await loadNotifications(true);
+        })();
     }, [nav, loadNotifications]);
 
     async function markRead(id) {
@@ -61,6 +66,7 @@ export default function Notifications() {
         );
         try {
             await api(`/api/v1/notifications/${id}/read`, { method: "POST", auth: true });
+            dispatchNotificationsUpdated();
         } catch {
             loadNotifications(true);
         }
@@ -78,6 +84,7 @@ export default function Notifications() {
             setList((prev) =>
                 prev.map((n) => (n.id === notifId ? { ...n, choice, read_at: now } : n))
             );
+            dispatchNotificationsUpdated();
             if (choice === "chat" || choice === "video") {
                 const appId = list.find((x) => x.id === notifId)?.appointment_id;
                 if (appId) nav(`/chat/${appId}`);

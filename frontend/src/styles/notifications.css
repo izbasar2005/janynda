@@ -295,6 +295,38 @@
   box-shadow: 0 10px 24px rgba(56, 189, 248, 0.32);
 }
 
+.notif-page .notif-card--read {
+  background: rgba(248, 250, 252, 0.88);
+  border-color: rgba(226, 232, 240, 0.95);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+}
+
+.notif-page .notif-card--read:hover {
+  transform: none;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+}
+
+.notif-page .notif-card--read .notif-card__text {
+  color: #64748b;
+}
+
+.notif-page .notif-card--read .notif-card__wave {
+  opacity: 0.4;
+}
+
+.notif-card__action--read {
+  background: #e2e8f0 !important;
+  color: #64748b !important;
+  box-shadow: none !important;
+  cursor: default;
+}
+
+.notif-card__action--read:hover {
+  transform: none;
+  background: #cbd5e1 !important;
+  box-shadow: none !important;
+}
+
 /* ==========================================================================
    Meeting selector — inline icon row (screenshot)
    ========================================================================== */

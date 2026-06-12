@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { api, token } from "../services/api";
+import { markUnreadAppointmentDoneNotifications } from "../services/notifications";
 import { appointmentStatusLabel } from "../utils/appointmentStatus";
 
 function fmtStartAt(s) {
@@ -235,6 +236,11 @@ export default function Profile() {
             .then((d) => setApps(Array.isArray(d) ? d : []))
             .catch(() => setApps([]));
     }
+
+    useEffect(() => {
+        if (!token()) return;
+        markUnreadAppointmentDoneNotifications();
+    }, []);
 
     useEffect(() => {
         const t = token();

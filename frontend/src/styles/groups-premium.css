@@ -136,7 +136,7 @@
 }
 
 .groups-page--premium .groups-chat {
-  margin-top: 16px;
+  margin-top: 8px;
   border-radius: 22px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.9);
@@ -615,7 +615,11 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding-top: 8px;
+  padding-top: 0;
   padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
   overflow: hidden;
+}
+
+.app-shell--groups .container.page:has(> .groups-page) > .groups-page {
+  margin-top: 0;
 }

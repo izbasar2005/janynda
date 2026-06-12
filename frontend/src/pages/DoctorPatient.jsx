@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useParams, useNavigate } from "react-router-dom";
 import { api, token } from "../services/api";
+import { markUnreadNotificationsForPatient } from "../services/notifications";
 import {
     appointmentStatusLabelDoctor,
     APPOINTMENT_STATUS_FLOW_HINT,
@@ -86,6 +87,11 @@ export default function DoctorPatient() {
             .filter((a) => Number(a.patient_id) === pid)
             .sort((a, b) => new Date(b.start_at) - new Date(a.start_at));
     }, [apps, pid]);
+
+    useEffect(() => {
+        if (!t || !Number.isFinite(pid)) return;
+        markUnreadNotificationsForPatient(pid);
+    }, [t, pid]);
 
     useEffect(() => {
         if (!t || role !== "doctor" || !Number.isFinite(pid)) return;

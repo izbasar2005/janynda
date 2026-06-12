@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, token } from "../services/api";
+import { markUnreadNotificationsForAppointment } from "../services/notifications";
 import { wsClient } from "../services/ws";
 import { NO_AVATAR, normalizePhoto } from "../utils/doctorPhoto";
 
@@ -107,6 +108,11 @@ export default function Chat() {
     const fileInputRef = useRef(null);
     const initialScrollDoneRef = useRef(false);
     const autoScrollOnceRef = useRef(false);
+
+    useEffect(() => {
+        if (!token() || !appointmentId) return;
+        markUnreadNotificationsForAppointment(appointmentId);
+    }, [appointmentId]);
 
     useEffect(() => {
         if (!token() || !appointmentId) return;

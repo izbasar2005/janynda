@@ -11,6 +11,7 @@ export default function NotificationCard({
     onMarkRead,
 }) {
     const badge = getNotificationBadge(n);
+    const isRead = !!n.read_at;
     const showPatientChoice =
         n.type === "5min_choice" && n.patient_choice !== undefined && n.patient_choice !== null;
 
@@ -24,12 +25,18 @@ export default function NotificationCard({
         (n.patient_choice === undefined || n.patient_choice === null) &&
         !!n.choice;
 
+    function visitAction(e) {
+        e.stopPropagation();
+        if (!isRead) onMarkRead?.(n.id);
+    }
+
+    const actionClass = `notif-card__action${isRead ? " notif-card__action--read" : ""}`;
+
     return (
         <article
-            className={`notif-card notif-card--${badge.tone}${
+            className={`notif-card notif-card--${badge.tone}${isRead ? " notif-card--read" : ""}${
                 n.type === "appointment_done" ? " notif-card--done" : ""
             }`}
-            onClick={() => !n.read_at && onMarkRead?.(n.id)}
         >
             <WaveAccent tone={badge.tone} />
 
@@ -46,16 +53,16 @@ export default function NotificationCard({
             <p className="notif-card__text">{notificationBodyText(n)}</p>
 
             {n.type === "appointment_done" ? (
-                <Link className="notif-card__action" to="/profile" onClick={(e) => e.stopPropagation()}>
+                <Link className={actionClass} to="/profile" onClick={visitAction}>
                     Жазылуларға өту
                 </Link>
             ) : null}
 
             {n.type === "doctor_incomplete_1h" && n.patient_id ? (
                 <Link
-                    className="notif-card__action"
+                    className={actionClass}
                     to={`/doctor/patients/${n.patient_id}`}
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={visitAction}
                 >
                     Жазылуға өту
                 </Link>
@@ -67,7 +74,11 @@ export default function NotificationCard({
                         <>
                             <MeetingTypeSelector value={n.patient_choice} readOnly />
                             {(n.patient_choice === "chat" || n.patient_choice === "video") && n.appointment_id ? (
-                                <Link className="notif-card__action" to={`/chat/${n.appointment_id}`}>
+                                <Link
+                                    className={actionClass}
+                                    to={`/chat/${n.appointment_id}`}
+                                    onClick={visitAction}
+                                >
                                     {n.patient_choice === "video" ? "Чат пен видеосілтемесін ашу" : "Чатты ашу"}
                                 </Link>
                             ) : null}
@@ -91,7 +102,7 @@ export default function NotificationCard({
                 <div className="notif-card__footer" onClick={(e) => e.stopPropagation()}>
                     <MeetingTypeSelector value={n.choice} readOnly />
                     {(n.choice === "chat" || n.choice === "video") && n.appointment_id ? (
-                        <Link className="notif-card__action" to={`/chat/${n.appointment_id}`}>
+                        <Link className={actionClass} to={`/chat/${n.appointment_id}`} onClick={visitAction}>
                             {n.choice === "video" ? "Чат пен видеосілтемесін ашу" : "Чатты ашу"}
                         </Link>
                     ) : null}

@@ -2,6 +2,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { api } from "../services/api";
+import { NOTIFICATIONS_UPDATED } from "../services/notifications";
 import { getNavLinks } from "./navLinks";
 import { useBottomSheetDrag } from "../hooks/useBottomSheetDrag";
 
@@ -170,7 +171,7 @@ export default function Header() {
         backdropOpacity,
     } = useBottomSheetDrag({ open: mobileOpen, onClose: closeMobile });
 
-    useEffect(() => {
+    const refreshUnreadCount = useCallback(() => {
         if (!t) {
             setUnreadCount(0);
             return;
@@ -181,7 +182,16 @@ export default function Header() {
                 setUnreadCount(list.filter((n) => !n.read_at).length);
             })
             .catch(() => setUnreadCount(0));
-    }, [t, loc.pathname]);
+    }, [t]);
+
+    useEffect(() => {
+        refreshUnreadCount();
+    }, [refreshUnreadCount, loc.pathname]);
+
+    useEffect(() => {
+        window.addEventListener(NOTIFICATIONS_UPDATED, refreshUnreadCount);
+        return () => window.removeEventListener(NOTIFICATIONS_UPDATED, refreshUnreadCount);
+    }, [refreshUnreadCount]);
 
     useEffect(() => {
         closeMobile();
