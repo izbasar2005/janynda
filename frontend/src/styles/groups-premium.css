@@ -622,4 +622,21 @@
 
 .app-shell--groups .container.page:has(> .groups-page) > .groups-page {
   margin-top: 0;
+  flex: 1 1 0%;
+  min-height: 0;
+}
+
+@media (max-width: 768px) {
+  .groups-page--premium .groups-sidebar {
+    flex: 1 1 0%;
+    min-height: 0;
+    height: auto;
+    max-height: none;
+  }
+
+  .groups-page--premium .groups-chat-shell {
+    flex: 1 1 0%;
+    min-height: 0;
+    max-height: 100%;
+  }
 }

@@ -539,6 +539,63 @@
   border: 1px solid var(--wa-border);
 }
 
+/* ----- Mobile (≤768px) — lock page scroll, scroll only inside list/chat ----- */
+@media (max-width: 768px) {
+  html:has(.app-shell--groups),
+  body:has(.app-shell--groups) {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  .app-shell--groups .container.page:has(> .groups-page) {
+    padding-left: 0;
+    padding-right: 0;
+    overflow: hidden;
+  }
+
+  .groups-page--wa .groups-sidebar {
+    flex: 1 1 0%;
+    min-height: 0;
+    height: auto;
+    max-height: none;
+  }
+
+  .groups-page--wa .groups-sidebar__panel {
+    flex: 1 1 0%;
+    min-height: 0;
+  }
+
+  .groups-page--wa .groups-sidebar__scroll {
+    flex: 1 1 0%;
+    min-height: 0;
+    overscroll-behavior: contain;
+  }
+
+  .groups-page--wa .groups-chat {
+    flex: 1 1 0%;
+    min-height: 0;
+    margin-top: 0;
+    border-radius: 0;
+  }
+
+  .groups-page--wa .groups-chat__body {
+    flex: 1 1 0%;
+    min-height: 0;
+  }
+
+  .groups-page--wa .groups-chat__messages {
+    flex: 1 1 0%;
+    min-height: 0;
+    overscroll-behavior: contain;
+  }
+
+  .groups-page--wa .groups-status {
+    flex-shrink: 0;
+    margin-left: 12px;
+    margin-right: 12px;
+  }
+}
+
 @media (min-width: 1025px) {
   .groups-page--wa .groups-chat-shell {
     border-radius: 12px;

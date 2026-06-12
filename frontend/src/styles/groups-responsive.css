@@ -86,14 +86,22 @@
   .container.page:has(> .groups-page) {
     padding-left: clamp(12px, 3vw, 20px);
     padding-right: clamp(12px, 3vw, 20px);
-    overflow-x: clip;
+    overflow: hidden;
     max-width: 100%;
+    flex: 1 1 0%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
   }
 
   .groups-page {
     width: 100%;
     max-width: 100%;
     min-width: 0;
+    flex: 1 1 0%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
     margin-top: 0;
   }
@@ -123,10 +131,10 @@
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important;
-    flex: 1 !important;
+    flex: 1 1 0% !important;
     min-height: 0 !important;
     height: auto !important;
-    max-height: none !important;
+    max-height: 100% !important;
     border-radius: var(--groups-radius-lg);
     overflow: hidden;
     box-shadow: var(--groups-shadow);
@@ -186,8 +194,9 @@
     border-bottom: none !important;
     max-height: none !important;
     overflow: hidden !important;
-    flex: 1;
+    flex: 1 1 0%;
     min-height: 0 !important;
+    height: auto !important;
     display: flex;
     flex-direction: column;
   }
@@ -272,6 +281,12 @@
   }
 
   /* Cards — single column */
+  .groups-page--wa .groups-list {
+    flex: none !important;
+    min-height: auto !important;
+    overflow: visible !important;
+  }
+
   .groups-list {
     flex: 1;
     min-height: 0;
@@ -629,10 +644,24 @@
 @media (max-width: 768px) {
   .groups-page {
     margin-top: 0;
+    flex: 1 1 0%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
   }
 
   .groups-page .page-header {
     display: none;
+  }
+
+  .groups-page .groups-status {
+    flex-shrink: 0;
+  }
+
+  .groups-page .groups-chat-shell {
+    flex: 1 1 0%;
+    min-height: 0;
+    max-height: 100%;
   }
 
   /* Stacked composer on phones */
