@@ -30,7 +30,7 @@ export function getNavLinks({ token, role, active }) {
     }
 
     if (token) {
-        links.push({ to: "/groups", label: "Топтар", show: true });
+        links.push({ to: "/groups", label: "Хабарламалар", show: true });
     }
 
     if (token && normalizedRole === "admin") {

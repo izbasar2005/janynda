@@ -888,20 +888,37 @@ func (h *GroupHandler) SendMessage(w http.ResponseWriter, r *http.Request, group
 		if err := h.db.First(&u, userID).Error; err == nil {
 			senderName = u.FullName
 		}
-		h.hub.Broadcast(realtime.RoomKey("group", groupID), map[string]any{
+		payload := map[string]any{
+			"id":          msg.ID,
+			"group_id":    msg.GroupID,
+			"sender_id":   msg.SenderID,
+			"sender_name": senderName,
+			"body":        msg.Body,
+			"is_system":   msg.IsSystem,
+			"created_at":  msg.CreatedAt,
+		}
+		evt := map[string]any{
 			"type":    "message:new",
 			"channel": "group",
 			"id":      groupID,
-			"payload": map[string]any{
-				"id":          msg.ID,
-				"group_id":    msg.GroupID,
-				"sender_id":   msg.SenderID,
-				"sender_name": senderName,
-				"body":        msg.Body,
-				"is_system":   msg.IsSystem,
-				"created_at":  msg.CreatedAt,
-			},
-		})
+			"payload": payload,
+		}
+		h.hub.Broadcast(realtime.RoomKey("group", groupID), evt)
+		// User room: list sync even when client is not subscribed to this group room yet.
+		var memberIDs []uint
+		_ = h.db.Model(&model.GroupMember{}).Where("group_id = ?", groupID).Pluck("user_id", &memberIDs).Error
+		userEvt := map[string]any{
+			"type":    "group:message",
+			"channel": "user",
+			"payload": payload,
+		}
+		for _, uid := range memberIDs {
+			if uid == 0 {
+				continue
+			}
+			userEvt["id"] = uid
+			h.hub.Broadcast(realtime.RoomKey("user", uid), userEvt)
+		}
 	}
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(msg)

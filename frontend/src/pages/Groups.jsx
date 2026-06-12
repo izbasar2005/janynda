@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import ChatListItem from "../components/groups/ChatListItem";
+import IconArchive from "../components/groups/IconArchive";
+import IconSend from "../components/groups/IconSend";
 import { api, token } from "../services/api";
+import { ensureDirectSubscribed, ensureGroupSubscribed, syncAllChatSubscriptions } from "../services/chatRealtime";
 import { wsClient } from "../services/ws";
 import { normalizePhoto as normalizeAvatarPhoto } from "../utils/doctorPhoto";
 
@@ -20,6 +24,8 @@ export default function Groups() {
     const myUserId = Number(payload?.user_id || payload?.id || 0);
     const directChatsStorageKey = `groups_direct_chats_${myUserId || "guest"}`;
     const seenDirectStorageKey = `groups_direct_seen_${myUserId || "guest"}`; // legacy fallback
+    const archivedGroupsKey = `groups_archived_groups_${myUserId || "guest"}`;
+    const archivedDirectKey = `groups_archived_direct_${myUserId || "guest"}`;
     const isTherapist = !!payload?.is_therapist;
     const canManage = role === "doctor" || role === "admin" || role === "super_admin";
 
@@ -34,12 +40,13 @@ export default function Groups() {
     const [unreadByChat, setUnreadByChat] = useState({}); // { [chatId]: number }
     const [toastText, setToastText] = useState("");
     const lastNotifiedUnreadRef = useRef({}); // { [chatId]: number } to avoid repeated toasts
-    const wsGroupSubsRef = useRef(new Set());
-    const wsDirectSubsRef = useRef(new Set());
     const [members, setMembers] = useState([]);
     const [msgText, setMsgText] = useState("");
     const [status, setStatus] = useState("");
     const [sideTab, setSideTab] = useState("groups"); // "groups" | "direct"
+    const [showArchiveView, setShowArchiveView] = useState(false);
+    const [archivedGroupIds, setArchivedGroupIds] = useState(() => new Set());
+    const [archivedDirectIds, setArchivedDirectIds] = useState(() => new Set());
 
     const [newGroup, setNewGroup] = useState({ name: "", diagnosis_type: "", description: "", photo_url: "" });
     const [newGroupMembers, setNewGroupMembers] = useState([]);
@@ -79,6 +86,8 @@ export default function Groups() {
     const directNearBottomRef = useRef(true);
     const groupNearBottomRef = useRef(true);
     const processedDirectMsgIdsRef = useRef(new Set());
+    const processedGroupMsgIdsRef = useRef(new Set());
+    const pendingGroupsRefreshRef = useRef(false);
 
     function isNearBottom(container, threshold = 100) {
         if (!container) return true;
@@ -247,12 +256,89 @@ export default function Groups() {
         }
     }
 
+    function readArchivedSet(key) {
+        try {
+            const raw = localStorage.getItem(key);
+            const arr = raw ? JSON.parse(raw) : [];
+            return new Set(
+                (Array.isArray(arr) ? arr : []).map((x) => Number(x)).filter((x) => x > 0)
+            );
+        } catch {
+            return new Set();
+        }
+    }
+
+    function writeArchivedSet(key, set) {
+        try {
+            localStorage.setItem(key, JSON.stringify(Array.from(set)));
+        } catch {
+            // ignore
+        }
+    }
+
+    useEffect(() => {
+        if (!myUserId) return;
+        setArchivedGroupIds(readArchivedSet(archivedGroupsKey));
+        setArchivedDirectIds(readArchivedSet(archivedDirectKey));
+    }, [myUserId, archivedGroupsKey, archivedDirectKey]);
+
+    function archiveGroup(groupId) {
+        const gid = Number(groupId || 0);
+        if (!gid) return;
+        setArchivedGroupIds((prev) => {
+            const next = new Set(prev);
+            next.add(gid);
+            writeArchivedSet(archivedGroupsKey, next);
+            return next;
+        });
+        if (Number(selectedGroupId) === gid) setSelectedGroupId(0);
+    }
+
+    function unarchiveGroup(groupId) {
+        const gid = Number(groupId || 0);
+        if (!gid) return;
+        setArchivedGroupIds((prev) => {
+            const next = new Set(prev);
+            next.delete(gid);
+            writeArchivedSet(archivedGroupsKey, next);
+            return next;
+        });
+    }
+
+    function archiveDirectChat(chatId) {
+        const cid = Number(chatId || 0);
+        if (!cid) return;
+        setArchivedDirectIds((prev) => {
+            const next = new Set(prev);
+            next.add(cid);
+            writeArchivedSet(archivedDirectKey, next);
+            return next;
+        });
+        if (Number(activeDirect?.id) === cid) {
+            setActiveDirect(null);
+            setDirectMessages([]);
+        }
+    }
+
+    function unarchiveDirectChat(chatId) {
+        const cid = Number(chatId || 0);
+        if (!cid) return;
+        setArchivedDirectIds((prev) => {
+            const next = new Set(prev);
+            next.delete(cid);
+            writeArchivedSet(archivedDirectKey, next);
+            return next;
+        });
+    }
+
+    function lastMessagePreview(text, fallback = "") {
+        const msg = (text || "").trim().replace(/\s+/g, " ");
+        if (!msg) return fallback || "Хабарлама жоқ";
+        return msg;
+    }
+
     function groupSubtitle(g) {
-        const msg = (g.last_message || "").trim();
-        if (msg && !msg.startsWith("📎") && msg.length <= 90) return msg;
-        if (g.diagnosis_type) return g.diagnosis_type;
-        if (g.description) return g.description;
-        return "Топтық чат";
+        return lastMessagePreview(g.last_message, g.diagnosis_type || "Топтық чат");
     }
 
     function memberName(userId, fallback = "") {
@@ -373,11 +459,87 @@ export default function Groups() {
         setToastText(`${who}: ${preview || "Жаңа хабарлама"}`);
     }
 
-    function ensureDirectSubscribed(chatId) {
-        const cid = Number(chatId || 0);
-        if (!cid) return;
-        wsDirectSubsRef.current.add(cid);
-        wsClient.subscribe("direct", cid);
+    function consumeGroupMessageId(groupId, messageId) {
+        const gid = Number(groupId || 0);
+        const mid = Number(messageId || 0);
+        if (!gid || !mid) return true;
+        const key = `${gid}:${mid}`;
+        if (processedGroupMsgIdsRef.current.has(key)) return false;
+        processedGroupMsgIdsRef.current.add(key);
+        if (processedGroupMsgIdsRef.current.size > 400) {
+            processedGroupMsgIdsRef.current = new Set(
+                Array.from(processedGroupMsgIdsRef.current).slice(-200)
+            );
+        }
+        return true;
+    }
+
+    function scheduleGroupsListRefresh() {
+        if (pendingGroupsRefreshRef.current) return;
+        pendingGroupsRefreshRef.current = true;
+        queueMicrotask(() => {
+            pendingGroupsRefreshRef.current = false;
+            loadMyGroups();
+        });
+    }
+
+    function handleIncomingGroupMessage(groupId, payload, senderId) {
+        const gid = Number(groupId || 0);
+        const p = payload || {};
+        const sid = Number(senderId || p.sender_id || 0);
+        const mid = Number(p.id || 0);
+        if (!gid || !p) return;
+        if (!consumeGroupMessageId(gid, mid)) return;
+
+        ensureGroupSubscribed(gid);
+        const preview = {
+            last_message: p.body || "",
+            last_at: p.created_at || new Date().toISOString(),
+        };
+
+        if (isGroupChatOpen(gid)) {
+            if (sid && sid !== myUserId) {
+                api(`/api/v1/groups/${gid}/read`, {
+                    method: "POST",
+                    auth: true,
+                    body: { last_message_id: mid },
+                }).catch(() => {});
+            }
+            setMessages((prev) =>
+                appendGroupMessage(prev, {
+                    id: p.id,
+                    group_id: gid,
+                    sender_id: sid,
+                    sender_name: p.sender_name,
+                    body: p.body,
+                    is_system: Boolean(p.is_system),
+                    created_at: p.created_at,
+                    readers: Array.isArray(p.readers) ? p.readers : [],
+                })
+            );
+            if (groupNearBottomRef.current || sid === myUserId) {
+                groupAutoScrollOnceRef.current = true;
+            }
+            setMyGroups((prev) =>
+                bumpGroupInList(prev, gid, { ...preview, unread_count: 0 })
+            );
+            return;
+        }
+
+        setMyGroups((prev) => {
+            const exists = (prev || []).some((g) => Number(g.id) === gid);
+            if (!exists) {
+                scheduleGroupsListRefresh();
+                return prev;
+            }
+            return bumpGroupInList(prev, gid, {
+                ...preview,
+                unread_count:
+                    Number((prev || []).find((g) => Number(g.id) === gid)?.unread_count || 0) +
+                    (sid && sid !== myUserId ? 1 : 0),
+            });
+        });
+        notifyIncomingGroupMessage(gid, p, sid);
     }
 
     function consumeDirectMessageId(messageId) {
@@ -591,22 +753,14 @@ export default function Groups() {
     useEffect(() => {
         if (!t) return;
         wsClient.ensureConnected();
+        syncAllChatSubscriptions();
         const stored = readStoredDirectChats();
         if (stored.length) setDirectChats(sortDirectChats(stored));
         seenDirectRef.current = readSeenDirectMap();
         loadMyGroups();
         loadDirectChats();
         const offConnect = wsClient.onConnect(() => {
-            for (const gid of wsGroupSubsRef.current) {
-                wsClient.subscribe("group", gid);
-            }
-            for (const cid of wsDirectSubsRef.current) {
-                wsClient.subscribe("direct", cid);
-            }
-            const openGid = Number(selectedGroupIdRef.current || 0);
-            const openDid = Number(activeDirectIdRef.current || 0);
-            if (openGid) wsClient.subscribe("group", openGid);
-            if (openDid) wsClient.subscribe("direct", openDid);
+            syncAllChatSubscriptions();
         });
         return () => offConnect();
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -618,67 +772,28 @@ export default function Groups() {
         const off = wsClient.on((evt) => {
             if (!evt || !evt.type) return;
 
-            // Personal events (direct list sync when not subscribed to a room yet)
+            // Personal user room — global sync for all chats (works even without per-room subscribe)
             if (evt.channel === "user" && Number(evt.id) === myUserId) {
                 if (evt.type === "direct:message" && evt.payload) {
                     const p = evt.payload;
                     const cid = Number(p.conversation_id || p.direct_id || 0);
-                    if (!cid) return;
-                    if (isDirectChatOpen(cid)) return;
-                    handleIncomingDirectMessage(cid, p, Number(p.sender_id || 0));
+                    if (cid) handleIncomingDirectMessage(cid, p, Number(p.sender_id || 0));
+                }
+                if (evt.type === "group:message" && evt.payload) {
+                    const p = evt.payload;
+                    const gid = Number(p.group_id || 0);
+                    if (gid) handleIncomingGroupMessage(gid, p, Number(p.sender_id || 0));
                 }
             }
 
-            // Group message events
+            // Group message events (per-room channel)
             if (evt.channel === "group") {
                 const gid = Number(evt.id || 0);
                 if (!gid) return;
                 if (evt.type === "message:new") {
                     const p = parseGroupWsPayload(evt);
                     if (!p) return;
-                    const senderId = Number(p.sender_id || 0);
-                    // If currently viewing this group (and not in direct chat), append; otherwise bump unread in list.
-                    if (isGroupChatOpen(gid)) {
-                        // mark read immediately if I'm currently in this group chat and message is from someone else
-                        if (senderId && senderId !== myUserId) {
-                            api(`/api/v1/groups/${gid}/read`, {
-                                method: "POST",
-                                auth: true,
-                                body: { last_message_id: Number(p.id || 0) },
-                            }).catch(() => {});
-                        }
-                        setMessages((prev) =>
-                            appendGroupMessage(prev, {
-                                id: p.id,
-                                group_id: gid,
-                                sender_id: senderId,
-                                sender_name: p.sender_name,
-                                body: p.body,
-                                is_system: Boolean(p.is_system),
-                                created_at: p.created_at,
-                                readers: Array.isArray(p.readers) ? p.readers : [],
-                            })
-                        );
-                        if (groupNearBottomRef.current || senderId === myUserId) {
-                            groupAutoScrollOnceRef.current = true;
-                        }
-                        setMyGroups((prev) => (prev || []).map((g) => (
-                            Number(g.id) === gid
-                                ? { ...g, last_message: p.body || g.last_message || "", unread_count: 0 }
-                                : g
-                        )));
-                    } else {
-                        setMyGroups((prev) =>
-                            bumpGroupInList(prev, gid, {
-                                last_message: p.body || "",
-                                last_at: p.created_at || new Date().toISOString(),
-                                unread_count:
-                                    Number((prev || []).find((g) => Number(g.id) === gid)?.unread_count || 0) +
-                                    (senderId && senderId !== myUserId ? 1 : 0),
-                            })
-                        );
-                        notifyIncomingGroupMessage(gid, p, senderId);
-                    }
+                    handleIncomingGroupMessage(gid, p, Number(p.sender_id || 0));
                 }
                 if (evt.type === "message:read" && evt.payload) {
                     const { reader_user_id, last_message_id, read_at } = evt.payload || {};
@@ -692,7 +807,7 @@ export default function Groups() {
                 }
             }
 
-            // Direct chat message events
+            // Direct chat message events (per-room channel)
             if (evt.channel === "direct") {
                 const cid = Number(evt.id || 0);
                 if (!cid) return;
@@ -706,7 +821,6 @@ export default function Groups() {
                     const rid = Number(reader_user_id || 0);
                     const lastId = Number(last_message_id || 0);
                     if (!rid || !lastId) return;
-                    // peer read receipts for active direct chat
                     if (isDirectChatOpen(cid) && rid !== myUserId) {
                         setDirectMessages((prev) =>
                             (Array.isArray(prev) ? prev : []).map((m) => {
@@ -788,8 +902,7 @@ export default function Groups() {
         setSettingsOpen(false);
         const gid = Number(selectedGroupId || 0);
         if (gid) {
-            wsGroupSubsRef.current.add(gid);
-            wsClient.subscribe("group", gid);
+            ensureGroupSubscribed(gid);
         }
     }, [selectedGroupId]);
 
@@ -859,8 +972,7 @@ export default function Groups() {
             for (const g of arr) {
                 const gid = Number(g.id || 0);
                 if (!gid) continue;
-                wsGroupSubsRef.current.add(gid);
-                wsClient.subscribe("group", gid);
+                ensureGroupSubscribed(gid);
             }
             // Only auto-select the first group ONCE ever.
             // Polling must not reset user's current selection.
@@ -958,8 +1070,7 @@ export default function Groups() {
             for (const c of arr) {
                 const cid = Number(c.id || 0);
                 if (!cid) continue;
-                wsDirectSubsRef.current.add(cid);
-                wsClient.subscribe("direct", cid);
+                ensureDirectSubscribed(cid);
             }
         } catch (e) {
             // Ескі серверде endpoint болмауы мүмкін (Not found) — UI-да артық қате көрсетпейміз.
@@ -1171,8 +1282,7 @@ export default function Groups() {
     useEffect(() => {
         const cid = Number(activeDirect?.id || 0);
         if (!cid) return;
-        wsDirectSubsRef.current.add(cid);
-        wsClient.subscribe("direct", cid);
+        ensureDirectSubscribed(cid);
     }, [activeDirect?.id]);
 
     async function createGroup(e) {
@@ -1320,11 +1430,13 @@ export default function Groups() {
                     readers: [],
                 })
             );
-            setMyGroups((prev) => (prev || []).map((g) => (
-                Number(g.id) === gid
-                    ? { ...g, last_message: sent, unread_count: 0 }
-                    : g
-            )));
+            setMyGroups((prev) =>
+                bumpGroupInList(prev, gid, {
+                    last_message: sent,
+                    last_at: new Date().toISOString(),
+                    unread_count: 0,
+                })
+            );
         } catch (e2) {
             setStatus("Хабар жіберу қатесі: " + (e2.message || ""));
         }
@@ -1420,6 +1532,39 @@ export default function Groups() {
 
     const totalDirectUnread = Object.values(unreadByChat).reduce((a, b) => a + Number(b || 0), 0);
 
+    const hasArchived = archivedGroupIds.size > 0 || archivedDirectIds.size > 0;
+
+    const archivedUnreadTotal = useMemo(() => {
+        let n = 0;
+        for (const g of myGroups) {
+            if (archivedGroupIds.has(Number(g.id))) n += Number(g.unread_count || 0);
+        }
+        for (const c of directChats) {
+            if (archivedDirectIds.has(Number(c.id))) n += Number(unreadByChat[c.id] || 0);
+        }
+        return n;
+    }, [myGroups, directChats, archivedGroupIds, archivedDirectIds, unreadByChat]);
+
+    const visibleGroups = useMemo(
+        () =>
+            myGroups.filter((g) => {
+                const id = Number(g.id);
+                return showArchiveView ? archivedGroupIds.has(id) : !archivedGroupIds.has(id);
+            }),
+        [myGroups, archivedGroupIds, showArchiveView]
+    );
+
+    const visibleDirectChats = useMemo(
+        () =>
+            sortDirectChats(
+                directChats.filter((c) => {
+                    const id = Number(c.id);
+                    return showArchiveView ? archivedDirectIds.has(id) : !archivedDirectIds.has(id);
+                })
+            ),
+        [directChats, archivedDirectIds, showArchiveView]
+    );
+
     const hasResponsiveChatOpen =
         sideTab === "direct" ? !!activeDirect : selectedGroupId > 0;
 
@@ -1448,13 +1593,21 @@ export default function Groups() {
                     backToChatList();
                 }}
             >
-                <span aria-hidden="true">←</span>
+                <svg className="groups-chat__back-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path
+                        d="M15 18l-6-6 6-6"
+                        stroke="currentColor"
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                    />
+                </svg>
             </button>
         );
     }
 
     return (
-        <div className="page groups-page groups-page--premium">
+        <div className="page groups-page groups-page--premium groups-page--wa">
             {toastText && (
                 <div className="groups-toast" onClick={() => setToastText("")}>
                     {toastText}
@@ -1473,7 +1626,10 @@ export default function Groups() {
                         <button
                             type="button"
                             className={`groups-sidebar__tab ${sideTab === "groups" ? "is-active" : ""}`}
-                            onClick={() => setSideTab("groups")}
+                            onClick={() => {
+                                setSideTab("groups");
+                                setShowArchiveView(false);
+                            }}
                             aria-label="Топтар"
                         >
                             <svg className="groups-tab-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -1486,7 +1642,10 @@ export default function Groups() {
                         <button
                             type="button"
                             className={`groups-sidebar__tab ${sideTab === "direct" ? "is-active" : ""}`}
-                            onClick={() => setSideTab("direct")}
+                            onClick={() => {
+                                setSideTab("direct");
+                                setShowArchiveView(false);
+                            }}
                             aria-label="Жеке чаттар"
                         >
                             <svg className="groups-tab-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -1499,6 +1658,34 @@ export default function Groups() {
                         </button>
                     </div>
 
+                    <div className="groups-sidebar__panel">
+                        {!showArchiveView && hasArchived ? (
+                            <button
+                                type="button"
+                                className="groups-archive-bar"
+                                onClick={() => setShowArchiveView(true)}
+                            >
+                                <IconArchive className="groups-archive-bar__icon" />
+                                <span>Архив</span>
+                                {archivedUnreadTotal > 0 ? (
+                                    <span className="groups-archive-bar__badge">
+                                        {archivedUnreadTotal > 99 ? "99+" : archivedUnreadTotal}
+                                    </span>
+                                ) : null}
+                            </button>
+                        ) : null}
+
+                        {showArchiveView ? (
+                            <button
+                                type="button"
+                                className="groups-archive-back"
+                                onClick={() => setShowArchiveView(false)}
+                            >
+                                ← Чаттарға оралу
+                            </button>
+                        ) : null}
+
+                        <div className="groups-sidebar__scroll">
                     {sideTab === "groups" && (
                     <>
                     {canManage && (
@@ -1647,51 +1834,45 @@ export default function Groups() {
                             </button>
                         </form>
                     )}
-                    {myGroups.length === 0 ? (
-                        <p className="muted groups-sidebar__empty">Әзірге топқа қосылмағансыз.</p>
+                    {visibleGroups.length === 0 ? (
+                        <p className="muted groups-sidebar__empty">
+                            {showArchiveView ? "Архив бос." : "Әзірге топқа қосылмағансыз."}
+                        </p>
                     ) : (
                         <div className="groups-list">
-                            {myGroups.map((g) => (
-                                <button
+                            {visibleGroups.map((g) => (
+                                <ChatListItem
                                     key={g.id}
-                                    className={`groups-list__item ${selectedGroupId === g.id ? "is-active" : ""}`}
+                                    name={g.name}
+                                    preview={groupSubtitle(g)}
+                                    time={fmtChatWhen(g.last_at || g.created_at)}
+                                    unread={Number(g.unread_count || 0)}
+                                    isActive={selectedGroupId === g.id}
+                                    archiveMode={showArchiveView}
+                                    onArchive={() => archiveGroup(g.id)}
+                                    onRestore={() => unarchiveGroup(g.id)}
                                     onClick={() => {
                                         didAutoSelectOnceRef.current = true;
                                         setActiveDirect(null);
                                         setSelectedGroupId(g.id);
                                     }}
-                                >
-                                    <span className="groups-card__avatar-wrap">
-                                        <span className="groups-list__avatar">
-                                            {g.photo_url ? (
-                                                <img
-                                                    src={normalizePhoto(g.photo_url)}
-                                                    alt=""
-                                                    style={{
-                                                        width: "100%",
-                                                        height: "100%",
-                                                        objectFit: "cover",
-                                                        display: "block",
-                                                    }}
-                                                />
-                                            ) : (
-                                                String(g.name || "Г")?.slice(0, 1)?.toUpperCase()
-                                            )}
-                                        </span>
-                                    </span>
-                                    <span className="groups-list__titleBlock">
-                                        <span className="groups-list__name">{g.name}</span>
-                                        <span className="groups-list__meta">{groupSubtitle(g)}</span>
-                                    </span>
-                                    <span className="groups-list__right">
-                                        <span className="groups-list__time">{fmtChatWhen(g.last_at || g.created_at)}</span>
-                                        {Number(g.unread_count || 0) > 0 ? (
-                                            <span className="groups-list__badge">{Number(g.unread_count || 0)}</span>
+                                    avatar={
+                                        g.photo_url ? (
+                                            <img
+                                                src={normalizePhoto(g.photo_url)}
+                                                alt=""
+                                                style={{
+                                                    width: "100%",
+                                                    height: "100%",
+                                                    objectFit: "cover",
+                                                    display: "block",
+                                                }}
+                                            />
                                         ) : (
-                                            <span className="groups-card__chev" aria-hidden="true">›</span>
-                                        )}
-                                    </span>
-                                </button>
+                                            String(g.name || "Г")?.slice(0, 1)?.toUpperCase()
+                                        )
+                                    }
+                                />
                             ))}
                         </div>
                     )}
@@ -1700,14 +1881,23 @@ export default function Groups() {
 
                     {sideTab === "direct" && (
                     <>
-                    {directChats.length === 0 ? (
-                        <p className="muted groups-sidebar__empty">Әзірге жеке чат жоқ.</p>
+                    {visibleDirectChats.length === 0 ? (
+                        <p className="muted groups-sidebar__empty">
+                            {showArchiveView ? "Архив бос." : "Әзірге жеке чат жоқ."}
+                        </p>
                     ) : (
                         <div className="groups-list groups-list--direct">
-                            {directChats.map((c) => (
-                                <button
+                            {visibleDirectChats.map((c) => (
+                                <ChatListItem
                                     key={c.id}
-                                    className={`groups-list__item ${activeDirect?.id === c.id ? "is-active" : ""}`}
+                                    name={c.peer_name || "Қатысушы"}
+                                    preview={lastMessagePreview(c.last_message)}
+                                    time={fmtChatWhen(c.last_at)}
+                                    unread={Number(unreadByChat[c.id] || 0)}
+                                    isActive={activeDirect?.id === c.id}
+                                    archiveMode={showArchiveView}
+                                    onArchive={() => archiveDirectChat(c.id)}
+                                    onRestore={() => unarchiveDirectChat(c.id)}
                                     onClick={() => {
                                         setDirectMessages([]);
                                         initialDirectScrollDoneRef.current = false;
@@ -1717,36 +1907,26 @@ export default function Groups() {
                                         setSettingsOpen(false);
                                         loadDirectMessages(c.id);
                                     }}
-                                >
-                                    <span className="groups-card__avatar-wrap">
-                                        <span className="groups-list__avatar">
-                                            <img
-                                                src={directAvatarSrc(c)}
-                                                alt=""
-                                                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                                            />
-                                        </span>
-                                    </span>
-                                    <span className="groups-list__titleBlock">
-                                        <span className="groups-list__name">{c.peer_name || "Қатысушы"}</span>
-                                        <span className="groups-list__meta">
-                                            {(c.last_message || "").trim() ? c.last_message : "Хабарлама жоқ"}
-                                        </span>
-                                    </span>
-                                    <span className="groups-list__right">
-                                        <span className="groups-list__time">{fmtChatWhen(c.last_at)}</span>
-                                        {Number(unreadByChat[c.id] || 0) > 0 ? (
-                                            <span className="groups-list__badge">{Number(unreadByChat[c.id] || 0)}</span>
-                                        ) : (
-                                            <span className="groups-card__chev" aria-hidden="true">›</span>
-                                        )}
-                                    </span>
-                                </button>
+                                    avatar={
+                                        <img
+                                            src={directAvatarSrc(c)}
+                                            alt=""
+                                            style={{
+                                                width: "100%",
+                                                height: "100%",
+                                                objectFit: "cover",
+                                                display: "block",
+                                            }}
+                                        />
+                                    }
+                                />
                             ))}
                         </div>
                     )}
                     </>
                     )}
+                        </div>
+                    </div>
                 </aside>
 
                 <section className="groups-chat">
@@ -1819,15 +1999,20 @@ export default function Groups() {
                                         )}
                                         <div ref={directMessagesEndRef} style={{ height: 1 }} />
                                     </div>
-                                    <form onSubmit={sendDirectMessage} className="groups-chat__composer groups-composer">
+                                    <form onSubmit={sendDirectMessage} className="groups-chat__composer groups-composer groups-composer--wa">
                                         <input
-                                            className="input groups-field groups-chat__input"
-                                            placeholder="Жеке хабарлама..."
+                                            className="input groups-field groups-composer__input"
+                                            placeholder="Хабарлама..."
                                             value={directText}
                                             onChange={(e) => setDirectText(e.target.value)}
                                         />
-                                        <button className="btn groups-btn groups-btn--primary groups-chat__send" type="submit">
-                                            Жіберу
+                                        <button
+                                            className="groups-composer__send"
+                                            type="submit"
+                                            disabled={!directText.trim()}
+                                            aria-label="Жіберу"
+                                        >
+                                            <IconSend className="groups-composer__send-icon" />
                                         </button>
                                     </form>
                                     </div>
@@ -2106,15 +2291,20 @@ export default function Groups() {
                                     )}
                                     <div ref={groupMessagesEndRef} style={{ height: 1 }} />
                                 </div>
-                                <form onSubmit={sendMessage} className="groups-chat__composer groups-composer">
+                                <form onSubmit={sendMessage} className="groups-chat__composer groups-composer groups-composer--wa">
                                     <input
-                                        className="input groups-field groups-chat__input"
+                                        className="input groups-field groups-composer__input"
                                         placeholder="Хабарлама..."
                                         value={msgText}
                                         onChange={(e) => setMsgText(e.target.value)}
                                     />
-                                    <button className="btn groups-btn groups-btn--primary groups-chat__send" type="submit">
-                                        Жіберу
+                                    <button
+                                        className="groups-composer__send"
+                                        type="submit"
+                                        disabled={!msgText.trim()}
+                                        aria-label="Жіберу"
+                                    >
+                                        <IconSend className="groups-composer__send-icon" />
                                     </button>
                                 </form>
                                 </div>

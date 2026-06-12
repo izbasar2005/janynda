@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api, token } from "../services/api";
+import { ensureDirectSubscribed } from "../services/chatRealtime";
 import { wsClient } from "../services/ws";
 
 function fmtTime(d) {
@@ -38,6 +39,44 @@ export default function DirectChat() {
     const initialScrollDoneRef = useRef(false);
     const autoScrollOnceRef = useRef(false);
     const nearBottomRef = useRef(true);
+    const seenMsgIdsRef = useRef(new Set());
+
+    function appendIncomingMessage(prev, m) {
+        const next = Array.isArray(prev) ? [...prev] : [];
+        const mid = Number(m?.id || 0);
+        if (mid) {
+            if (seenMsgIdsRef.current.has(mid)) return next;
+            seenMsgIdsRef.current.add(mid);
+        } else if (next.some((x) => x.body === m.body && x.created_at === m.created_at)) {
+            return next;
+        }
+        next.push(m);
+        return next;
+    }
+
+    function handleDirectMessagePayload(p) {
+        const cid = Number(chatId);
+        if (!p || !cid) return;
+        setMessages((prev) =>
+            appendIncomingMessage(prev, {
+                id: p.id,
+                sender_id: p.sender_id,
+                sender_name: p.sender_name,
+                body: p.body,
+                created_at: p.created_at,
+                is_read_by_peer: false,
+                read_at_by_peer: null,
+            })
+        );
+        autoScrollOnceRef.current = nearBottomRef.current || Number(p.sender_id || 0) === me;
+        if (Number(p.sender_id || 0) && Number(p.sender_id || 0) !== me) {
+            api(`/api/v1/direct-chats/${cid}/read`, {
+                method: "POST",
+                auth: true,
+                body: { last_message_id: Number(p.id || 0) },
+            }).catch(() => {});
+        }
+    }
 
     function isNearBottom(container, threshold = 100) {
         if (!container) return true;
@@ -68,37 +107,28 @@ export default function DirectChat() {
     }, [chatId]);
 
     useEffect(() => {
+        seenMsgIdsRef.current = new Set();
+    }, [chatId]);
+
+    useEffect(() => {
         if (!chatId || !token()) return;
         const cid = Number(chatId);
         if (!cid) return;
 
-        wsClient.subscribe("direct", cid);
+        ensureDirectSubscribed(cid);
         const off = wsClient.on((evt) => {
-            if (!evt || evt.channel !== "direct" || Number(evt.id) !== cid) return;
+            if (!evt) return;
+
+            if (evt.channel === "user" && Number(evt.id) === me && evt.type === "direct:message" && evt.payload) {
+                const p = evt.payload;
+                const incomingCid = Number(p.conversation_id || p.direct_id || 0);
+                if (incomingCid === cid) handleDirectMessagePayload(p);
+                return;
+            }
+
+            if (evt.channel !== "direct" || Number(evt.id) !== cid) return;
             if (evt.type === "message:new" && evt.payload) {
-                setMessages((prev) => {
-                    const next = Array.isArray(prev) ? [...prev] : [];
-                    const m = evt.payload;
-                    // normalize payload to existing message shape
-                    next.push({
-                        id: m.id,
-                        sender_id: m.sender_id,
-                        sender_name: m.sender_name,
-                        body: m.body,
-                        created_at: m.created_at,
-                        is_read_by_peer: false,
-                        read_at_by_peer: null,
-                    });
-                    return next;
-                });
-                autoScrollOnceRef.current = nearBottomRef.current || Number(evt.payload?.sender_id || 0) === me;
-                if (Number(evt.payload?.sender_id || 0) && Number(evt.payload?.sender_id || 0) !== me) {
-                    api(`/api/v1/direct-chats/${cid}/read`, {
-                        method: "POST",
-                        auth: true,
-                        body: { last_message_id: Number(evt.payload?.id || 0) },
-                    }).catch(() => {});
-                }
+                handleDirectMessagePayload(evt.payload);
             }
             if (evt.type === "message:read" && evt.payload) {
                 const { reader_user_id, last_message_id, read_at } = evt.payload || {};
@@ -183,7 +213,7 @@ export default function DirectChat() {
         <div className="page chat-page">
             <div className="page-header chat-page__head">
                 <Link to="/groups" className="muted" style={{ marginBottom: 8, display: "inline-block" }}>
-                    ← Топтарға оралу
+                    ← Хабарламаларға оралу
                 </Link>
                 <h2 className="page-header__title">{title}</h2>
             </div>

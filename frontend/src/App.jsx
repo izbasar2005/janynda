@@ -1,6 +1,8 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { useEffect } from "react";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
+import { initChatRealtime } from "./services/chatRealtime";
 import Home from "./pages/Home.jsx";
 import Doctors from "./pages/Doctors.jsx";
 import DoctorDetail from "./pages/DoctorDetail.jsx";
@@ -41,6 +43,11 @@ export default function App() {
     const loc = useLocation();
     const isMobilePreview = loc.pathname === "/mobile-preview";
     const isGroupsPage = loc.pathname === "/groups";
+
+    useEffect(() => {
+        if (isMobilePreview) return undefined;
+        return initChatRealtime();
+    }, [isMobilePreview]);
 
     return (
         <div
