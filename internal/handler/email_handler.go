@@ -23,7 +23,8 @@ func NewEmailHandler(db *gorm.DB) *EmailHandler {
 }
 
 type EmailSendCodeRequest struct {
-	Email string `json:"email"`
+	Email        string `json:"email"`
+	CaptchaToken string `json:"captcha_token"`
 }
 
 type EmailVerifyRequest struct {
@@ -149,6 +150,10 @@ func (h *EmailHandler) ForgotPasswordEmailSendCode(w http.ResponseWriter, r *htt
 	var u model.User
 	if err := h.db.Where("email = ?", req.Email).First(&u).Error; err != nil {
 		http.Error(w, `{"error":"Бұл email тіркелмеген"}`, http.StatusNotFound)
+		return
+	}
+
+	if !requireCaptcha(w, r, req.CaptchaToken) {
 		return
 	}
 

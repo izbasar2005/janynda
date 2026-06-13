@@ -22,7 +22,8 @@ func NewSMSHandler(db *gorm.DB) *SMSHandler {
 }
 
 type SendCodeRequest struct {
-	Phone string `json:"phone"`
+	Phone        string `json:"phone"`
+	CaptchaToken string `json:"captcha_token"`
 }
 
 type VerifyCodeRequest struct {
@@ -53,6 +54,10 @@ func (h *SMSHandler) SendCode(w http.ResponseWriter, r *http.Request) {
 	req.Phone = strings.TrimSpace(req.Phone)
 	if req.Phone == "" {
 		http.Error(w, `{"error":"Телефон нөмірін енгізіңіз"}`, http.StatusBadRequest)
+		return
+	}
+
+	if !requireCaptcha(w, r, req.CaptchaToken) {
 		return
 	}
 
@@ -143,6 +148,10 @@ func (h *SMSHandler) ForgotPasswordSendCode(w http.ResponseWriter, r *http.Reque
 	var u model.User
 	if err := h.db.Where("phone = ?", req.Phone).First(&u).Error; err != nil {
 		http.Error(w, `{"error":"Бұл нөмір тіркелмеген"}`, http.StatusNotFound)
+		return
+	}
+
+	if !requireCaptcha(w, r, req.CaptchaToken) {
 		return
 	}
 
