@@ -45,6 +45,7 @@ services:
       CLOUDINARY_CLOUD_NAME: "${CLOUDINARY_CLOUD_NAME}"
       CLOUDINARY_API_KEY: "${CLOUDINARY_API_KEY}"
       CLOUDINARY_API_SECRET: "${CLOUDINARY_API_SECRET}"
+      TURNSTILE_SECRET_KEY: "${TURNSTILE_SECRET_KEY}"
     ports:
       - "8080:8080"
     volumes:
@@ -67,6 +68,7 @@ services:
         condition: service_healthy
     environment:
       VITE_PROXY_TARGET: "http://api:8080"
+      VITE_TURNSTILE_SITE_KEY: "0x4AAAAAADj_iE0yMQFExt6Y"
       CHOKIDAR_USEPOLLING: "true"
     ports:
       - "5173:5173"

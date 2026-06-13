@@ -30,15 +30,12 @@ func (h *UserDBHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// JWT бар қолданушы ғана шақырады (router арқылы).
-	uid, ok := r.Context().Value(middleware.CtxUserID).(uint)
-	_ = ok
+	uid, _ := r.Context().Value(middleware.CtxUserID).(uint)
 	if uid == 0 {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	// /api/v1/users/:id
 	idStr := strings.TrimPrefix(r.URL.Path, "/api/v1/users/")
 	idStr = strings.Trim(idStr, "/")
 	targetID, err := strconv.ParseUint(idStr, 10, 32)
@@ -53,12 +50,29 @@ func (h *UserDBHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Password json tag is "-"
 	u.Password = ""
-
 	viewerRole, _ := r.Context().Value(middleware.CtxRole).(string)
+	photoURL := strings.TrimSpace(u.AvatarURL)
 
-	// Дәрігер тек өзіне жазылған пациенттің кең профилін көре алады
+	// Own profile — full access including phone.
+	if uid == u.ID {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"id":         u.ID,
+			"full_name":  u.FullName,
+			"role":       u.Role,
+			"phone":      u.Phone,
+			"gender":     u.Gender,
+			"iin":        u.IIN,
+			"first_name": u.FirstName,
+			"last_name":  u.LastName,
+			"patronymic": u.Patronymic,
+			"created_at": u.CreatedAt,
+			"photo_url":  photoURL,
+		})
+		return
+	}
+
+	// Doctor may view extended patient profile only with an appointment relationship.
 	if strings.EqualFold(viewerRole, "doctor") && strings.EqualFold(u.Role, "patient") {
 		var relCount int64
 		if err := h.db.Model(&model.Appointment{}).
@@ -84,16 +98,12 @@ func (h *UserDBHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	photoURL := strings.TrimSpace(u.AvatarURL)
-
+	// Default: public profile card for chat UI — no phone or IIN.
 	_ = json.NewEncoder(w).Encode(map[string]any{
-		"id":         u.ID,
-		"full_name":  u.FullName,
-		"role":       u.Role,
-		"phone":      u.Phone,
-		"gender":     u.Gender,
-		"created_at": u.CreatedAt,
-		"photo_url":  photoURL,
+		"id":        u.ID,
+		"full_name": u.FullName,
+		"role":      u.Role,
+		"gender":    u.Gender,
+		"photo_url": photoURL,
 	})
 }
-

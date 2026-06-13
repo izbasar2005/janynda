@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -16,6 +17,19 @@ import (
 
 func NewRouter(db *gorm.DB) http.Handler {
 	mux := http.NewServeMux()
+
+	jwt := func(h http.Handler) http.Handler {
+		return middleware.AuthJWT(db, h)
+	}
+	optJWT := func(h http.Handler) http.Handler {
+		return middleware.OptionalAuthJWT(db, h)
+	}
+
+	loginRL := middleware.RateLimit(10, time.Minute)
+	registerRL := middleware.RateLimit(5, time.Minute)
+	smsRL := middleware.RateLimit(5, time.Minute)
+	uploadRL := middleware.RateLimit(20, time.Minute)
+	aiRL := middleware.RateLimit(10, time.Minute)
 
 	// ---------------- HEALTH ----------------
 
@@ -40,27 +54,27 @@ func NewRouter(db *gorm.DB) http.Handler {
 
 	// Auth (public)
 	ah := handler.NewAuthHandler(db)
-	mux.HandleFunc("/api/v1/auth/register", ah.Register)
-	mux.HandleFunc("/api/v1/auth/login", ah.Login)
+	mux.Handle("/api/v1/auth/register", registerRL(http.HandlerFunc(ah.Register)))
+	mux.Handle("/api/v1/auth/login", loginRL(http.HandlerFunc(ah.Login)))
 
 	// AI test (auth) — quick check that Anthropic works
 	aiTestH := handler.NewAITestHandler()
-	mux.Handle("/api/v1/ai/test", middleware.AuthJWT(http.HandlerFunc(aiTestH.Test)))
+	mux.Handle("/api/v1/ai/test", aiRL(jwt(http.HandlerFunc(aiTestH.Test))))
 
 	// SMS verification (public)
 	smsH := handler.NewSMSHandler(db)
-	mux.HandleFunc("/api/v1/sms/send-code", smsH.SendCode)
-	mux.HandleFunc("/api/v1/sms/verify-code", smsH.VerifyCode)
-	mux.HandleFunc("/api/v1/auth/forgot-password/send-code", smsH.ForgotPasswordSendCode)
-	mux.HandleFunc("/api/v1/auth/forgot-password/check-code", smsH.CheckCode)
-	mux.HandleFunc("/api/v1/auth/forgot-password/reset", smsH.ResetPassword)
+	mux.Handle("/api/v1/sms/send-code", smsRL(http.HandlerFunc(smsH.SendCode)))
+	mux.Handle("/api/v1/sms/verify-code", smsRL(http.HandlerFunc(smsH.VerifyCode)))
+	mux.Handle("/api/v1/auth/forgot-password/send-code", smsRL(http.HandlerFunc(smsH.ForgotPasswordSendCode)))
+	mux.Handle("/api/v1/auth/forgot-password/check-code", smsRL(http.HandlerFunc(smsH.CheckCode)))
+	mux.Handle("/api/v1/auth/forgot-password/reset", smsRL(http.HandlerFunc(smsH.ResetPassword)))
 
 	// Email verification
 	emailH := handler.NewEmailHandler(db)
 	mux.Handle("/api/v1/email/send-code",
-		middleware.AuthJWT(http.HandlerFunc(emailH.SendEmailCode)))
+		middleware.AuthJWT(db, http.HandlerFunc(emailH.SendEmailCode)))
 	mux.Handle("/api/v1/email/verify-code",
-		middleware.AuthJWT(http.HandlerFunc(emailH.VerifyEmailCode)))
+		middleware.AuthJWT(db, http.HandlerFunc(emailH.VerifyEmailCode)))
 	mux.HandleFunc("/api/v1/auth/forgot-password/email/send-code", emailH.ForgotPasswordEmailSendCode)
 	mux.HandleFunc("/api/v1/auth/forgot-password/email/check-code", emailH.CheckEmailCode)
 	mux.HandleFunc("/api/v1/auth/forgot-password/email/reset", emailH.ResetPasswordByEmail)
@@ -74,24 +88,24 @@ func NewRouter(db *gorm.DB) http.Handler {
 	// ---------------- PROTECTED (JWT) ----------------
 
 	// Profile (JWT required)
-	mux.Handle("/api/v1/profile", middleware.AuthJWT(http.HandlerFunc(handler.Profile)))
+	mux.Handle("/api/v1/profile", middleware.AuthJWT(db, http.HandlerFunc(handler.Profile)))
 
 	// Me (JWT required)
 	mh := handler.NewMeHandler(db)
 	mux.HandleFunc("/api/v1/me", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
-			middleware.AuthJWT(http.HandlerFunc(mh.Me)).ServeHTTP(w, r)
+			middleware.AuthJWT(db, http.HandlerFunc(mh.Me)).ServeHTTP(w, r)
 			return
 		}
 		if r.Method == http.MethodPatch || r.Method == http.MethodPut {
-			middleware.AuthJWT(http.HandlerFunc(mh.Update)).ServeHTTP(w, r)
+			middleware.AuthJWT(db, http.HandlerFunc(mh.Update)).ServeHTTP(w, r)
 			return
 		}
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 	})
 	mux.HandleFunc("/api/v1/me/password", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPatch || r.Method == http.MethodPost {
-			middleware.AuthJWT(http.HandlerFunc(mh.ChangePassword)).ServeHTTP(w, r)
+			middleware.AuthJWT(db, http.HandlerFunc(mh.ChangePassword)).ServeHTTP(w, r)
 			return
 		}
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
@@ -99,49 +113,49 @@ func NewRouter(db *gorm.DB) http.Handler {
 
 	// Users (JWT required) — безопасный get by id
 	uh := handler.NewUserDBHandler(db)
-	mux.Handle("/api/v1/users/", middleware.AuthJWT(http.HandlerFunc(uh.GetByID)))
+	mux.Handle("/api/v1/users/", middleware.AuthJWT(db, http.HandlerFunc(uh.GetByID)))
 
 	// Appointments (JWT required)
 	aph := handler.NewAppointmentHandler(db)
 
 	// Create
 	mux.Handle("/api/v1/appointments",
-		middleware.AuthJWT(http.HandlerFunc(aph.Create)),
+		middleware.AuthJWT(db, http.HandlerFunc(aph.Create)),
 	)
 
 	// My
 	mux.Handle("/api/v1/appointments/my",
-		middleware.AuthJWT(http.HandlerFunc(aph.My)),
+		middleware.AuthJWT(db, http.HandlerFunc(aph.My)),
 	)
 
 	// PATCH .../appointments/{id}/cancel | PATCH .../appointments/{id}
 	mux.Handle("/api/v1/appointments/",
-		middleware.AuthJWT(http.HandlerFunc(aph.HandleWithID)),
+		middleware.AuthJWT(db, http.HandlerFunc(aph.HandleWithID)),
 	)
 
 	// Reviews (JWT, patient: create)
 	revH := handler.NewReviewHandler(db)
 	mux.Handle("/api/v1/reviews",
-		middleware.AuthJWT(http.HandlerFunc(revH.Create)),
+		middleware.AuthJWT(db, http.HandlerFunc(revH.Create)),
 	)
 	mux.Handle("/api/v1/reviews/my",
-		middleware.AuthJWT(http.HandlerFunc(revH.My)),
+		middleware.AuthJWT(db, http.HandlerFunc(revH.My)),
 	)
 
 	// Platform feedback (GET public with optional auth for is_mine, POST JWT, DELETE JWT author or admin)
 	pfh := handler.NewPlatformFeedbackHandler(db)
 	mux.HandleFunc("/api/v1/feedback", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
-			middleware.OptionalAuthJWT(http.HandlerFunc(pfh.List)).ServeHTTP(w, r)
+			optJWT(http.HandlerFunc(pfh.List)).ServeHTTP(w, r)
 			return
 		}
 		if r.Method == http.MethodPost {
-			middleware.AuthJWT(http.HandlerFunc(pfh.Create)).ServeHTTP(w, r)
+			middleware.AuthJWT(db, http.HandlerFunc(pfh.Create)).ServeHTTP(w, r)
 			return
 		}
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 	})
-	mux.Handle("/api/v1/feedback/", middleware.AuthJWT(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("/api/v1/feedback/", middleware.AuthJWT(db, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
 			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 			return
@@ -153,17 +167,17 @@ func NewRouter(db *gorm.DB) http.Handler {
 	nh := handler.NewNotificationHandler(db)
 	mux.HandleFunc("/api/v1/notifications", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
-			middleware.AuthJWT(http.HandlerFunc(nh.List)).ServeHTTP(w, r)
+			middleware.AuthJWT(db, http.HandlerFunc(nh.List)).ServeHTTP(w, r)
 			return
 		}
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 	})
-	mux.Handle("/api/v1/notifications/", middleware.AuthJWT(http.HandlerFunc(nh.HandleWithID)))
+	mux.Handle("/api/v1/notifications/", middleware.AuthJWT(db, http.HandlerFunc(nh.HandleWithID)))
 
 	// Diary (JWT) — жеке күнделік
 	dhDiary := handler.NewDiaryHandler(db)
 	mux.Handle("/api/v1/diary",
-		middleware.AuthJWT(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		middleware.AuthJWT(db, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.Method == http.MethodGet {
 				dhDiary.ListMy(w, r)
 				return
@@ -176,16 +190,16 @@ func NewRouter(db *gorm.DB) http.Handler {
 		})),
 	)
 	mux.Handle("/api/v1/diary/summary",
-		middleware.AuthJWT(http.HandlerFunc(dhDiary.Summary)),
+		middleware.AuthJWT(db, http.HandlerFunc(dhDiary.Summary)),
 	)
 
 	// Groups / group chat (JWT)
 	hub := realtime.NewHub()
 	gh := handler.NewGroupHandler(db, hub)
-	mux.Handle("/api/v1/groups", middleware.AuthJWT(http.HandlerFunc(gh.HandleRoot)))
-	mux.Handle("/api/v1/groups/my", middleware.AuthJWT(http.HandlerFunc(gh.ListMy)))
-	mux.Handle("/api/v1/groups/candidates", middleware.AuthJWT(http.HandlerFunc(gh.ListCandidates)))
-	mux.Handle("/api/v1/groups/", middleware.AuthJWT(http.HandlerFunc(gh.HandleWithID)))
+	mux.Handle("/api/v1/groups", middleware.AuthJWT(db, http.HandlerFunc(gh.HandleRoot)))
+	mux.Handle("/api/v1/groups/my", middleware.AuthJWT(db, http.HandlerFunc(gh.ListMy)))
+	mux.Handle("/api/v1/groups/candidates", middleware.AuthJWT(db, http.HandlerFunc(gh.ListCandidates)))
+	mux.Handle("/api/v1/groups/", middleware.AuthJWT(db, http.HandlerFunc(gh.HandleWithID)))
 
 	// WebSocket realtime (JWT via Sec-WebSocket-Protocol or Authorization)
 	wsH := handler.NewWSHandler(db, hub)
@@ -194,37 +208,37 @@ func NewRouter(db *gorm.DB) http.Handler {
 	// Conversations / chat (JWT)
 	convH := handler.NewConversationHandler(db, hub)
 	mux.HandleFunc("/api/v1/conversations/by-appointment/", func(w http.ResponseWriter, r *http.Request) {
-		middleware.AuthJWT(http.HandlerFunc(convH.GetByAppointment)).ServeHTTP(w, r)
+		middleware.AuthJWT(db, http.HandlerFunc(convH.GetByAppointment)).ServeHTTP(w, r)
 	})
-	mux.Handle("/api/v1/conversations/", middleware.AuthJWT(http.HandlerFunc(convH.HandleWithID)))
+	mux.Handle("/api/v1/conversations/", middleware.AuthJWT(db, http.HandlerFunc(convH.HandleWithID)))
 
 	// Direct chats between group participants (JWT)
 	directH := handler.NewDirectChatHandler(db, hub)
-	mux.Handle("/api/v1/direct-chats", middleware.AuthJWT(http.HandlerFunc(directH.HandleRoot)))
-	mux.Handle("/api/v1/direct-chats/start", middleware.AuthJWT(http.HandlerFunc(directH.Start)))
-	mux.Handle("/api/v1/direct-chats/", middleware.AuthJWT(http.HandlerFunc(directH.HandleWithID)))
+	mux.Handle("/api/v1/direct-chats", middleware.AuthJWT(db, http.HandlerFunc(directH.HandleRoot)))
+	mux.Handle("/api/v1/direct-chats/start", middleware.AuthJWT(db, http.HandlerFunc(directH.Start)))
+	mux.Handle("/api/v1/direct-chats/", middleware.AuthJWT(db, http.HandlerFunc(directH.HandleWithID)))
 
 	// Referrals (JWT)
 	refH := handler.NewReferralHandler(db)
 	mux.Handle("/api/v1/referrals",
-		middleware.AuthJWT(http.HandlerFunc(refH.Create)),
+		middleware.AuthJWT(db, http.HandlerFunc(refH.Create)),
 	)
 	mux.Handle("/api/v1/referrals/my",
-		middleware.AuthJWT(http.HandlerFunc(refH.ListMy)),
+		middleware.AuthJWT(db, http.HandlerFunc(refH.ListMy)),
 	)
 	mux.Handle("/api/v1/referrals/",
-		middleware.AuthJWT(http.HandlerFunc(refH.GetByID)),
+		middleware.AuthJWT(db, http.HandlerFunc(refH.GetByID)),
 	)
 
 	// Patient AI scores (psychologist + head_psychologist)
 	psh := handler.NewPatientScoreHandler(db)
 	mux.Handle("/api/v1/psych/patients",
-		middleware.AuthJWT(
+		middleware.AuthJWT(db, 
 			middleware.PsychologistOrHead(http.HandlerFunc(psh.ListPatients)),
 		),
 	)
 	mux.Handle("/api/v1/patients/",
-		middleware.AuthJWT(
+		middleware.AuthJWT(db, 
 			middleware.PsychologistOrHead(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if strings.HasSuffix(r.URL.Path, "/ai-score") {
 					psh.GetPatientScore(w, r)
@@ -238,11 +252,11 @@ func NewRouter(db *gorm.DB) http.Handler {
 	// Psychologist cases (psychologist + head_psychologist)
 	pch := handler.NewPsychCaseHandler(db)
 	mux.Handle("/api/v1/psych/cases",
-		middleware.AuthJWT(
+		middleware.AuthJWT(db, 
 			middleware.PsychologistOrHead(http.HandlerFunc(pch.List)),
 		),
 	)
-	mux.Handle("/api/v1/psych/cases/", middleware.AuthJWT(
+	mux.Handle("/api/v1/psych/cases/", middleware.AuthJWT(db, 
 		middleware.PsychologistOrHead(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if strings.HasSuffix(r.URL.Path, "/diary") {
 				pch.CaseDiary(w, r)
@@ -263,24 +277,24 @@ func NewRouter(db *gorm.DB) http.Handler {
 	// Распределение пациентов по психологам (только главный психолог).
 	pah := handler.NewPsychAssignmentHandler(db)
 	mux.Handle("/api/v1/psych/psychologists",
-		middleware.AuthJWT(
+		middleware.AuthJWT(db, 
 			middleware.HeadPsychologistOnly(http.HandlerFunc(pah.ListPsychologists)),
 		),
 	)
 	mux.Handle("/api/v1/psych/assignments",
-		middleware.AuthJWT(
+		middleware.AuthJWT(db, 
 			middleware.HeadPsychologistOnly(http.HandlerFunc(pah.Assign)),
 		),
 	)
 	mux.Handle("/api/v1/psych/assignments/",
-		middleware.AuthJWT(
+		middleware.AuthJWT(db, 
 			middleware.HeadPsychologistOnly(http.HandlerFunc(pah.Unassign)),
 		),
 	)
 
 	// GET /api/v1/appointments/all (super_admin only — барлық жазылулар тек супер админге)
 	mux.Handle("/api/v1/appointments/all",
-		middleware.AuthJWT(
+		middleware.AuthJWT(db, 
 			middleware.SuperAdminOnly(http.HandlerFunc(aph.All)),
 		),
 	)
@@ -288,12 +302,12 @@ func NewRouter(db *gorm.DB) http.Handler {
 	// Admin Users (admin + super_admin; list/update logic by role in handler)
 	auh := handler.NewAdminUsersHandler(db)
 	mux.Handle("/api/v1/admin/users",
-		middleware.AuthJWT(
+		middleware.AuthJWT(db, 
 			middleware.AdminOrSuperAdmin(http.HandlerFunc(auh.List)),
 		),
 	)
 	mux.Handle("/api/v1/admin/users/",
-		middleware.AuthJWT(
+		middleware.AuthJWT(db, 
 			middleware.AdminOrSuperAdmin(http.HandlerFunc(auh.UpdateRole)),
 		),
 	)
@@ -301,17 +315,17 @@ func NewRouter(db *gorm.DB) http.Handler {
 	// Admin Doctors
 	adh := handler.NewAdminDoctorsHandler(db)
 	mux.Handle("/api/v1/admin/doctor-users",
-		middleware.AuthJWT(
+		middleware.AuthJWT(db, 
 			middleware.AdminOnly(http.HandlerFunc(adh.ListDoctorUsers)),
 		),
 	)
 	mux.Handle("/api/v1/admin/doctors",
-		middleware.AuthJWT(
+		middleware.AuthJWT(db, 
 			middleware.AdminOnly(http.HandlerFunc(adh.CreateDoctorProfile)),
 		),
 	)
 	mux.Handle("/api/v1/admin/doctors/",
-		middleware.AuthJWT(
+		middleware.AuthJWT(db, 
 			middleware.AdminOnly(http.HandlerFunc(adh.UpdateDoctorProfile)),
 		),
 	)
@@ -319,7 +333,7 @@ func NewRouter(db *gorm.DB) http.Handler {
 	// Admin News (admin + super_admin)
 	anh := handler.NewAdminNewsHandler(db)
 	mux.HandleFunc("/api/v1/admin/news", func(w http.ResponseWriter, r *http.Request) {
-		h := middleware.AuthJWT(middleware.AdminOrSuperAdmin(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := middleware.AuthJWT(db, middleware.AdminOrSuperAdmin(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.Method == http.MethodGet {
 				anh.List(w, r)
 				return
@@ -333,7 +347,7 @@ func NewRouter(db *gorm.DB) http.Handler {
 		h.ServeHTTP(w, r)
 	})
 	mux.HandleFunc("/api/v1/admin/news/", func(w http.ResponseWriter, r *http.Request) {
-		h := middleware.AuthJWT(middleware.AdminOrSuperAdmin(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := middleware.AuthJWT(db, middleware.AdminOrSuperAdmin(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.Method == http.MethodPut {
 				anh.Update(w, r)
 				return
@@ -350,12 +364,12 @@ func NewRouter(db *gorm.DB) http.Handler {
 	// Admin AI scores & psych cases (admin + super_admin)
 	aiAdmH := handler.NewAdminAiHandler(db)
 	mux.Handle("/api/v1/admin/ai-scores",
-		middleware.AuthJWT(
+		middleware.AuthJWT(db, 
 			middleware.AdminOrSuperAdmin(http.HandlerFunc(aiAdmH.AllScores)),
 		),
 	)
 	mux.Handle("/api/v1/admin/psych-cases",
-		middleware.AuthJWT(
+		middleware.AuthJWT(db, 
 			middleware.AdminOrSuperAdmin(http.HandlerFunc(aiAdmH.AllCases)),
 		),
 	)
@@ -363,27 +377,27 @@ func NewRouter(db *gorm.DB) http.Handler {
 	// Admin Dashboard (super_admin only) — әр эндпоинт жеке тіркелген
 	dashH := handler.NewAdminDashboardHandler(db)
 	mux.Handle("/api/v1/admin/dashboard/stats",
-		middleware.AuthJWT(
+		middleware.AuthJWT(db, 
 			middleware.SuperAdminOnly(http.HandlerFunc(dashH.Stats)),
 		),
 	)
 	mux.Handle("/api/v1/admin/dashboard/low-reviews",
-		middleware.AuthJWT(
+		middleware.AuthJWT(db, 
 			middleware.SuperAdminOnly(http.HandlerFunc(dashH.LowReviews)),
 		),
 	)
 	mux.Handle("/api/v1/admin/dashboard/appointments-daily",
-		middleware.AuthJWT(
+		middleware.AuthJWT(db, 
 			middleware.SuperAdminOnly(http.HandlerFunc(dashH.AppointmentsDaily)),
 		),
 	)
 	mux.Handle("/api/v1/admin/dashboard/top-doctors",
-		middleware.AuthJWT(
+		middleware.AuthJWT(db, 
 			middleware.SuperAdminOnly(http.HandlerFunc(dashH.TopDoctors)),
 		),
 	)
 	mux.Handle("/api/v1/admin/dashboard/doctor-ratings",
-		middleware.AuthJWT(
+		middleware.AuthJWT(db, 
 			middleware.SuperAdminOnly(http.HandlerFunc(dashH.DoctorRatings)),
 		),
 	)
@@ -426,13 +440,13 @@ func NewRouter(db *gorm.DB) http.Handler {
 
 	// мысалы:
 	// avatar upload can happen before login (register) so keep it optional
-	mux.Handle("/api/v1/upload", middleware.OptionalAuthJWT(http.HandlerFunc(uploadH.Upload)))
+	mux.Handle("/api/v1/upload", uploadRL(optJWT(http.HandlerFunc(uploadH.Upload))))
 
 	mux.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("./static/uploads"))))
 
 	// ---------------- GLOBAL MIDDLEWARE ----------------
 
-	chain := middleware.Recover(middleware.Logger(mux))
+	chain := middleware.SecurityHeaders(middleware.Recover(middleware.Logger(mux)))
 	// WebSocket requires http.Hijacker; bypass middleware wrappers just in case.
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/v1/ws") {

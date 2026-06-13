@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
+	"strings"
 	"sync"
 	"time"
 )
@@ -15,14 +16,17 @@ type smsCode struct {
 }
 
 var (
-	codes   = make(map[string]*smsCode) // key = phone
-	codesMu sync.Mutex
+	codes          = make(map[string]*smsCode) // key = phone
+	codesMu        sync.Mutex
+	verifiedPhones = make(map[string]time.Time)
+	verifiedMu     sync.Mutex
 )
 
 const (
-	codeLength = 4
-	codeTTL    = 5 * time.Minute
+	codeLength  = 4
+	codeTTL     = 5 * time.Minute
 	maxAttempts = 5
+	verifiedTTL = 30 * time.Minute
 )
 
 func GenerateCode() string {
@@ -100,11 +104,45 @@ func CheckCode(phone, code string) (bool, string) {
 	return true, ""
 }
 
+// MarkPhoneVerified records that the phone passed SMS verification (registration flow).
+func MarkPhoneVerified(phone string) {
+	phone = strings.TrimSpace(phone)
+	if phone == "" {
+		return
+	}
+	verifiedMu.Lock()
+	verifiedPhones[phone] = time.Now().Add(verifiedTTL)
+	verifiedMu.Unlock()
+}
+
+// IsPhoneVerified reports whether the phone was verified recently and not yet consumed.
 func IsPhoneVerified(phone string) bool {
-	codesMu.Lock()
-	defer codesMu.Unlock()
-	_, exists := codes[phone]
-	return !exists
+	phone = strings.TrimSpace(phone)
+	if phone == "" {
+		return false
+	}
+	verifiedMu.Lock()
+	defer verifiedMu.Unlock()
+	exp, ok := verifiedPhones[phone]
+	if !ok {
+		return false
+	}
+	if time.Now().After(exp) {
+		delete(verifiedPhones, phone)
+		return false
+	}
+	return true
+}
+
+// ConsumePhoneVerified removes the verified flag after successful registration.
+func ConsumePhoneVerified(phone string) {
+	phone = strings.TrimSpace(phone)
+	if phone == "" {
+		return
+	}
+	verifiedMu.Lock()
+	delete(verifiedPhones, phone)
+	verifiedMu.Unlock()
 }
 
 func init() {

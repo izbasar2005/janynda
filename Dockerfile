@@ -5,6 +5,9 @@ WORKDIR /frontend
 COPY frontend/package*.json ./
 RUN npm ci
 
+ARG VITE_TURNSTILE_SITE_KEY=0x4AAAAAADj_iE0yMQFExt6Y
+ENV VITE_TURNSTILE_SITE_KEY=$VITE_TURNSTILE_SITE_KEY
+
 COPY frontend/ ./
 RUN npm run build
 

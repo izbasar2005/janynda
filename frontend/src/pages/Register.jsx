@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { api } from "../services/api";
+import TurnstileField from "../components/TurnstileField.jsx";
+import { TURNSTILE_ENABLED } from "../config/turnstile.js";
 
 function EyeIcon({ off = false }) {
   return (
@@ -63,6 +65,10 @@ export default function Register() {
   const [smsLoading, setSmsLoading] = useState(false);
   const [smsMsg, setSmsMsg] = useState("");
   const [countdown, setCountdown] = useState(0);
+  const [smsCaptchaToken, setSmsCaptchaToken] = useState("");
+  const [registerCaptchaToken, setRegisterCaptchaToken] = useState("");
+  const smsTurnstileRef = useRef(null);
+  const registerTurnstileRef = useRef(null);
 
   function startCountdown() {
     setCountdown(60);
@@ -82,12 +88,16 @@ export default function Register() {
       setSmsMsg("Телефон нөмірін енгізіңіз");
       return;
     }
+    if (TURNSTILE_ENABLED && !smsCaptchaToken) {
+      setSmsMsg("CAPTCHA растаңыз");
+      return;
+    }
     setSmsLoading(true);
     setSmsMsg("");
     try {
       const data = await api("/api/v1/sms/send-code", {
         method: "POST",
-        body: { phone: phone.trim() },
+        body: { phone: phone.trim(), captcha_token: smsCaptchaToken },
       });
       setSmsSent(true);
       if (data.method === "call") {
@@ -96,8 +106,12 @@ export default function Register() {
         setSmsMsg("SMS код жіберілді ✓");
       }
       startCountdown();
+      smsTurnstileRef.current?.reset();
+      setSmsCaptchaToken("");
     } catch (e) {
       setSmsMsg("Қате: " + e.message);
+      smsTurnstileRef.current?.reset();
+      setSmsCaptchaToken("");
     } finally {
       setSmsLoading(false);
     }
@@ -132,12 +146,20 @@ export default function Register() {
 
   async function uploadAvatar(file) {
     if (!file) return;
+    if (!phoneVerified) {
+      setMsg("Алдымен телефон нөмірін растаңыз");
+      return;
+    }
     setAvatarUploading(true);
     setMsg("");
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch("/api/v1/upload", { method: "POST", body: fd });
+      const res = await fetch("/api/v1/upload", {
+        method: "POST",
+        headers: { "X-Verified-Phone": phone.trim() },
+        body: fd,
+      });
       const text = await res.text();
       if (!res.ok) throw new Error(text || `HTTP ${res.status}`);
       const data = JSON.parse(text);
@@ -163,6 +185,11 @@ export default function Register() {
       return;
     }
 
+    if (TURNSTILE_ENABLED && !registerCaptchaToken) {
+      setMsg("CAPTCHA растаңыз");
+      return;
+    }
+
     const full_name =
         (lastName + " " + firstName + " " + patronymic).trim() ||
         login.trim();
@@ -181,11 +208,14 @@ export default function Register() {
           patronymic,
           gender,
           role,
+          captcha_token: registerCaptchaToken,
         },
       });
       nav("/login");
     } catch (e) {
       setMsg("Қате: " + e.message);
+      registerTurnstileRef.current?.reset();
+      setRegisterCaptchaToken("");
     }
   }
 
@@ -346,6 +376,14 @@ export default function Register() {
               </div>
             </div>
 
+            {!phoneVerified && (
+              <TurnstileField
+                ref={smsTurnstileRef}
+                onToken={setSmsCaptchaToken}
+                onExpire={() => setSmsCaptchaToken("")}
+              />
+            )}
+
             {/* SMS code input */}
             {smsSent && !phoneVerified && (
               <div className="form-field" style={{ marginTop: 4 }}>
@@ -438,6 +476,12 @@ export default function Register() {
             </div>
 
             {msg && <div className="form-error login-error">{msg}</div>}
+
+            <TurnstileField
+              ref={registerTurnstileRef}
+              onToken={setRegisterCaptchaToken}
+              onExpire={() => setRegisterCaptchaToken("")}
+            />
 
             <button className="login-btn" type="submit" disabled={!phoneVerified}>Тіркелу</button>
           </form>

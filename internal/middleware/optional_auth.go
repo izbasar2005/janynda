@@ -5,11 +5,14 @@ import (
 	"net/http"
 	"strings"
 
+	"gorm.io/gorm"
+
 	"janymda/internal/auth"
+	"janymda/internal/model"
 )
 
-// OptionalAuthJWT runs next. If Authorization Bearer is present and valid, sets user_id and role in context; otherwise continues without them.
-func OptionalAuthJWT(next http.Handler) http.Handler {
+// OptionalAuthJWT runs next. If Authorization Bearer is present and valid, sets user_id and role from DB.
+func OptionalAuthJWT(db *gorm.DB, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := r.Header.Get("Authorization")
 		if h == "" || !strings.HasPrefix(h, "Bearer ") {
@@ -22,8 +25,15 @@ func OptionalAuthJWT(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		ctx := context.WithValue(r.Context(), CtxUserID, claims.UserID)
-		ctx = context.WithValue(ctx, CtxRole, claims.Role)
+
+		var user model.User
+		if err := db.Select("id", "role").First(&user, claims.UserID).Error; err != nil {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), CtxUserID, user.ID)
+		ctx = context.WithValue(ctx, CtxRole, strings.ToLower(strings.TrimSpace(user.Role)))
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

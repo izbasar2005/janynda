@@ -14,6 +14,9 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"janymda/internal/middleware"
+	"janymda/internal/sms"
 )
 
 type UploadHandler struct{}
@@ -26,6 +29,15 @@ func (h *UploadHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
+	}
+
+	userID, _ := r.Context().Value(middleware.CtxUserID).(uint)
+	if userID == 0 {
+		verifiedPhone := strings.TrimSpace(r.Header.Get("X-Verified-Phone"))
+		if verifiedPhone == "" || !sms.IsPhoneVerified(verifiedPhone) {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
 	}
 
 	r.Body = http.MaxBytesReader(w, r.Body, 10<<20)

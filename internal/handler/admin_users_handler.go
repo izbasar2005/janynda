@@ -129,6 +129,15 @@ func (h *AdminUsersHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 
 	oldRole := strings.ToLower(strings.TrimSpace(u.Role))
 
+	// admin cannot change privileged users (super_admin, head_psychologist).
+	if callerRole == "admin" {
+		protected := map[string]bool{"super_admin": true, "head_psychologist": true}
+		if protected[oldRole] {
+			http.Error(w, "Cannot modify privileged user role", http.StatusForbidden)
+			return
+		}
+	}
+
 	u.Role = req.Role
 	if err := h.db.Save(&u).Error; err != nil {
 		http.Error(w, "DB error", http.StatusInternalServerError)

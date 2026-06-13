@@ -73,5 +73,8 @@ func ParseToken(tokenStr string) (*Claims, error) {
 	if !ok || !token.Valid {
 		return nil, errors.New("invalid token")
 	}
+	if claims.Issuer != "janymda" {
+		return nil, errors.New("invalid issuer")
+	}
 	return claims, nil
 }

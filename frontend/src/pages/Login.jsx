@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { api } from "../services/api";
+import TurnstileField from "../components/TurnstileField.jsx";
+import { TURNSTILE_ENABLED } from "../config/turnstile.js";
 
 function EyeIcon({ off = false }) {
   return (
@@ -40,19 +42,27 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState("");
+  const turnstileRef = useRef(null);
   const nav = useNavigate();
 
   async function doLogin() {
     setMsg("");
+    if (TURNSTILE_ENABLED && !captchaToken) {
+      setMsg("CAPTCHA растаңыз");
+      return;
+    }
     try {
       const data = await api("/api/v1/auth/login", {
         method: "POST",
-        body: { phone, password },
+        body: { phone, password, captcha_token: captchaToken },
       });
       localStorage.setItem("token", data.token);
       nav("/profile");
     } catch (e) {
       setMsg("Қате: " + e.message);
+      turnstileRef.current?.reset();
+      setCaptchaToken("");
     }
   }
 
@@ -115,6 +125,12 @@ export default function Login() {
               </div>
 
               {msg && <div className="form-error login-error">{msg}</div>}
+
+              <TurnstileField
+                ref={turnstileRef}
+                onToken={setCaptchaToken}
+                onExpire={() => setCaptchaToken("")}
+              />
 
               <button className="login-btn" type="submit">
                 Кіру

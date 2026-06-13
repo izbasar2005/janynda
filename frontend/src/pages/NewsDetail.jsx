@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import DOMPurify from "dompurify";
 import { api } from "../services/api";
 
 function formatDate(iso) {
@@ -17,6 +18,11 @@ export default function NewsDetail() {
     const [item, setItem] = useState(null);
     const [msg, setMsg] = useState("");
     const [loading, setLoading] = useState(true);
+
+    const safeHtml = useMemo(
+        () => DOMPurify.sanitize(item?.content_html || "", { USE_PROFILES: { html: true } }),
+        [item?.content_html]
+    );
 
     useEffect(() => {
         setLoading(true);
@@ -73,7 +79,7 @@ export default function NewsDetail() {
 
                 <div
                     className="news-detail__content"
-                    dangerouslySetInnerHTML={{ __html: item.content_html || "" }}
+                    dangerouslySetInnerHTML={{ __html: safeHtml }}
                 />
             </article>
         </div>
