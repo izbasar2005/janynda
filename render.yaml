@@ -30,10 +30,6 @@ services:
         value: "8080"
       - key: AUTO_SEED
         value: "false"
-      - key: TURNSTILE_SECRET_KEY
-        sync: false
-      - key: VITE_TURNSTILE_SITE_KEY
-        value: "0x4AAAAAADj_iE0yMQFExt6Y"
 
 databases:
   - name: janynda-db

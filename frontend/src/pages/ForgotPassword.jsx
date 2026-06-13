@@ -1,8 +1,6 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { api } from "../services/api";
-import TurnstileField from "../components/TurnstileField.jsx";
-import { TURNSTILE_ENABLED } from "../config/turnstile.js";
 
 function EyeIcon({ off = false }) {
   return (
@@ -52,8 +50,6 @@ export default function ForgotPassword() {
   const [callMethod, setCallMethod] = useState(""); // "sms" or "call" from server
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
-  const [captchaToken, setCaptchaToken] = useState("");
-  const turnstileRef = useRef(null);
 
   function startCountdown() {
     setCountdown(60);
@@ -68,13 +64,12 @@ export default function ForgotPassword() {
   async function handleSendCodePhone(e) {
     if (e) e.preventDefault();
     if (!phone.trim()) { setMsg("Телефон нөмірін енгізіңіз"); return; }
-    if (TURNSTILE_ENABLED && !captchaToken) { setMsg("CAPTCHA растаңыз"); return; }
     setLoading(true);
     setMsg("");
     try {
       const data = await api("/api/v1/auth/forgot-password/send-code", {
         method: "POST",
-        body: { phone: phone.trim(), captcha_token: captchaToken },
+        body: { phone: phone.trim() },
       });
       setStep(2);
       setCallMethod(data.method || "call");
@@ -84,12 +79,8 @@ export default function ForgotPassword() {
         setMsg("SMS код жіберілді");
       }
       startCountdown();
-      turnstileRef.current?.reset();
-      setCaptchaToken("");
     } catch (e) {
       try { setMsg(JSON.parse(e.message).error || e.message); } catch { setMsg(e.message); }
-      turnstileRef.current?.reset();
-      setCaptchaToken("");
     } finally {
       setLoading(false);
     }
@@ -98,23 +89,18 @@ export default function ForgotPassword() {
   async function handleSendCodeEmail(e) {
     if (e) e.preventDefault();
     if (!emailInput.trim() || !emailInput.includes("@")) { setMsg("Email дұрыс енгізіңіз"); return; }
-    if (TURNSTILE_ENABLED && !captchaToken) { setMsg("CAPTCHA растаңыз"); return; }
     setLoading(true);
     setMsg("");
     try {
       await api("/api/v1/auth/forgot-password/email/send-code", {
         method: "POST",
-        body: { email: emailInput.trim(), captcha_token: captchaToken },
+        body: { email: emailInput.trim() },
       });
       setStep(2);
       setMsg("Код email-ге жіберілді");
       startCountdown();
-      turnstileRef.current?.reset();
-      setCaptchaToken("");
     } catch (e) {
       try { setMsg(JSON.parse(e.message).error || e.message); } catch { setMsg(e.message); }
-      turnstileRef.current?.reset();
-      setCaptchaToken("");
     } finally {
       setLoading(false);
     }
@@ -256,11 +242,6 @@ export default function ForgotPassword() {
                 )}
               </div>
               {msg && <div className="form-error login-error">{msg}</div>}
-              <TurnstileField
-                ref={turnstileRef}
-                onToken={setCaptchaToken}
-                onExpire={() => setCaptchaToken("")}
-              />
               <button className="login-btn" type="submit" disabled={loading}>
                 {loading ? "Жіберілуде..." : "Код жіберу"}
               </button>
@@ -287,11 +268,6 @@ export default function ForgotPassword() {
                   style={{ maxWidth: 180 }}
                 />
               </div>
-              <TurnstileField
-                ref={turnstileRef}
-                onToken={setCaptchaToken}
-                onExpire={() => setCaptchaToken("")}
-              />
               <button
                 type="button"
                 className="login-link"

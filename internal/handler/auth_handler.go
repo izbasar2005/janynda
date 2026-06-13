@@ -27,8 +27,7 @@ type RegisterRequest struct {
 	Password string `json:"password"`
 	Role     string `json:"role"`
 
-	AvatarURL    string `json:"avatar_url"`
-	CaptchaToken string `json:"captcha_token"`
+	AvatarURL string `json:"avatar_url"`
 
 	IIN        string `json:"iin"`
 	FirstName  string `json:"first_name"`
@@ -65,10 +64,6 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Role != "patient" && req.Role != "volunteer" {
 		http.Error(w, "role тек patient немесе volunteer болуы керек", http.StatusBadRequest)
-		return
-	}
-
-	if !requireCaptcha(w, r, req.CaptchaToken) {
 		return
 	}
 
@@ -127,9 +122,8 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 }
 
 type LoginRequest struct {
-	Phone        string `json:"phone"`
-	Password     string `json:"password"`
-	CaptchaToken string `json:"captcha_token"`
+	Phone    string `json:"phone"`
+	Password string `json:"password"`
 }
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
@@ -147,10 +141,6 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	req.Phone = strings.TrimSpace(req.Phone)
-
-	if !requireCaptcha(w, r, req.CaptchaToken) {
-		return
-	}
 
 	var u model.User
 	if err := h.db.Where("phone = ?", req.Phone).First(&u).Error; err != nil {

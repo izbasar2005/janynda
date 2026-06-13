@@ -10,7 +10,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@marsidev/react-turnstile": "^1.5.3",
     "dompurify": "^3.4.10",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
