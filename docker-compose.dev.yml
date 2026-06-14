@@ -70,7 +70,6 @@ services:
         condition: service_healthy
     environment:
       VITE_PROXY_TARGET: "http://api:8080"
-      VITE_TURNSTILE_SITE_KEY: "0x4AAAAAADj_iE0yMQFExt6Y"
       CHOKIDAR_USEPOLLING: "true"
     ports:
       - "5174:5174"

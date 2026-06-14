@@ -18,7 +18,14 @@ var (
 	turnstileTestSecret = "1x000000000000000000000000000000AA"
 )
 
+func isDevEnv() bool {
+	return strings.EqualFold(strings.TrimSpace(os.Getenv("ENV")), "dev")
+}
+
 func isLocalFrontend(r *http.Request) bool {
+	if isDevEnv() {
+		return true
+	}
 	for _, h := range []string{
 		r.Header.Get("Origin"),
 		r.Header.Get("Referer"),
@@ -30,7 +37,7 @@ func isLocalFrontend(r *http.Request) bool {
 			return true
 		}
 	}
-	return strings.EqualFold(strings.TrimSpace(os.Getenv("ENV")), "dev")
+	return false
 }
 
 func resolveSecret(r *http.Request) string {
@@ -69,6 +76,13 @@ type siteverifyResponse struct {
 
 func Verify(r *http.Request, token string) error {
 	token = strings.TrimSpace(token)
+	if isDevEnv() {
+		if token == "" {
+			return ErrMissingToken
+		}
+		return nil
+	}
+
 	secret := resolveSecret(r)
 	if secret == "" {
 		return nil
