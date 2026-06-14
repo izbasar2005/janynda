@@ -19,16 +19,22 @@ var (
 )
 
 func isLocalFrontend(r *http.Request) bool {
-	for _, h := range []string{r.Header.Get("Origin"), r.Header.Get("Referer")} {
+	for _, h := range []string{
+		r.Header.Get("Origin"),
+		r.Header.Get("Referer"),
+		r.Header.Get("X-Forwarded-Host"),
+		r.Header.Get("Host"),
+	} {
 		h = strings.ToLower(h)
 		if strings.Contains(h, "localhost") || strings.Contains(h, "127.0.0.1") {
 			return true
 		}
 	}
-	return false
+	return strings.EqualFold(strings.TrimSpace(os.Getenv("ENV")), "dev")
 }
 
 func resolveSecret(r *http.Request) string {
+	// Localhost always uses Cloudflare test secret (pairs with test site key in frontend).
 	if isLocalFrontend(r) {
 		return turnstileTestSecret
 	}

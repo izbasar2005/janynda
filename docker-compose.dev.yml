@@ -45,7 +45,9 @@ services:
       CLOUDINARY_CLOUD_NAME: "${CLOUDINARY_CLOUD_NAME}"
       CLOUDINARY_API_KEY: "${CLOUDINARY_API_KEY}"
       CLOUDINARY_API_SECRET: "${CLOUDINARY_API_SECRET}"
-      TURNSTILE_SECRET_KEY: "${TURNSTILE_SECRET_KEY}"
+      ENV: "dev"
+      # Cloudflare Turnstile test secret for local dev (pairs with test site key on localhost).
+      TURNSTILE_SECRET_KEY: "1x000000000000000000000000000000AA"
     ports:
       - "8080:8080"
     volumes:
