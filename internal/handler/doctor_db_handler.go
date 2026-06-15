@@ -9,6 +9,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"janymda/internal/appointmentslots"
 	"janymda/internal/model"
 )
 
@@ -165,7 +166,7 @@ func (h *DoctorDBHandler) Slots(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	loc := time.FixedZone("+05", 5*3600)
+	loc := appointmentslots.Location()
 	startOfDay := time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, loc)
 	now := time.Now().In(loc)
 	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
@@ -174,29 +175,9 @@ func (h *DoctorDBHandler) Slots(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Толық тәулік, қадам: 5 минут (00:00 – 23:55)
-	const slotStep = 5 * time.Minute
-	start := startOfDay
-	end := startOfDay.Add(24*time.Hour - slotStep)
-
-	// Егер бүгін болса — өткен уақыттарды слот ретінде бермейміз.
-	if startOfDay.Equal(todayStart) {
-		next := time.Date(day.Year(), day.Month(), day.Day(), now.Hour(), now.Minute(), 0, 0, loc)
-		if mod := next.Minute() % 5; mod != 0 {
-			next = next.Add(time.Duration(5-mod) * time.Minute)
-		}
-		if now.Second() > 0 || now.Nanosecond() > 0 {
-			if !next.After(now) {
-				next = next.Add(slotStep)
-			}
-		}
-		if next.After(start) {
-			start = next
-		}
-	}
-
-	var slots []string
-	for t := start; !t.After(end); t = t.Add(slotStep) {
+	slotTimes := appointmentslots.GenerateSlots(day)
+	slots := make([]string, 0, len(slotTimes))
+	for _, t := range slotTimes {
 		slots = append(slots, t.Format("15:04"))
 	}
 

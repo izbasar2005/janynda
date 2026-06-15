@@ -1,0 +1,58 @@
+СЛАЙД. Жүйе архитектурасы (техникалық сызба)
+
+PowerPoint-ке қою:
+1. Файлды аш: presentation/juye-arhitekturasy.svg
+2. Браузерде аш → скриншот ал → слайдқа Insert Picture
+   немесе SVG-ді тікелей PowerPoint-ке сурет ретінде қой
+
+---
+
+Диаграмма мазмұны:
+
+┌─────────────┐      ┌─────────────┐      ┌─────────────┐
+│  Frontend   │ ◄──► │   Backend   │ ◄──► │  Database   │
+│ React+Vite  │      │  Go + GORM  │      │PostgreSQL 16│
+│  Port 5174  │      │  Port 8080  │      │  Port 5432  │
+└─────────────┘      └─────────────┘      └─────────────┘
+       │                    │
+       └──── WebSocket ─────┘
+         (нақты уақыттағы чаттар)
+
+                    Backend
+                      │ HTTPS
+                      ▼
+            ┌─────────────────────┐
+            │ Anthropic Claude API│
+            │     (ЖИ-талдау)     │
+            └─────────────────────┘
+
+┌───────────────────────────────────────────────────────┐
+│              Docker Compose (db + api + frontend)    │
+└───────────────────────────────────────────────────────┘
+
+---
+
+PowerPoint-те қолмен жасау (3 блок + 1 блок):
+
+Блок 1 — Frontend
+React + Vite
+Port 5174
+
+Блок 2 — Backend
+Go + GORM
+Port 8080
+
+Блок 3 — Database
+PostgreSQL 16
+Port 5432
+
+Frontend ◄──► Backend ◄──► Database
+
+Frontend ◄──► Backend
+WebSocket (нақты уақыттағы чаттар)
+
+Backend ──► Anthropic Claude API
+HTTPS (ЖИ-талдау)
+
+Төменгі блок:
+Docker Compose (db + api + frontend)

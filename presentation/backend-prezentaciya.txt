@@ -1,0 +1,98 @@
+СЛАЙД 1. Титул
+
+Janynda — Backend
+
+Go REST API + WebSocket сервер
+
+
+СЛАЙД 2. Жоба архитектурасы
+
+Архитектура түрі
+- Go монолит
+- REST API + WebSocket
+
+Request ағымы
+- Client → Middleware → Handler → GORM → PostgreSQL
+
+Қабаттар
+- cmd/api — іске қосу, migrate, workers
+- server — router, endpoint-тер
+- handler — HTTP логика
+- middleware — auth, RBAC, rate limit
+- model — деректер моделі
+- storage — PostgreSQL
+- realtime — WebSocket Hub
+- ai — Claude API
+- scheduler — фон workers
+
+Негізгі модульдер
+- Auth — login, register, JWT
+- Doctors — дәрігерler тізімі
+- Appointments — жазылу
+- Chat — group, direct, doctor-patient
+- Diary — күndelik
+- AI — score, zone, psych case
+- Admin — users, news, dashboard
+
+Background workers
+- Notification — appointment хабарлама
+- Diary AI retry — Claude қайта талдау
+- Chat AI — чат batch талдау
+
+Рөл жүйесі (7 роль)
+- patient — науқас
+- volunteer — ерікті
+- doctor — дәрігер
+- psychologist — психolog
+- head_psychologist — бас психolog
+- admin — әкімші
+- super_admin — толық доступ
+
+
+СЛАЙД 3. Қолданылған технологиялар
+
+Backend
+- Go 1.24
+- net/http
+- GORM
+- PostgreSQL 16
+- JWT
+- WebSocket
+- bcrypt
+
+Сыртқы сервистер
+- Anthropic Claude — AI талдау
+- SMSC.kz — SMS верификация
+- Gmail SMTP — email
+- Cloudinary — сурет upload
+- Cloudflare Turnstile — CAPTCHA
+
+Deploy
+- Docker
+- Render.com
+
+
+СЛАЙД 4. Қауіпсіздік
+
+Authentication
+- JWT HS256
+- bcrypt пароль hash
+- SMS verify — тіркелу
+- CAPTCHA — login, register
+
+Authorization
+- RBAC middleware
+- Role DB reload — әр сұрауда
+- IDOR қорғанысы
+
+Rate limit
+- Login — 10 / min
+- Register — 5 / min
+- SMS — 5 / min
+- Upload — 20 / min
+
+Basqa
+- Security headers (CSP, X-Frame-Options)
+- WebSocket auth
+- Upload шектеуі — 10 MB, jpg/png/webp
+- GORM parameterized queries

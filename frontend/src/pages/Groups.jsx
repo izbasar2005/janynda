@@ -965,9 +965,14 @@ export default function Groups() {
 
     async function loadMyGroups() {
         try {
-            const data = await api("/api/v1/groups/my", { auth: true });
+            const data = await api(`/api/v1/groups/my?ts=${Date.now()}`, { auth: true });
             const arr = Array.isArray(data) ? data : [];
-            setMyGroups(arr);
+            const activeGid = Number(selectedGroupIdRef.current || 0);
+            const activeDirect = Number(activeDirectIdRef.current || 0);
+            const next = arr.map((g) =>
+                Number(g.id) === activeGid && activeDirect === 0 ? { ...g, unread_count: 0 } : g
+            );
+            setMyGroups(next);
             // subscribe to groups for realtime
             for (const g of arr) {
                 const gid = Number(g.id || 0);
@@ -1182,6 +1187,23 @@ export default function Groups() {
         }
     }
 
+    async function markGroupRead(groupId, lastMessageId) {
+        const gid = Number(groupId || 0);
+        if (!gid) return;
+        try {
+            await api(`/api/v1/groups/${gid}/read`, {
+                method: "POST",
+                auth: true,
+                body: { last_message_id: Number(lastMessageId || 0) },
+            });
+        } catch {
+            /* ignore */
+        }
+        setMyGroups((prev) =>
+            (prev || []).map((g) => (Number(g.id) === gid ? { ...g, unread_count: 0 } : g))
+        );
+    }
+
     async function loadMessages(groupId) {
         try {
             const data = await api(`/api/v1/groups/${groupId}/messages?ts=${Date.now()}`, { auth: true });
@@ -1198,6 +1220,7 @@ export default function Groups() {
             if (arr.length > 0) {
                 const last = arr[arr.length - 1];
                 const gid = Number(groupId);
+                await markGroupRead(gid, last.id);
                 setMyGroups((prev) => (prev || []).map((g) => (
                     Number(g.id) === gid
                         ? { ...g, last_message: last.body || g.last_message || "", unread_count: 0 }
@@ -1205,6 +1228,7 @@ export default function Groups() {
                 )));
             } else {
                 const gid = Number(groupId);
+                await markGroupRead(gid, 0);
                 setMyGroups((prev) => (prev || []).map((g) => (
                     Number(g.id) === gid ? { ...g, unread_count: 0 } : g
                 )));
@@ -1228,6 +1252,9 @@ export default function Groups() {
                 if (nextLast > prevLast) groupAutoScrollOnceRef.current = true;
                 return arr;
             });
+            if (arr.length > 0) {
+                await markGroupRead(gid, arr[arr.length - 1].id);
+            }
         } catch {
             /* ignore */
         }
@@ -1235,21 +1262,26 @@ export default function Groups() {
 
     async function refreshMyGroupsQuiet() {
         try {
-            const data = await api("/api/v1/groups/my", { auth: true });
+            const data = await api(`/api/v1/groups/my?ts=${Date.now()}`, { auth: true });
             const arr = Array.isArray(data) ? data : [];
+            const activeGid = Number(selectedGroupIdRef.current || 0);
+            const activeDirect = Number(activeDirectIdRef.current || 0);
             setMyGroups((prev) => {
                 const prevMap = new Map((prev || []).map((g) => [Number(g.id), g]));
                 let changed = prev?.length !== arr.length;
                 const next = arr.map((g) => {
-                    const old = prevMap.get(Number(g.id));
+                    const gid = Number(g.id);
+                    const patched =
+                        gid === activeGid && activeDirect === 0 ? { ...g, unread_count: 0 } : g;
+                    const old = prevMap.get(gid);
                     if (
                         !old ||
-                        Number(old.unread_count || 0) !== Number(g.unread_count || 0) ||
-                        String(old.last_message || "") !== String(g.last_message || "")
+                        Number(old.unread_count || 0) !== Number(patched.unread_count || 0) ||
+                        String(old.last_message || "") !== String(patched.last_message || "")
                     ) {
                         changed = true;
                     }
-                    return g;
+                    return patched;
                 });
                 return changed ? next : prev;
             });

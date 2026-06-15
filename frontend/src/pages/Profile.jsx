@@ -111,7 +111,7 @@ function getMobileStatusLabel(status, isPast) {
     return appointmentStatusLabel(status, { isPast });
 }
 
-const PROFILE_CARE_AVATAR_FALLBACK = "/img/doctor.png";
+const PROFILE_AVATAR_FALLBACK = "";
 
 function getMobileStatusClass(status, isPast) {
     const v = (status || "").toLowerCase();
@@ -425,23 +425,10 @@ export default function Profile() {
 
     const heroInitials = getInitials(displayName);
 
-    /** «Менің деректерім» картасындағы жеке аватар — келесі жазылу дәрігерінің суреті */
-    const profileCareAvatar = useMemo(() => {
-        const pickPhoto = (a) => {
-            const url = a?.doctor?.avatar_url || a?.doctor?.photo_url;
-            return url ? normalizePhoto(url) : null;
-        };
-        if (nextApptId != null) {
-            const next = sortedApps.find((a) => Number(a.id) === Number(nextApptId));
-            const photo = pickPhoto(next);
-            if (photo) return photo;
-        }
-        for (const a of sortedApps) {
-            const photo = pickPhoto(a);
-            if (photo) return photo;
-        }
-        return PROFILE_CARE_AVATAR_FALLBACK;
-    }, [sortedApps, nextApptId]);
+    const profileAvatarUrl = useMemo(() => {
+        const url = (me?.avatar_url || editForm.avatar_url || "").trim();
+        return url ? normalizePhoto(url) : PROFILE_AVATAR_FALLBACK;
+    }, [me?.avatar_url, editForm.avatar_url]);
 
     return (
         <div className="page profile-page-v2">
@@ -496,11 +483,20 @@ export default function Profile() {
                             <section className="prof-m__card">
                                 <div className="prof-m__card-layout">
                                     <div className="prof-m__card-avatar-wrap">
-                                        <img
-                                            className="prof-m__card-avatar"
-                                            src={profileCareAvatar}
-                                            alt=""
-                                        />
+                                        {profileAvatarUrl ? (
+                                            <img
+                                                className="prof-m__card-avatar"
+                                                src={profileAvatarUrl}
+                                                alt=""
+                                            />
+                                        ) : (
+                                            <div
+                                                className="prof-m__card-avatar prof-m__card-avatar--initials"
+                                                aria-hidden="true"
+                                            >
+                                                {heroInitials}
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="prof-m__card-content">
                                         <h2 className="prof-m__card-title">

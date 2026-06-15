@@ -9,6 +9,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"janymda/internal/appointmentslots"
 	"janymda/internal/middleware"
 	"janymda/internal/model"
 )
@@ -85,20 +86,16 @@ func (h *AppointmentHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Slot rules: тәулік бойы, қадам 5 минут (Asia/Almaty / +05)
-	loc := time.FixedZone("+05", 5*3600)
+	// Slot rules: 09:00–17:00, 10 минут қадам (Asia/Almaty / +05)
+	loc := appointmentslots.Location()
 	startAt = startAt.In(loc)
 	now := time.Now().In(loc)
 	if startAt.Before(now) {
 		http.Error(w, "Өткен уақытқа жазылуға болмайды", http.StatusBadRequest)
 		return
 	}
-	if startAt.Second() != 0 || startAt.Nanosecond() != 0 {
-		http.Error(w, "Жазылу уақыты минутпен көрсетілуі керек", http.StatusBadRequest)
-		return
-	}
-	if startAt.Minute()%5 != 0 {
-		http.Error(w, "Жазылу уақыты 5 минуттық қадаммен болуы керек", http.StatusBadRequest)
+	if !appointmentslots.IsValidSlotTime(startAt) {
+		http.Error(w, "Жазылу уақыты 10 минуттық қадаммен 09:00–17:00 аралығында болуы керек", http.StatusBadRequest)
 		return
 	}
 
