@@ -271,7 +271,10 @@ func (h *WSHandler) handleUnsubscribe(c *realtime.Client, in wsIn) {
 func (h *WSHandler) isGroupMember(groupID uint, userID uint) bool {
 	var cnt int64
 	_ = h.db.Model(&model.GroupMember{}).Where("group_id = ? AND user_id = ?", groupID, userID).Count(&cnt).Error
-	return cnt > 0
+	if cnt > 0 {
+		return true
+	}
+	return isTherapistDoctor(h.db, userID)
 }
 
 func (h *WSHandler) isDirectParticipant(convID uint, userID uint) bool {

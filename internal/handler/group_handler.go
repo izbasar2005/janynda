@@ -713,6 +713,30 @@ func (h *GroupHandler) isGroupMember(groupID, userID uint) bool {
 	return isTherapistDoctor(h.db, userID)
 }
 
+// groupRealtimeNotifyUserIDs returns users who should receive group WS events on their user channel.
+func (h *GroupHandler) groupRealtimeNotifyUserIDs(groupID uint) []uint {
+	seen := make(map[uint]struct{})
+	var memberIDs []uint
+	_ = h.db.Model(&model.GroupMember{}).Where("group_id = ?", groupID).Pluck("user_id", &memberIDs).Error
+	for _, uid := range memberIDs {
+		if uid > 0 {
+			seen[uid] = struct{}{}
+		}
+	}
+	var therapistIDs []uint
+	_ = h.db.Model(&model.Doctor{}).Where("is_therapist = ?", true).Pluck("user_id", &therapistIDs).Error
+	for _, uid := range therapistIDs {
+		if uid > 0 {
+			seen[uid] = struct{}{}
+		}
+	}
+	out := make([]uint, 0, len(seen))
+	for uid := range seen {
+		out = append(out, uid)
+	}
+	return out
+}
+
 func (h *GroupHandler) ListMessages(w http.ResponseWriter, r *http.Request, groupID uint) {
 	w.Header().Set("Content-Type", "application/json")
 	userID, _ := r.Context().Value(middleware.CtxUserID).(uint)
@@ -907,17 +931,12 @@ func (h *GroupHandler) SendMessage(w http.ResponseWriter, r *http.Request, group
 		}
 		h.hub.Broadcast(realtime.RoomKey("group", groupID), evt)
 		// User room: list sync even when client is not subscribed to this group room yet.
-		var memberIDs []uint
-		_ = h.db.Model(&model.GroupMember{}).Where("group_id = ?", groupID).Pluck("user_id", &memberIDs).Error
 		userEvt := map[string]any{
 			"type":    "group:message",
 			"channel": "user",
 			"payload": payload,
 		}
-		for _, uid := range memberIDs {
-			if uid == 0 {
-				continue
-			}
+		for _, uid := range h.groupRealtimeNotifyUserIDs(groupID) {
 			userEvt["id"] = uid
 			h.hub.Broadcast(realtime.RoomKey("user", uid), userEvt)
 		}

@@ -75,8 +75,10 @@ export default function Groups() {
                 const gid = Number(g.id);
                 if (!gid) continue;
                 const isActive = activeDirect === 0 && activeGid === gid;
-                const cnt = isActive ? 0 : Number(g.unread_count || 0);
-                if (Number(next[gid] || 0) !== cnt) {
+                const serverCnt = Number(g.unread_count || 0);
+                const prevCnt = Number(next[gid] || 0);
+                const cnt = isActive ? 0 : Math.max(serverCnt, prevCnt);
+                if (prevCnt !== cnt) {
                     next[gid] = cnt;
                     changed = true;
                 }
@@ -164,6 +166,11 @@ export default function Groups() {
     useEffect(() => {
         selectedGroupIdRef.current = selectedGroupId;
     }, [selectedGroupId]);
+
+    useEffect(() => {
+        syncUnreadByGroup(myGroupsRef.current);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedGroupId, activeDirect?.id]);
 
     useEffect(() => {
         sideTabRef.current = sideTab;
@@ -582,15 +589,13 @@ export default function Groups() {
             return;
         }
 
-        setMyGroups((prev) => {
-            const exists = (prev || []).some((g) => Number(g.id) === gid);
-            if (!exists) {
-                scheduleGroupsListRefresh();
-                return prev;
-            }
+        const exists = (myGroupsRef.current || []).some((g) => Number(g.id) === gid);
+        if (!exists) {
+            scheduleGroupsListRefresh();
+        } else {
+            setMyGroups((prev) => bumpGroupInList(prev, gid, preview));
             bumpGroupUnread(gid, sid);
-            return bumpGroupInList(prev, gid, preview);
-        });
+        }
         notifyIncomingGroupMessage(gid, p, sid);
     }
 
@@ -1315,6 +1320,7 @@ export default function Groups() {
         try {
             const data = await api(`/api/v1/groups/my?ts=${Date.now()}`, { auth: true });
             const arr = Array.isArray(data) ? data : [];
+            syncUnreadByGroup(arr);
             setMyGroups((prev) => {
                 const prevMap = new Map((prev || []).map((g) => [Number(g.id), g]));
                 let changed = prev?.length !== arr.length;
@@ -1323,18 +1329,14 @@ export default function Groups() {
                     const old = prevMap.get(gid);
                     if (
                         !old ||
-                        String(old.last_message || "") !== String(g.last_message || "")
+                        String(old.last_message || "") !== String(g.last_message || "") ||
+                        Number(old.unread_count || 0) !== Number(g.unread_count || 0)
                     ) {
                         changed = true;
                     }
                     return g;
                 });
-                if (changed) {
-                    syncUnreadByGroup(next);
-                    return next;
-                }
-                syncUnreadByGroup(arr);
-                return prev;
+                return changed ? next : prev;
             });
         } catch {
             /* ignore */
@@ -1348,13 +1350,11 @@ export default function Groups() {
             const gid = Number(selectedGroupIdRef.current || 0);
             const did = Number(activeDirectIdRef.current || 0);
             refreshDirectChatsQuiet();
+            refreshMyGroupsQuiet();
             if (did) {
                 refreshDirectMessagesQuiet(did);
             } else if (gid) {
                 refreshGroupMessagesQuiet(gid);
-            }
-            if (sideTabRef.current === "groups") {
-                refreshMyGroupsQuiet();
             }
         };
         const id = setInterval(tick, 2500);
