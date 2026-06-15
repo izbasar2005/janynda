@@ -7,7 +7,7 @@ export function clearSession() {
   localStorage.removeItem("user");
 }
 
-export async function api(path, { method = "GET", body, auth = false } = {}) {
+export async function api(path, { method = "GET", body, auth = false, signal, timeoutMs } = {}) {
   const headers = { "Content-Type": "application/json" };
 
   if (auth) {
@@ -16,11 +16,31 @@ export async function api(path, { method = "GET", body, auth = false } = {}) {
     headers.Authorization = `Bearer ${t}`;
   }
 
-  const res = await fetch(path, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let controller;
+  let timer;
+  let reqSignal = signal;
+  if (timeoutMs && !reqSignal) {
+    controller = new AbortController();
+    reqSignal = controller.signal;
+    timer = setTimeout(() => controller.abort(), timeoutMs);
+  }
+
+  let res;
+  try {
+    res = await fetch(path, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      signal: reqSignal,
+    });
+  } catch (e) {
+    if (e?.name === "AbortError") {
+      throw new Error('{"error":"Сервер жауап бермеді. Кейінірек қайталаңыз."}');
+    }
+    throw e;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 
   if (res.status === 401 && auth) {
     clearSession();

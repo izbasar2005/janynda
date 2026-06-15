@@ -177,6 +177,7 @@ export default function Profile() {
             await api("/api/v1/email/send-code", {
                 method: "POST", auth: true,
                 body: { email: emailInput.trim() },
+                timeoutMs: 20000,
             });
             setEmailSent(true);
             setEmailMsg("Код email-ге жіберілді ✓");
