@@ -1599,6 +1599,12 @@ export default function Groups() {
 
     const totalDirectUnread = Object.values(unreadByChat).reduce((a, b) => a + Number(b || 0), 0);
 
+    let totalGroupUnread = 0;
+    for (const g of myGroups) {
+        if (archivedGroupIds.has(Number(g.id))) continue;
+        totalGroupUnread += Number(g.unread_count || 0);
+    }
+
     const hasArchived = archivedGroupIds.size > 0 || archivedDirectIds.size > 0;
 
     const archivedUnreadTotal = useMemo(() => {
@@ -1704,7 +1710,11 @@ export default function Groups() {
                                 <circle cx="17" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.8" />
                                 <path d="M4 19c0-2.8 2.2-5 5-5s5 2.2 5 5M14.5 19c0-1.8 1.3-3.2 3-3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                             </svg>
-                            <span className="groups-sidebar__tab-count">{myGroups.length}</span>
+                            {totalGroupUnread > 0 && (
+                                <span className="groups-sidebar__tab-badge">
+                                    {totalGroupUnread > 99 ? "99+" : totalGroupUnread}
+                                </span>
+                            )}
                         </button>
                         <button
                             type="button"
