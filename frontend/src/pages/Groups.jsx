@@ -38,8 +38,10 @@ export default function Groups() {
     const [directMessages, setDirectMessages] = useState([]);
     const [directText, setDirectText] = useState("");
     const [unreadByChat, setUnreadByChat] = useState({}); // { [chatId]: number }
+    const [unreadByGroup, setUnreadByGroup] = useState({}); // { [groupId]: number }
     const [toastText, setToastText] = useState("");
     const lastNotifiedUnreadRef = useRef({}); // { [chatId]: number } to avoid repeated toasts
+    const lastNotifiedGroupUnreadRef = useRef({}); // { [groupId]: number }
     const [members, setMembers] = useState([]);
     const [msgText, setMsgText] = useState("");
     const [status, setStatus] = useState("");
@@ -62,32 +64,58 @@ export default function Groups() {
     const [settingsForm, setSettingsForm] = useState({ name: "", diagnosis_type: "", description: "", photo_url: "" });
     const [groupPhotoUploading, setGroupPhotoUploading] = useState(false);
     const seenDirectRef = useRef({});
-    const readGroupIdsRef = useRef(new Set());
 
-    function rememberGroupRead(groupId) {
-        const gid = Number(groupId || 0);
-        if (!gid) return;
-        readGroupIdsRef.current.add(gid);
-    }
-
-    function forgetGroupRead(groupId) {
-        const gid = Number(groupId || 0);
-        if (!gid) return;
-        readGroupIdsRef.current.delete(gid);
-    }
-
-    function patchGroupUnreadCount(group) {
-        const gid = Number(group?.id || 0);
+    function syncUnreadByGroup(groups) {
         const activeGid = Number(selectedGroupIdRef.current || 0);
         const activeDirect = Number(activeDirectIdRef.current || 0);
-        if (!gid) return group;
-        if (readGroupIdsRef.current.has(gid)) {
-            return { ...group, unread_count: 0 };
-        }
-        if (gid === activeGid && activeDirect === 0) {
-            return { ...group, unread_count: 0 };
-        }
-        return group;
+        setUnreadByGroup((prev) => {
+            const next = { ...prev };
+            let changed = false;
+            for (const g of groups || []) {
+                const gid = Number(g.id);
+                if (!gid) continue;
+                const isActive = activeDirect === 0 && activeGid === gid;
+                const cnt = isActive ? 0 : Number(g.unread_count || 0);
+                if (Number(next[gid] || 0) !== cnt) {
+                    next[gid] = cnt;
+                    changed = true;
+                }
+                if (cnt === 0) {
+                    lastNotifiedGroupUnreadRef.current = {
+                        ...lastNotifiedGroupUnreadRef.current,
+                        [gid]: 0,
+                    };
+                }
+            }
+            return changed ? next : prev;
+        });
+    }
+
+    function clearGroupUnread(groupId) {
+        const gid = Number(groupId || 0);
+        if (!gid) return;
+        setUnreadByGroup((prev) => {
+            if (Number(prev[gid] || 0) === 0) return prev;
+            return { ...prev, [gid]: 0 };
+        });
+        lastNotifiedGroupUnreadRef.current = {
+            ...lastNotifiedGroupUnreadRef.current,
+            [gid]: 0,
+        };
+    }
+
+    function bumpGroupUnread(groupId, senderId) {
+        const gid = Number(groupId || 0);
+        const sid = Number(senderId || 0);
+        if (!gid || !sid || sid === myUserId) return;
+        setUnreadByGroup((prev) => {
+            const nextCnt = Number(prev[gid] || 0) + 1;
+            lastNotifiedGroupUnreadRef.current = {
+                ...lastNotifiedGroupUnreadRef.current,
+                [gid]: nextCnt,
+            };
+            return { ...prev, [gid]: nextCnt };
+        });
     }
     const groupMessagesScrollRef = useRef(null);
     const groupMessagesEndRef = useRef(null);
@@ -532,7 +560,7 @@ export default function Groups() {
                     body: { last_message_id: mid },
                 }).catch(() => {});
             }
-            rememberGroupRead(gid);
+            clearGroupUnread(gid);
             setMessages((prev) =>
                 appendGroupMessage(prev, {
                     id: p.id,
@@ -549,7 +577,7 @@ export default function Groups() {
                 groupAutoScrollOnceRef.current = true;
             }
             setMyGroups((prev) =>
-                bumpGroupInList(prev, gid, { ...preview, unread_count: 0 })
+                bumpGroupInList(prev, gid, preview)
             );
             return;
         }
@@ -560,13 +588,8 @@ export default function Groups() {
                 scheduleGroupsListRefresh();
                 return prev;
             }
-            forgetGroupRead(gid);
-            return bumpGroupInList(prev, gid, {
-                ...preview,
-                unread_count:
-                    Number((prev || []).find((g) => Number(g.id) === gid)?.unread_count || 0) +
-                    (sid && sid !== myUserId ? 1 : 0),
-            });
+            bumpGroupUnread(gid, sid);
+            return bumpGroupInList(prev, gid, preview);
         });
         notifyIncomingGroupMessage(gid, p, sid);
     }
@@ -996,8 +1019,8 @@ export default function Groups() {
         try {
             const data = await api(`/api/v1/groups/my?ts=${Date.now()}`, { auth: true });
             const arr = Array.isArray(data) ? data : [];
-            const next = arr.map((g) => patchGroupUnreadCount(g));
-            setMyGroups(next);
+            setMyGroups(arr);
+            syncUnreadByGroup(arr);
             // subscribe to groups for realtime
             for (const g of arr) {
                 const gid = Number(g.id || 0);
@@ -1214,10 +1237,7 @@ export default function Groups() {
     async function markGroupRead(groupId, lastMessageId) {
         const gid = Number(groupId || 0);
         if (!gid) return;
-        rememberGroupRead(gid);
-        setMyGroups((prev) =>
-            (prev || []).map((g) => (Number(g.id) === gid ? { ...g, unread_count: 0 } : g))
-        );
+        clearGroupUnread(gid);
         try {
             await api(`/api/v1/groups/${gid}/read`, {
                 method: "POST",
@@ -1225,7 +1245,7 @@ export default function Groups() {
                 body: { last_message_id: Number(lastMessageId || 0) },
             });
         } catch {
-            /* keep local read state; retry on next open */
+            /* retry on next open */
         }
     }
 
@@ -1235,10 +1255,7 @@ export default function Groups() {
         didAutoSelectOnceRef.current = true;
         setActiveDirect(null);
         setSelectedGroupId(gid);
-        rememberGroupRead(gid);
-        setMyGroups((prev) =>
-            (prev || []).map((g) => (Number(g.id) === gid ? { ...g, unread_count: 0 } : g))
-        );
+        clearGroupUnread(gid);
         markGroupRead(gid, 0);
     }
 
@@ -1261,15 +1278,11 @@ export default function Groups() {
                 await markGroupRead(gid, last.id);
                 setMyGroups((prev) => (prev || []).map((g) => (
                     Number(g.id) === gid
-                        ? { ...g, last_message: last.body || g.last_message || "", unread_count: 0 }
+                        ? { ...g, last_message: last.body || g.last_message || "" }
                         : g
                 )));
             } else {
-                const gid = Number(groupId);
-                await markGroupRead(gid, 0);
-                setMyGroups((prev) => (prev || []).map((g) => (
-                    Number(g.id) === gid ? { ...g, unread_count: 0 } : g
-                )));
+                await markGroupRead(Number(groupId), 0);
             }
         } catch (e) {
             setMessages([]);
@@ -1306,19 +1319,22 @@ export default function Groups() {
                 const prevMap = new Map((prev || []).map((g) => [Number(g.id), g]));
                 let changed = prev?.length !== arr.length;
                 const next = arr.map((g) => {
-                    const patched = patchGroupUnreadCount(g);
-                    const gid = Number(patched.id);
+                    const gid = Number(g.id);
                     const old = prevMap.get(gid);
                     if (
                         !old ||
-                        Number(old.unread_count || 0) !== Number(patched.unread_count || 0) ||
-                        String(old.last_message || "") !== String(patched.last_message || "")
+                        String(old.last_message || "") !== String(g.last_message || "")
                     ) {
                         changed = true;
                     }
-                    return patched;
+                    return g;
                 });
-                return changed ? next : prev;
+                if (changed) {
+                    syncUnreadByGroup(next);
+                    return next;
+                }
+                syncUnreadByGroup(arr);
+                return prev;
             });
         } catch {
             /* ignore */
@@ -1501,9 +1517,9 @@ export default function Groups() {
                 bumpGroupInList(prev, gid, {
                     last_message: sent,
                     last_at: new Date().toISOString(),
-                    unread_count: 0,
                 })
             );
+            clearGroupUnread(gid);
         } catch (e2) {
             setStatus("Хабар жіберу қатесі: " + (e2.message || ""));
         }
@@ -1601,8 +1617,9 @@ export default function Groups() {
 
     let totalGroupUnread = 0;
     for (const g of myGroups) {
-        if (archivedGroupIds.has(Number(g.id))) continue;
-        totalGroupUnread += Number(g.unread_count || 0);
+        const gid = Number(g.id);
+        if (archivedGroupIds.has(gid)) continue;
+        totalGroupUnread += Number(unreadByGroup[gid] || 0);
     }
 
     const hasArchived = archivedGroupIds.size > 0 || archivedDirectIds.size > 0;
@@ -1610,7 +1627,7 @@ export default function Groups() {
     const archivedUnreadTotal = useMemo(() => {
         let n = 0;
         for (const g of myGroups) {
-            if (archivedGroupIds.has(Number(g.id))) n += Number(g.unread_count || 0);
+            if (archivedGroupIds.has(Number(g.id))) n += Number(unreadByGroup[Number(g.id)] || 0);
         }
         for (const c of directChats) {
             if (archivedDirectIds.has(Number(c.id))) n += Number(unreadByChat[c.id] || 0);
@@ -1923,7 +1940,7 @@ export default function Groups() {
                                     name={g.name}
                                     preview={groupSubtitle(g)}
                                     time={fmtChatWhen(g.last_at || g.created_at)}
-                                    unread={Number(g.unread_count || 0)}
+                                    unread={Number(unreadByGroup[g.id] || 0)}
                                     isActive={selectedGroupId === g.id}
                                     archiveMode={showArchiveView}
                                     onArchive={() => archiveGroup(g.id)}
