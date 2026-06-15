@@ -62,6 +62,33 @@ export default function Groups() {
     const [settingsForm, setSettingsForm] = useState({ name: "", diagnosis_type: "", description: "", photo_url: "" });
     const [groupPhotoUploading, setGroupPhotoUploading] = useState(false);
     const seenDirectRef = useRef({});
+    const readGroupIdsRef = useRef(new Set());
+
+    function rememberGroupRead(groupId) {
+        const gid = Number(groupId || 0);
+        if (!gid) return;
+        readGroupIdsRef.current.add(gid);
+    }
+
+    function forgetGroupRead(groupId) {
+        const gid = Number(groupId || 0);
+        if (!gid) return;
+        readGroupIdsRef.current.delete(gid);
+    }
+
+    function patchGroupUnreadCount(group) {
+        const gid = Number(group?.id || 0);
+        const activeGid = Number(selectedGroupIdRef.current || 0);
+        const activeDirect = Number(activeDirectIdRef.current || 0);
+        if (!gid) return group;
+        if (readGroupIdsRef.current.has(gid)) {
+            return { ...group, unread_count: 0 };
+        }
+        if (gid === activeGid && activeDirect === 0) {
+            return { ...group, unread_count: 0 };
+        }
+        return group;
+    }
     const groupMessagesScrollRef = useRef(null);
     const groupMessagesEndRef = useRef(null);
     const directMessagesScrollRef = useRef(null);
@@ -505,6 +532,7 @@ export default function Groups() {
                     body: { last_message_id: mid },
                 }).catch(() => {});
             }
+            rememberGroupRead(gid);
             setMessages((prev) =>
                 appendGroupMessage(prev, {
                     id: p.id,
@@ -532,6 +560,7 @@ export default function Groups() {
                 scheduleGroupsListRefresh();
                 return prev;
             }
+            forgetGroupRead(gid);
             return bumpGroupInList(prev, gid, {
                 ...preview,
                 unread_count:
@@ -967,11 +996,7 @@ export default function Groups() {
         try {
             const data = await api(`/api/v1/groups/my?ts=${Date.now()}`, { auth: true });
             const arr = Array.isArray(data) ? data : [];
-            const activeGid = Number(selectedGroupIdRef.current || 0);
-            const activeDirect = Number(activeDirectIdRef.current || 0);
-            const next = arr.map((g) =>
-                Number(g.id) === activeGid && activeDirect === 0 ? { ...g, unread_count: 0 } : g
-            );
+            const next = arr.map((g) => patchGroupUnreadCount(g));
             setMyGroups(next);
             // subscribe to groups for realtime
             for (const g of arr) {
@@ -982,8 +1007,7 @@ export default function Groups() {
             // Only auto-select the first group ONCE ever.
             // Polling must not reset user's current selection.
             if (!didAutoSelectOnceRef.current && arr.length > 0 && selectedGroupIdRef.current === 0) {
-                didAutoSelectOnceRef.current = true;
-                setSelectedGroupId(arr[0].id);
+                openGroup(arr[0].id);
             }
         } catch (e) {
             setStatus("Топтарды жүктеу қатесі: " + (e.message || ""));
@@ -1190,6 +1214,10 @@ export default function Groups() {
     async function markGroupRead(groupId, lastMessageId) {
         const gid = Number(groupId || 0);
         if (!gid) return;
+        rememberGroupRead(gid);
+        setMyGroups((prev) =>
+            (prev || []).map((g) => (Number(g.id) === gid ? { ...g, unread_count: 0 } : g))
+        );
         try {
             await api(`/api/v1/groups/${gid}/read`, {
                 method: "POST",
@@ -1197,11 +1225,21 @@ export default function Groups() {
                 body: { last_message_id: Number(lastMessageId || 0) },
             });
         } catch {
-            /* ignore */
+            /* keep local read state; retry on next open */
         }
+    }
+
+    function openGroup(groupId) {
+        const gid = Number(groupId || 0);
+        if (!gid) return;
+        didAutoSelectOnceRef.current = true;
+        setActiveDirect(null);
+        setSelectedGroupId(gid);
+        rememberGroupRead(gid);
         setMyGroups((prev) =>
             (prev || []).map((g) => (Number(g.id) === gid ? { ...g, unread_count: 0 } : g))
         );
+        markGroupRead(gid, 0);
     }
 
     async function loadMessages(groupId) {
@@ -1264,15 +1302,12 @@ export default function Groups() {
         try {
             const data = await api(`/api/v1/groups/my?ts=${Date.now()}`, { auth: true });
             const arr = Array.isArray(data) ? data : [];
-            const activeGid = Number(selectedGroupIdRef.current || 0);
-            const activeDirect = Number(activeDirectIdRef.current || 0);
             setMyGroups((prev) => {
                 const prevMap = new Map((prev || []).map((g) => [Number(g.id), g]));
                 let changed = prev?.length !== arr.length;
                 const next = arr.map((g) => {
-                    const gid = Number(g.id);
-                    const patched =
-                        gid === activeGid && activeDirect === 0 ? { ...g, unread_count: 0 } : g;
+                    const patched = patchGroupUnreadCount(g);
+                    const gid = Number(patched.id);
                     const old = prevMap.get(gid);
                     if (
                         !old ||
@@ -1883,11 +1918,7 @@ export default function Groups() {
                                     archiveMode={showArchiveView}
                                     onArchive={() => archiveGroup(g.id)}
                                     onRestore={() => unarchiveGroup(g.id)}
-                                    onClick={() => {
-                                        didAutoSelectOnceRef.current = true;
-                                        setActiveDirect(null);
-                                        setSelectedGroupId(g.id);
-                                    }}
+                                    onClick={() => openGroup(g.id)}
                                     avatar={
                                         g.photo_url ? (
                                             <img

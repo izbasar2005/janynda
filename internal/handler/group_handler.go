@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -44,6 +45,55 @@ func isTherapistDoctor(db *gorm.DB, userID uint) bool {
 	var c int64
 	db.Model(&model.Doctor{}).Where("user_id = ? AND is_therapist = true", userID).Count(&c)
 	return c > 0
+}
+
+func (h *GroupHandler) latestGroupMessageID(groupID uint) uint {
+	var lastID uint
+	_ = h.db.Model(&model.GroupMessage{}).
+		Select("COALESCE(MAX(id),0)").
+		Where("group_id = ?", groupID).
+		Scan(&lastID).Error
+	return lastID
+}
+
+func (h *GroupHandler) upsertGroupChatRead(userID, groupID, lastMessageID uint) (model.GroupChatRead, bool, error) {
+	if lastMessageID == 0 {
+		lastMessageID = h.latestGroupMessageID(groupID)
+	}
+	var empty model.GroupChatRead
+	if lastMessageID == 0 {
+		return empty, false, nil
+	}
+
+	now := time.Now()
+	var read model.GroupChatRead
+	err := h.db.Where("user_id = ? AND group_id = ?", userID, groupID).First(&read).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		read = model.GroupChatRead{
+			UserID:        userID,
+			GroupID:       groupID,
+			LastMessageID: lastMessageID,
+			UpdatedAt:     now,
+		}
+		if err := h.db.Create(&read).Error; err != nil {
+			return read, false, err
+		}
+		return read, true, nil
+	}
+	if err != nil {
+		return read, false, err
+	}
+
+	if lastMessageID <= read.LastMessageID {
+		return read, false, nil
+	}
+
+	read.LastMessageID = lastMessageID
+	read.UpdatedAt = now
+	if err := h.db.Save(&read).Error; err != nil {
+		return read, false, err
+	}
+	return read, true, nil
 }
 
 // /api/v1/groups (GET, POST)
@@ -367,43 +417,20 @@ func (h *GroupHandler) MarkRead(w http.ResponseWriter, r *http.Request, groupID 
 		LastMessageID uint `json:"last_message_id"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&req)
-	lastID := req.LastMessageID
-	if lastID == 0 {
-		_ = h.db.Model(&model.GroupMessage{}).
-			Select("COALESCE(MAX(id),0)").
-			Where("group_id = ?", groupID).
-			Scan(&lastID).Error
-	}
-	if lastID == 0 {
-		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
+
+	read, changed, err := h.upsertGroupChatRead(userID, groupID, req.LastMessageID)
+	if err != nil {
+		http.Error(w, "DB error", http.StatusInternalServerError)
 		return
 	}
-	var read model.GroupChatRead
-	changed := false
-	if err := h.db.Where("user_id = ? AND group_id = ?", userID, groupID).First(&read).Error; err != nil {
-		read = model.GroupChatRead{
-			UserID:        userID,
-			GroupID:       groupID,
-			LastMessageID: lastID,
-		}
-		if err2 := h.db.Create(&read).Error; err2 == nil {
-			changed = true
-		}
-	} else if read.LastMessageID < lastID {
-		read.LastMessageID = lastID
-		if err2 := h.db.Save(&read).Error; err2 == nil {
-			changed = true
-		}
-	}
-	if changed && h.hub != nil {
-		_ = h.db.First(&read, read.ID).Error
+	if changed && h.hub != nil && read.LastMessageID > 0 {
 		h.hub.Broadcast(realtime.RoomKey("group", groupID), map[string]any{
 			"type":    "message:read",
 			"channel": "group",
 			"id":      groupID,
 			"payload": map[string]any{
 				"reader_user_id":  userID,
-				"last_message_id": lastID,
+				"last_message_id": read.LastMessageID,
 				"read_at":         read.UpdatedAt,
 			},
 		})
@@ -726,50 +753,25 @@ func (h *GroupHandler) ListMessages(w http.ResponseWriter, r *http.Request, grou
 	// mark as seen
 	var lastSeenID uint
 	var lastSeenAt time.Time
-	changedRead := false
-	var changedLastID uint
-	var changedAt time.Time
 	if len(list) > 0 {
 		lastID := list[len(list)-1].ID
-		var read model.GroupChatRead
-		if err := h.db.Where("user_id = ? AND group_id = ?", userID, groupID).First(&read).Error; err != nil {
-			read = model.GroupChatRead{
-				UserID:        userID,
-				GroupID:       groupID,
-				LastMessageID: lastID,
-			}
-			if err2 := h.db.Create(&read).Error; err2 == nil {
-				changedRead = true
-				changedLastID = lastID
-				changedAt = read.UpdatedAt
-			}
-		} else if read.LastMessageID < lastID {
-			changedRead = true
-			read.LastMessageID = lastID
-			if err2 := h.db.Save(&read).Error; err2 == nil {
-				changedLastID = lastID
-				changedAt = read.UpdatedAt
+		read, changedRead, err := h.upsertGroupChatRead(userID, groupID, lastID)
+		if err == nil {
+			lastSeenID = read.LastMessageID
+			lastSeenAt = read.UpdatedAt
+			if changedRead && h.hub != nil && read.LastMessageID > 0 {
+				h.hub.Broadcast(realtime.RoomKey("group", groupID), map[string]any{
+					"type":    "message:read",
+					"channel": "group",
+					"id":      groupID,
+					"payload": map[string]any{
+						"reader_user_id":  userID,
+						"last_message_id": read.LastMessageID,
+						"read_at":         read.UpdatedAt,
+					},
+				})
 			}
 		}
-		lastSeenID = read.LastMessageID
-		lastSeenAt = read.UpdatedAt
-	}
-
-	// broadcast read progress so senders can update receipts
-	if changedRead && h.hub != nil && changedLastID > 0 {
-		if changedAt.IsZero() {
-			changedAt = time.Now()
-		}
-		h.hub.Broadcast(realtime.RoomKey("group", groupID), map[string]any{
-			"type":    "message:read",
-			"channel": "group",
-			"id":      groupID,
-			"payload": map[string]any{
-				"reader_user_id":  userID,
-				"last_message_id": changedLastID,
-				"read_at":         changedAt,
-			},
-		})
 	}
 
 		// Readers for each message:
